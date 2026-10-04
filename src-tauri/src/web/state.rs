@@ -125,6 +125,24 @@ pub fn bootstrap() -> Option<Arc<AppState>> {
 
     let state = AppState::new(db);
 
+    // 注册进程级 AppState 与托管 OAuth 管理器：转发链路（含故障转移切换）
+    // 从注册表取，服务端没有 Tauri 的 `.manage()` 容器。
+    crate::store::set_current(Arc::new(state.clone()));
+    {
+        let app_config_dir = crate::config::get_app_config_dir();
+        let copilot = Arc::new(tokio::sync::RwLock::new(
+            crate::proxy::providers::copilot_auth::CopilotAuthManager::new(app_config_dir.clone()),
+        ));
+        crate::proxy::oauth_registry::set_copilot(copilot);
+
+        let xai = Arc::new(tokio::sync::RwLock::new(
+            crate::proxy::providers::xai_oauth_auth::XaiOAuthManager::new(app_config_dir),
+        ));
+        crate::proxy::oauth_registry::set_xai(xai);
+
+        crate::proxy::oauth_registry::set_codex(state.codex_oauth_manager.clone());
+    }
+
     // 7. 补完上次崩溃时写到一半的客户端文件；必须在任何写客户端文件的步骤之前
     crate::mode::operation::recover_on_startup(&state.db);
 

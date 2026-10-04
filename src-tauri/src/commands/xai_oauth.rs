@@ -1,14 +1,16 @@
 //! xAI OAuth state and xAI-specific commands.
 
+use crate::proxy::providers::xai_oauth_auth::XaiOAuthManager;
 use crate::proxy::providers::XAI_API_BASE_URL;
 use crate::services::model_fetch::FetchedModel;
 use crate::services::subscription::{CredentialStatus, SubscriptionQuota};
 use serde::Deserialize;
+use std::sync::Arc;
 use std::time::Duration;
 use tauri::State;
+use tokio::sync::RwLock;
 
-// 定义在 `crate::managed_state`（服务端构建同样需要），这里转出保持命令签名不变。
-pub use crate::managed_state::XaiOAuthState;
+pub struct XaiOAuthState(pub Arc<RwLock<XaiOAuthManager>>);
 
 /// 查询 xAI OAuth (SuperGrok 反代) 订阅额度的共享核心
 ///

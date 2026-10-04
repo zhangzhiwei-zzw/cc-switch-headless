@@ -1,30 +1,27 @@
 //! 宿主环境抽象：桌面版是 Tauri，服务端（`server` feature）没有 Tauri。
 //!
-//! 代理转发链路（`proxy/forwarder.rs`）需要从宿主里取几个通过 `.manage()` 注册的
-//! 认证管理器（Copilot / Codex OAuth / xAI OAuth）。桌面版用
-//! `AppHandle::state::<T>()`；服务端没有这套容器——服务端模式下 `ProxyService`
-//! 不会启动本地代理，凡是被 `HostHandle` 持有的地方都恒为 `None`。
+//! 共享代码（代理转发、自动同步、后台任务）需要的宿主能力只有两类：
+//! 1. 异步运行时——见下面的运行时辅助；
+//! 2. 可选的 `AppHandle`——只用于托盘等**纯桌面**能力，见 [`handle`]。
 //!
-//! 因此服务端的 `HostHandle` 用**不可构造类型**（`Infallible` 字段）建模：
-//! [`HostHandle::state`] 的 `match` 分支在类型上不可达，编译通过即可，
-//! 运行时永远不会执行。
+//! 服务端模式下 [`handle`] 恒为 `None`，调用点要么已经 `#[cfg]` 掉，要么按
+//! "没有托盘"降级处理。
 
 #[cfg(feature = "desktop")]
-pub type HostHandle = tauri::AppHandle;
+static APP_HANDLE: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 
-/// 服务端模式的宿主句柄：不存在实例，仅用于让共享代码通过类型检查。
-#[cfg(not(feature = "desktop"))]
-#[derive(Clone, Debug)]
-pub struct HostHandle(std::convert::Infallible);
-
-#[cfg(not(feature = "desktop"))]
-impl HostHandle {
-    /// 取一个 `.manage()` 状态（与 `tauri::Manager::state` 同名同形）。
-    ///
-    /// `HostHandle` 无法构造，所以这里不可达。
-    pub fn state<T>(&self) -> &T {
-        match self.0 {}
+/// 注册桌面版 AppHandle（`setup` 里调用一次）。
+#[cfg(feature = "desktop")]
+pub fn set_handle(handle: tauri::AppHandle) {
+    if APP_HANDLE.set(handle).is_err() {
+        log::warn!("[host] AppHandle 重复注册，已忽略");
     }
+}
+
+/// 取桌面版 AppHandle；服务端没有这个类型，因此该函数只在桌面构建里存在。
+#[cfg(feature = "desktop")]
+pub fn handle() -> Option<tauri::AppHandle> {
+    APP_HANDLE.get().cloned()
 }
 
 // ============================================================================

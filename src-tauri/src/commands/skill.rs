@@ -13,11 +13,12 @@ use crate::services::skill::{
 };
 use crate::store::AppState;
 use std::str::FromStr;
+use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
-// 定义在 `crate::managed_state`（服务端构建同样需要），这里转出保持命令签名不变。
-pub use crate::managed_state::SkillServiceState;
+/// SkillService 状态包装
+pub struct SkillServiceState(pub Arc<SkillService>);
 
 /// 解析 app 参数为 AppType
 fn parse_app_type(app: &str) -> Result<AppType, String> {

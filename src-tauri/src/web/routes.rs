@@ -5,8 +5,10 @@
 //! 薄封装（解析参数 → 调 service 层）在这里重写一遍——业务逻辑仍然只有一份，
 //! 在 `services/` 里。
 //!
-//! PoC 阶段只实现「启动 + 供应商页」所需的命令。未实现的命令返回
-//! `E_NOT_IMPLEMENTED:<cmd>`，前端会以普通错误提示，不会白屏。
+//! 目前实现的范围：启动链路、供应商页、设置保存、本地路由（代理）与故障转移队列。
+//! 未实现的命令返回 `E_NOT_IMPLEMENTED:<cmd>`，前端会以普通错误提示，不会白屏。
+//! 凡是命令体里有真实逻辑的（如故障转移的开启流程），逻辑都放在 `services/` 里
+//! 由两种构建共用——这里只做参数解析与调用。
 
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -129,11 +131,62 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             ensure_grokbuild_official_provider as Handler,
         );
 
-        // ---- 代理状态（服务端不跑本地代理，但界面要能渲染）----
+        // ---- 代理状态 / 本地路由 ----
         table.insert("get_proxy_status", get_proxy_status as Handler);
         table.insert(
             "get_proxy_takeover_status",
             get_proxy_takeover_status as Handler,
+        );
+        table.insert("start_proxy_server", start_proxy_server as Handler);
+        table.insert("stop_proxy_server", stop_proxy_server as Handler);
+        table.insert(
+            "stop_proxy_with_restore",
+            stop_proxy_with_restore as Handler,
+        );
+        table.insert(
+            "get_global_proxy_config",
+            get_global_proxy_config as Handler,
+        );
+        table.insert(
+            "update_global_proxy_config",
+            update_global_proxy_config as Handler,
+        );
+        table.insert(
+            "get_proxy_config_for_app",
+            get_proxy_config_for_app as Handler,
+        );
+        table.insert(
+            "update_proxy_config_for_app",
+            update_proxy_config_for_app as Handler,
+        );
+
+        // ---- 模式（直连 / 路由）----
+        table.insert("get_app_mode", get_app_mode as Handler);
+        table.insert(
+            "set_proxy_takeover_for_app",
+            set_proxy_takeover_for_app as Handler,
+        );
+        table.insert("set_proxy_route", set_proxy_route as Handler);
+        table.insert("get_direct_provider", get_direct_provider as Handler);
+
+        // ---- 故障转移队列 ----
+        table.insert("get_failover_queue", get_failover_queue as Handler);
+        table.insert(
+            "get_available_providers_for_failover",
+            get_available_providers_for_failover as Handler,
+        );
+        table.insert("add_to_failover_queue", add_to_failover_queue as Handler);
+        table.insert(
+            "remove_from_failover_queue",
+            remove_from_failover_queue as Handler,
+        );
+        table.insert(
+            "get_auto_failover_enabled",
+            get_auto_failover_enabled as Handler,
+        );
+        table.insert(
+            "set_auto_failover_enabled",
+            set_auto_failover_enabled as Handler,
         );
 
         table
@@ -571,5 +624,347 @@ fn get_proxy_takeover_status(context: Arc<Context>, _args: Value) -> HandlerFutu
         let state = context.require_state()?;
         let status = state.proxy_service.get_takeover_status().await?;
         serializable(status)
+    })
+}
+
+// ============================================================================
+// 本地路由（代理）
+// ============================================================================
+
+/// 只有支持本地路由的应用才有代理配置与模式。
+fn require_proxy_app(app_type: &str) -> Result<AppType, String> {
+    let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
+    if !app.supports_local_proxy() {
+        return Err(format!("{} 不支持本地路由", app.as_str()));
+    }
+    Ok(app)
+}
+
+fn start_proxy_server(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        let info = state.proxy_service.start().await?;
+        serializable(info)
+    })
+}
+
+fn stop_proxy_server(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        // 与桌面版一致：还有应用处于接管状态时先不停止，避免 CLI 指向一个已关闭的端口
+        let takeover = state.proxy_service.get_takeover_status().await?;
+        if takeover.claude
+            || takeover.codex
+            || takeover.gemini
+            || takeover.grokbuild
+            || takeover.opencode
+            || takeover.openclaw
+        {
+            return Err(
+                "仍有应用处于代理接管状态，请先在设置中关闭对应应用接管后再停止本地路由。"
+                    .to_string(),
+            );
+        }
+        state.proxy_service.stop().await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+/// 关闭本地路由：所有应用退回直连，再停止代理服务器。
+fn stop_proxy_with_restore(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        crate::mode::controller::exit_all(&state).await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+fn get_global_proxy_config(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        let config = state
+            .db
+            .get_global_proxy_config()
+            .await
+            .map_err(|e| e.to_string())?;
+        serializable(config)
+    })
+}
+
+fn update_global_proxy_config(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            config: crate::proxy::types::GlobalProxyConfig,
+        }
+        let Args { config } = parse(args)?;
+        let state = context.require_state()?;
+
+        // 地址/端口变了就重启服务，并按新地址重写接上路由的客户端
+        let restarted = state.proxy_service.update_global_config(&config).await?;
+        if restarted {
+            crate::mode::controller::resync_routes(&state).await?;
+        }
+        Ok(Value::Bool(true))
+    })
+}
+
+fn get_proxy_config_for_app(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        require_proxy_app(&app_type)?;
+
+        let state = context.require_state()?;
+        let config = state
+            .db
+            .get_proxy_config_for_app(&app_type)
+            .await
+            .map_err(|e| e.to_string())?;
+        serializable(config)
+    })
+}
+
+fn update_proxy_config_for_app(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            config: crate::proxy::types::AppProxyConfig,
+        }
+        let Args { config } = parse(args)?;
+        let state = context.require_state()?;
+
+        let app_type = config.app_type.clone();
+        let app = require_proxy_app(&app_type)?;
+        let circuit_config = crate::proxy::CircuitBreakerConfig::from(&config);
+
+        let mut config = config;
+        // `enabled` 是模式的镜像，只由进入 / 退出代理改写
+        config.enabled = crate::mode::current::is_proxy(&app);
+
+        state
+            .db
+            .update_proxy_config_for_app(config)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        state
+            .proxy_service
+            .update_circuit_breaker_config_for_app(&app_type, circuit_config)
+            .await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+// ============================================================================
+// 模式（直连 / 路由）
+// ============================================================================
+
+fn get_app_mode(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        let app = require_proxy_app(&app_type)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            let view =
+                crate::mode::controller::app_mode_view(&state, &app).map_err(|e| e.to_string())?;
+            serializable(view)
+        })
+        .await
+    })
+}
+
+fn set_proxy_takeover_for_app(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+            enabled: bool,
+            stack: Option<bool>,
+            route: Option<String>,
+        }
+        let Args {
+            app_type,
+            enabled,
+            stack,
+            route,
+        } = parse(args)?;
+        let app = require_proxy_app(&app_type)?;
+        let state = context.require_state()?;
+
+        if enabled {
+            crate::mode::controller::enter_with_route(
+                &state,
+                &app,
+                stack.unwrap_or(false),
+                route.as_deref(),
+            )
+            .await?;
+        } else {
+            crate::mode::controller::exit(&state, &app).await?;
+        }
+        Ok(Value::Bool(true))
+    })
+}
+
+fn set_proxy_route(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+            provider_id: String,
+        }
+        let Args {
+            app_type,
+            provider_id,
+        } = parse(args)?;
+        let app = require_proxy_app(&app_type)?;
+        let state = context.require_state()?;
+
+        crate::mode::controller::set_route(&state, &app, &provider_id).await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+fn get_direct_provider(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        let app = require_proxy_app(&app_type)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            let provider_id = crate::mode::controller::direct_provider_id(&state, &app)
+                .map_err(|e| e.to_string())?;
+            serializable(provider_id)
+        })
+        .await
+    })
+}
+
+// ============================================================================
+// 故障转移队列（与桌面命令共用 `services::failover`）
+// ============================================================================
+
+fn get_failover_queue(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        let state = context.require_state()?;
+        let queue = crate::services::failover::get_queue(&state, &app_type).await?;
+        serializable(queue)
+    })
+}
+
+fn get_available_providers_for_failover(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        let state = context.require_state()?;
+        let providers =
+            crate::services::failover::get_available_providers(&state, &app_type).await?;
+        serializable(providers)
+    })
+}
+
+fn add_to_failover_queue(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+            provider_id: String,
+        }
+        let Args {
+            app_type,
+            provider_id,
+        } = parse(args)?;
+        let state = context.require_state()?;
+        crate::services::failover::add(&state, &app_type, &provider_id).await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+fn remove_from_failover_queue(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+            provider_id: String,
+        }
+        let Args {
+            app_type,
+            provider_id,
+        } = parse(args)?;
+        let state = context.require_state()?;
+        crate::services::failover::remove(&state, &app_type, &provider_id).await?;
+        Ok(Value::Bool(true))
+    })
+}
+
+fn get_auto_failover_enabled(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+        }
+        let Args { app_type } = parse(args)?;
+        let state = context.require_state()?;
+        let enabled = crate::services::failover::auto_failover_enabled(&state, &app_type).await?;
+        serializable(enabled)
+    })
+}
+
+fn set_auto_failover_enabled(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            app_type: String,
+            enabled: bool,
+        }
+        let Args { app_type, enabled } = parse(args)?;
+        let state = context.require_state()?;
+
+        let p1_provider_id =
+            crate::services::failover::set_auto_failover_enabled(&state, &app_type, enabled)
+                .await?;
+
+        if let Some(provider_id) = p1_provider_id {
+            // 与桌面命令同名同 payload：前端据此刷新当前供应商
+            crate::event_sink::emit(
+                "provider-switched",
+                json!({
+                    "appType": app_type,
+                    "providerId": provider_id,
+                    "source": "failoverEnabled"
+                }),
+            );
+        }
+        Ok(Value::Bool(true))
     })
 }

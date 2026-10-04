@@ -44,8 +44,6 @@ pub struct ProxyState {
     pub gemini_shadow: Arc<GeminiShadowStore>,
     /// Codex Chat bridge history，用于恢复 previous_response_id 指向的 tool call
     pub codex_chat_history: Arc<CodexChatHistoryStore>,
-    /// 宿主句柄（桌面版 = AppHandle），用于发射事件和更新托盘菜单
-    pub app_handle: Option<crate::host::HostHandle>,
     /// 故障转移切换管理器
     pub failover_manager: Arc<FailoverSwitchManager>,
 }
@@ -63,16 +61,12 @@ pub struct ProxyServer {
 impl ProxyState {
     /// 测试用：用这个数据库、其余都是默认值的状态。
     pub(crate) fn for_test(db: Arc<Database>) -> Self {
-        ProxyServer::new(ProxyConfig::default(), db, None).state
+        ProxyServer::new(ProxyConfig::default(), db).state
     }
 }
 
 impl ProxyServer {
-    pub fn new(
-        config: ProxyConfig,
-        db: Arc<Database>,
-        app_handle: Option<crate::host::HostHandle>,
-    ) -> Self {
+    pub fn new(config: ProxyConfig, db: Arc<Database>) -> Self {
         // 创建共享的 ProviderRouter（熔断器状态将跨所有请求保持）
         let provider_router = Arc::new(ProviderRouter::new(db.clone()));
         // 创建故障转移切换管理器
@@ -87,7 +81,6 @@ impl ProxyServer {
             provider_router,
             gemini_shadow: Arc::new(GeminiShadowStore::default()),
             codex_chat_history: Arc::new(CodexChatHistoryStore::default()),
-            app_handle,
             failover_manager,
         };
 
@@ -485,7 +478,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db,
-            None,
         );
         let proxy_info = proxy.start().await.expect("start test proxy");
         let client = reqwest::Client::new();
@@ -566,7 +558,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db.clone(),
-            None,
         );
         let proxy_info = proxy.start().await.expect("start test proxy");
         let client = reqwest::Client::new();
@@ -742,7 +733,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db.clone(),
-            None,
         );
         let proxy_info = proxy.start().await.expect("start test proxy");
         let client = reqwest::Client::new();
@@ -952,7 +942,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db.clone(),
-            None,
         );
         let proxy_info = proxy.start().await.expect("start test proxy");
         let client = reqwest::Client::new();
@@ -1177,7 +1166,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db.clone(),
-            None,
         );
         let proxy_info = proxy.start().await.expect("start test proxy");
         let client = reqwest::Client::new();

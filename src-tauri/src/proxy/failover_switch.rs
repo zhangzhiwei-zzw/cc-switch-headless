@@ -2,14 +2,12 @@
 //!
 //! 处理故障转移成功后的供应商切换逻辑，包括：
 //! - 去重控制（避免多个请求同时触发）
-//! - 托盘菜单更新
-//! - 前端事件发射
+//! - 托盘菜单更新（仅桌面版）
+//! - 前端事件发射（经 `event_sink`，两种构建一致）
 
 use crate::error::AppError;
 use std::collections::HashSet;
 use std::sync::Arc;
-#[cfg(feature = "desktop")]
-use tauri::{Emitter, Manager};
 use tokio::sync::RwLock;
 
 /// 故障转移切换管理器
@@ -34,11 +32,10 @@ impl FailoverSwitchManager {
     ///
     /// # Returns
     /// - `Ok(true)` - 切换成功执行
-    /// - `Ok(false)` - 切换已在进行中，跳过
+    /// - `Ok(false)` - 切换已在进行中，或当前不具备切换条件
     /// - `Err(e)` - 切换过程中发生错误
     pub async fn try_switch(
         &self,
-        app_handle: Option<&crate::host::HostHandle>,
         app_type: &str,
         provider_id: &str,
         provider_name: &str,
@@ -56,9 +53,7 @@ impl FailoverSwitchManager {
         }
 
         // 执行切换（确保最后清理 pending 标记）
-        let result = self
-            .do_switch(app_handle, app_type, provider_id, provider_name)
-            .await;
+        let result = self.do_switch(app_type, provider_id, provider_name).await;
 
         // 清理 pending 标记
         {
@@ -69,10 +64,8 @@ impl FailoverSwitchManager {
         result
     }
 
-    #[cfg(feature = "desktop")]
     async fn do_switch(
         &self,
-        app_handle: Option<&crate::host::HostHandle>,
         app_type: &str,
         provider_id: &str,
         provider_name: &str,
@@ -86,57 +79,46 @@ impl FailoverSwitchManager {
             return Ok(false);
         }
 
+        // AppState 由启动流程注册（桌面版 setup / 服务端 bootstrap）。
+        let Some(app_state) = crate::store::current() else {
+            log::warn!("[Failover] AppState 尚未注册，跳过切换");
+            return Ok(false);
+        };
+
         log::info!("[FO-001] 切换: {app_type} → {provider_name}");
 
-        let mut switched = false;
-
-        if let Some(app) = app_handle {
-            if let Some(app_state) = app.try_state::<crate::store::AppState>() {
-                // 只换代理的路由，不写客户端文件。
-                switched = crate::mode::controller::record_failover_route(
-                    app_state.inner(),
-                    &app_enum,
-                    provider_id,
-                )
+        // 只换代理的路由，不写客户端文件。
+        let switched =
+            crate::mode::controller::record_failover_route(&app_state, &app_enum, provider_id)
                 .await
                 .map_err(AppError::Message)?;
 
-                if !switched {
-                    return Ok(false);
-                }
+        if !switched {
+            return Ok(false);
+        }
 
-                if let Ok(new_menu) = crate::tray::create_tray_menu(app, app_state.inner()) {
-                    if let Some(tray) = app.tray_by_id(crate::tray::TRAY_ID) {
-                        if let Err(e) = tray.set_menu(Some(new_menu)) {
-                            log::error!("[Failover] 更新托盘菜单失败: {e}");
-                        }
+        // 托盘菜单只存在于桌面版；服务端没有可刷新的托盘。
+        #[cfg(feature = "desktop")]
+        if let Some(handle) = crate::host::handle() {
+            if let Ok(new_menu) = crate::tray::create_tray_menu(&handle, &app_state) {
+                if let Some(tray) = handle.tray_by_id(crate::tray::TRAY_ID) {
+                    if let Err(error) = tray.set_menu(Some(new_menu)) {
+                        log::error!("[Failover] 更新托盘菜单失败: {error}");
                     }
                 }
             }
+        }
 
-            // 发射事件到前端
-            let event_data = serde_json::json!({
+        // 发射事件到前端（两种构建同名同 payload）
+        crate::event_sink::emit(
+            "provider-switched",
+            serde_json::json!({
                 "appType": app_type,
                 "providerId": provider_id,
                 "source": "failover"  // 标识来源是故障转移
-            });
-            if let Err(e) = app.emit("provider-switched", event_data) {
-                log::error!("[Failover] 发射事件失败: {e}");
-            }
-        }
+            }),
+        );
 
-        Ok(switched)
-    }
-
-    /// 服务端模式不启动本地代理（`ProxyService::start` 直接置错），故障转移不适用。
-    #[cfg(not(feature = "desktop"))]
-    async fn do_switch(
-        &self,
-        _app_handle: Option<&crate::host::HostHandle>,
-        _app_type: &str,
-        _provider_id: &str,
-        _provider_name: &str,
-    ) -> Result<bool, AppError> {
-        Ok(false)
+        Ok(true)
     }
 }

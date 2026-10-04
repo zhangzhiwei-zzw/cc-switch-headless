@@ -31,7 +31,6 @@ mod lightweight;
 #[cfg(all(target_os = "linux", feature = "desktop"))]
 mod linux_fix;
 pub mod live;
-mod managed_state;
 mod mcode_config;
 mod mcp;
 pub mod mode;
@@ -692,8 +691,10 @@ pub fn run() {
 
             let app_state = AppState::new(db);
 
-            // 设置 AppHandle 用于代理故障转移时的 UI 更新
-            app_state.proxy_service.set_app_handle(app.handle().clone());
+            // 注册宿主句柄（托盘等纯桌面能力）与进程级 AppState：
+            // 代理转发链路（故障转移切换）不再依赖 AppHandle，改为从注册表取。
+            crate::host::set_handle(app.handle().clone());
+            crate::store::set_current(Arc::new(app_state.clone()));
 
             // 补完上次崩溃时写到一半的客户端文件（写前意图在 ~/.cc-switch/live-state.json），
             // 要在任何写客户端文件的启动步骤之前。
@@ -1190,7 +1191,10 @@ pub fn run() {
 
                 let app_config_dir = crate::config::get_app_config_dir();
                 let copilot_auth_manager = CopilotAuthManager::new(app_config_dir);
-                app.manage(CopilotAuthState(Arc::new(RwLock::new(copilot_auth_manager))));
+                let copilot_state = Arc::new(RwLock::new(copilot_auth_manager));
+                // 转发链路从注册表取，不再依赖 Tauri 状态容器
+                crate::proxy::oauth_registry::set_copilot(copilot_state.clone());
+                app.manage(CopilotAuthState(copilot_state));
                 log::info!("✓ CopilotAuthManager initialized");
             }
 
@@ -1200,6 +1204,7 @@ pub fn run() {
 
                 let codex_oauth_manager =
                     app.state::<AppState>().codex_oauth_manager.clone();
+                crate::proxy::oauth_registry::set_codex(codex_oauth_manager.clone());
                 app.manage(CodexOAuthState(codex_oauth_manager));
                 log::info!("✓ CodexOAuthManager initialized");
             }
@@ -1212,7 +1217,9 @@ pub fn run() {
 
                 let app_config_dir = crate::config::get_app_config_dir();
                 let xai_oauth_manager = XaiOAuthManager::new(app_config_dir);
-                app.manage(XaiOAuthState(Arc::new(RwLock::new(xai_oauth_manager))));
+                let xai_state = Arc::new(RwLock::new(xai_oauth_manager));
+                crate::proxy::oauth_registry::set_xai(xai_state.clone());
+                app.manage(XaiOAuthState(xai_state));
                 log::info!("✓ XaiOAuthManager initialized");
             }
 

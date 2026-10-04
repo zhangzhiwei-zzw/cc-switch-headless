@@ -15,21 +15,10 @@ use tokio::sync::RwLock;
 
 use crate::live::project::claude::PROXY_TOKEN_PLACEHOLDER;
 
-/// 本地代理路由是否可用。服务端（`server` feature）没有 Tauri 宿主，
-/// 代理服务器依赖的托盘/窗口联动无法工作，因此暂不支持；用常量而不是
-/// `#[cfg]` 分支是为了让编译器保留整段启动逻辑（避免大片 unreachable/dead_code 警告）。
-#[cfg(feature = "desktop")]
-const LOCAL_PROXY_SUPPORTED: bool = true;
-#[cfg(not(feature = "desktop"))]
-const LOCAL_PROXY_SUPPORTED: bool = false;
-
 #[derive(Clone)]
 pub struct ProxyService {
     db: Arc<Database>,
     server: Arc<RwLock<Option<ProxyServer>>>,
-    /// 宿主句柄（桌面版 = AppHandle），用于传递给 ProxyServer 以支持故障转移时的 UI 更新。
-    /// 服务端模式下恒为 `None`（没有 Tauri 宿主）。
-    app_handle: Arc<RwLock<Option<crate::host::HostHandle>>>,
     switch_locks: SwitchLockManager,
 }
 
@@ -69,16 +58,8 @@ impl ProxyService {
         Self {
             db,
             server: Arc::new(RwLock::new(None)),
-            app_handle: Arc::new(RwLock::new(None)),
             switch_locks: SwitchLockManager::new(),
         }
-    }
-
-    /// 设置宿主句柄（在应用初始化时调用；服务端模式不会调用）
-    pub fn set_app_handle(&self, handle: crate::host::HostHandle) {
-        futures::executor::block_on(async {
-            *self.app_handle.write().await = Some(handle);
-        });
     }
 
     pub(crate) async fn lock_switch_for_app(
@@ -102,20 +83,15 @@ impl ProxyService {
         result
     }
 
-    /// 托盘在后台线程比对、变了才重建，这里不等它。
+    /// 托盘在后台线程比对、变了才重建，这里不等它。服务端没有托盘。
     async fn notify_tray(&self) {
         #[cfg(feature = "desktop")]
-        if let Some(handle) = self.app_handle.read().await.as_ref() {
-            crate::tray::schedule_tray_status_check(handle);
+        if let Some(handle) = crate::host::handle() {
+            crate::tray::schedule_tray_status_check(&handle);
         }
     }
 
     async fn start_server(&self) -> Result<ProxyServerInfo, String> {
-        // 服务端（web 模式）没有 Tauri 宿主，本地代理路由留到后续阶段。
-        if !LOCAL_PROXY_SUPPORTED {
-            return Err("Web 模式暂不支持本地代理路由".to_string());
-        }
-
         // 1. 启动时自动设置 proxy_enabled = true
         let mut global_config = self
             .db
@@ -150,8 +126,7 @@ impl ProxyService {
         }
 
         // 4. 创建并启动服务器
-        let app_handle = self.app_handle.read().await.clone();
-        let server = ProxyServer::new(config.clone(), self.db.clone(), app_handle);
+        let server = ProxyServer::new(config.clone(), self.db.clone());
         let info = server
             .start()
             .await
@@ -576,8 +551,7 @@ impl ProxyService {
 
     /// 按 `config` 起一个新服务，动态端口回写进库。
     async fn start_with(&self, config: &ProxyConfig) -> Result<ProxyServer, String> {
-        let app_handle = self.app_handle.read().await.clone();
-        let server = ProxyServer::new(config.clone(), self.db.clone(), app_handle);
+        let server = ProxyServer::new(config.clone(), self.db.clone());
         let info = server.start().await.map_err(|e| e.to_string())?;
         if let Err(e) = self
             .persist_ephemeral_listen_port_if_needed(config, info.port)
