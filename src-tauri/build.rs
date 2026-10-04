@@ -1,4 +1,7 @@
 fn main() {
+    // tauri-build 只在桌面版（default feature）编译；server 模式没有 tauri 依赖，
+    // 也不需要生成上下文/资源清单。
+    #[cfg(feature = "desktop")]
     tauri_build::build();
 
     // Windows: Embed Common Controls v6 manifest for test binaries

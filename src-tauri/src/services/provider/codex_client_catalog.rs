@@ -153,7 +153,7 @@ fn run_restart(timeout: Duration) -> Result<Output, String> {
     // 重启的必须是读 CC Switch 写的这份配置的守护进程（配置目录可能被覆盖到别处）。
     let codex_dir = get_codex_config_dir();
     let extra_env = [("CODEX_HOME", codex_dir.to_string_lossy().into_owned())];
-    crate::commands::run_detected_tool_command_with_timeout(
+    crate::host::run_tool_command(
         "codex",
         &["app-server", "daemon", "restart"],
         Some(timeout),
@@ -385,9 +385,9 @@ pub(crate) fn restart_daemon() -> Result<RestartOutcome, String> {
         return Ok(RestartOutcome::NotRunning);
     }
     let output = (env.restart)(restart_timeout())?;
-    let stdout = crate::commands::decode_command_output(&output.stdout);
+    let stdout = crate::host::decode_command_output(&output.stdout);
     if !output.status.success() {
-        let stderr = crate::commands::decode_command_output(&output.stderr);
+        let stderr = crate::host::decode_command_output(&output.stderr);
         let detail = if stderr.trim().is_empty() {
             stdout.trim()
         } else {

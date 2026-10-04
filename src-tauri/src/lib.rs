@@ -1,3 +1,8 @@
+// 服务端（web 模式）只接入了部分命令（见 `web/routes.rs`），大量业务模块
+// 暂时"编译了但没被调用"，dead_code 警告会淹没真实问题——这里集中放行，
+// 等命令逐个接入后再撤掉。
+#![cfg_attr(feature = "server", allow(dead_code))]
+
 mod app_config;
 mod app_store;
 mod auto_launch;
@@ -7,21 +12,26 @@ mod claude_plugin;
 mod codex_config;
 mod codex_history_migration;
 mod codex_state_db;
+#[cfg(feature = "desktop")]
 mod commands;
 mod config;
 mod database;
 mod deeplink;
 mod error;
+mod event_sink;
 mod gemini_config;
 mod gemini_mcp;
 mod grok_config;
 pub mod hermes_config;
+mod host;
 mod init_status;
 mod jsonc_document;
+#[cfg(feature = "desktop")]
 mod lightweight;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "desktop"))]
 mod linux_fix;
 pub mod live;
+mod managed_state;
 mod mcode_config;
 mod mcp;
 pub mod mode;
@@ -39,16 +49,21 @@ mod session_manager;
 mod settings;
 mod store;
 
+#[cfg(feature = "desktop")]
 mod tray;
 mod usage_events;
 mod usage_script;
+#[cfg(feature = "server")]
+pub mod web;
 
 pub use app_config::{AppType, InstalledSkill, McpApps, McpServer, MultiAppConfig, SkillApps};
 pub use codex_config::{
     extract_codex_experimental_bearer_token, get_codex_auth_path, get_codex_config_path,
     read_codex_live_settings, write_codex_live_atomic,
 };
+#[cfg(feature = "desktop")]
 pub use commands::open_provider_terminal;
+#[cfg(feature = "desktop")]
 pub use commands::*;
 pub use config::{get_claude_mcp_path, get_claude_settings_path, read_json_file};
 pub use database::{Database, Profile};
@@ -73,17 +88,26 @@ pub use services::{
 };
 pub use settings::{update_settings, AppSettings};
 pub use store::AppState;
+#[cfg(feature = "desktop")]
 use tauri_plugin_deep_link::DeepLinkExt;
+#[cfg(feature = "desktop")]
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
+use std::fmt;
+#[cfg(feature = "desktop")]
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{fmt, sync::Arc};
+#[cfg(feature = "desktop")]
+use std::sync::Arc;
+#[cfg(feature = "desktop")]
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+#[cfg(feature = "desktop")]
 use tauri::RunEvent;
+#[cfg(feature = "desktop")]
 use tauri::{Emitter, Manager};
+#[cfg(feature = "desktop")]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "desktop"))]
 fn set_windows_app_user_model_id(app: &tauri::AppHandle) {
     let app_id = app.config().identifier.clone();
     let wide_app_id: Vec<u16> = app_id.encode_utf16().chain(std::iter::once(0)).collect();
@@ -235,6 +259,7 @@ pub(crate) fn redact_url_origin_for_log(url_str: &str) -> String {
     }
 }
 
+#[cfg(feature = "desktop")]
 fn runtime_log_level_allows(level: log::Level, max_level: log::LevelFilter) -> bool {
     max_level.to_level().is_some_and(|maximum| level <= maximum)
 }
@@ -244,6 +269,7 @@ fn runtime_log_level_allows(level: log::Level, max_level: log::LevelFilter) -> b
 /// - 解析 URL
 /// - 向前端发射 `deeplink-import` / `deeplink-error` 事件
 /// - 可选：在成功时聚焦主窗口
+#[cfg(feature = "desktop")]
 fn handle_deeplink_url(
     app: &tauri::AppHandle,
     url_str: &str,
@@ -311,6 +337,7 @@ fn handle_deeplink_url(
 
 /// 更新托盘菜单的Tauri命令
 #[tauri::command]
+#[cfg(feature = "desktop")]
 async fn update_tray_menu(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
@@ -331,6 +358,8 @@ async fn update_tray_menu(
     }
 }
 
+/// 桌面应用的入口。服务端模式的入口在 [`web::run`]。
+#[cfg(feature = "desktop")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.cc-switch/crash.log）
@@ -513,10 +542,19 @@ pub fn run() {
                 }
             }
 
-            // 注入 AppHandle 给 usage_events，让无 AppHandle 持有的写日志路径
-            // 也能向前端推送 `usage-log-recorded`。
-            // 放在日志系统初始化之后，确保 init 的日志能正常输出。
-            usage_events::init(app.handle().clone());
+            // 安装全局事件出口：桌面版把事件交给 AppHandle.emit，
+            // 服务端（web 模式）交给 SSE 广播。业务层（usage_events、自动同步、
+            // 代理故障转移……）只依赖出口，不再各自持有 AppHandle。
+            // 放在日志系统初始化之后，确保安装日志能正常输出。
+            {
+                let handle = app.handle().clone();
+                event_sink::set_sink(Box::new(move |event, payload| {
+                    if let Err(error) = handle.emit(event, payload) {
+                        log::warn!("发送事件 {event} 失败: {error}");
+                    }
+                }));
+            }
+            usage_events::init();
 
             // 初始化数据库
             let app_config_dir = crate::config::get_app_config_dir();
@@ -1135,14 +1173,8 @@ pub fn run() {
             }
 
             let _tray = tray_builder.build(app)?;
-            crate::services::webdav_auto_sync::start_worker(
-                app_state.db.clone(),
-                app.handle().clone(),
-            );
-            crate::services::s3_auto_sync::start_worker(
-                app_state.db.clone(),
-                app.handle().clone(),
-            );
+            crate::services::webdav_auto_sync::start_worker(app_state.db.clone());
+            crate::services::s3_auto_sync::start_worker(app_state.db.clone());
             // 将同一个实例注入到全局状态，避免重复创建导致的不一致
             app.manage(app_state);
 
@@ -1919,6 +1951,7 @@ pub fn run() {
 ///
 /// 把接上代理的客户端都指回直连（模式和代理路由保留，下次启动再接上），再停止代理。
 /// 客户端不能一直指着代理：开机自启默认关闭，CC Switch 一关客户端就连不上了。
+#[cfg(feature = "desktop")]
 pub async fn cleanup_before_exit(app_handle: &tauri::AppHandle) {
     if let Some(state) = app_handle.try_state::<store::AppState>() {
         crate::mode::controller::detach_all(state.inner()).await;
@@ -1927,6 +1960,7 @@ pub async fn cleanup_before_exit(app_handle: &tauri::AppHandle) {
 }
 
 /// 系统终止应用时最多等退出清理这么久：停代理服务自带 5 秒超时，指回直连只是写几个文件。
+#[cfg(feature = "desktop")]
 const SYSTEM_EXIT_CLEANUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
 /// 系统直接终止应用时（macOS ⌘Q、Dock「退出」、注销关机）的退出清理。
@@ -1934,6 +1968,7 @@ const SYSTEM_EXIT_CLEANUP_TIMEOUT: std::time::Duration = std::time::Duration::fr
 /// 这条路没有 `ExitRequested` 可以 `prevent_exit()` 再异步清理，只能在主线程上等清理做完。
 /// 清理放到异步运行时的线程上跑、主线程限时等：万一里面有步骤要等主线程，超时后照常退出，
 /// 不会把进程卡住。
+#[cfg(feature = "desktop")]
 fn cleanup_before_system_exit(app_handle: &tauri::AppHandle) {
     log::info!("系统终止应用，开始退出清理...");
     let handle = app_handle.clone();
@@ -1960,6 +1995,7 @@ fn cleanup_before_system_exit(app_handle: &tauri::AppHandle) {
 /// 触发 tray-icon 内部的 `remove_tray_icon` → `Shell_NotifyIconW(NIM_DELETE)`，
 /// 在进程结束前干净地把图标摘掉。其它平台 `set_visible(false)` 也是
 /// 正常的隐藏/移除语义，作为跨平台兜底也安全。
+#[cfg(feature = "desktop")]
 pub(crate) fn remove_tray_icon_before_exit(app_handle: &tauri::AppHandle) {
     if let Some(tray) = app_handle.tray_by_id(tray::TRAY_ID) {
         if let Err(e) = tray.set_visible(false) {
@@ -1970,6 +2006,7 @@ pub(crate) fn remove_tray_icon_before_exit(app_handle: &tauri::AppHandle) {
     }
 }
 
+#[cfg(feature = "desktop")]
 fn initialize_common_config_snippets(state: &store::AppState) {
     // Auto-extract common config snippets from clean live files when snippet is missing.
     // This must run before proxy mode is re-attached on startup, otherwise we'd read
@@ -2058,6 +2095,7 @@ fn initialize_common_config_snippets(state: &store::AppState) {
 // ============================================================
 
 /// 检测是否为中文环境
+#[cfg(feature = "desktop")]
 fn is_chinese_locale() -> bool {
     std::env::var("LANG")
         .or_else(|_| std::env::var("LC_ALL"))
@@ -2068,6 +2106,7 @@ fn is_chinese_locale() -> bool {
 
 /// 显示迁移错误对话框
 /// 返回 true 表示用户选择重试，false 表示用户选择退出
+#[cfg(feature = "desktop")]
 fn show_migration_error_dialog(app: &tauri::AppHandle, error: &str) -> bool {
     let title = if is_chinese_locale() {
         "配置迁移失败"
@@ -2119,6 +2158,7 @@ fn show_migration_error_dialog(app: &tauri::AppHandle, error: &str) -> bool {
 
 /// 显示数据库初始化/Schema 迁移失败对话框
 /// 返回 true 表示用户选择重试，false 表示用户选择退出
+#[cfg(feature = "desktop")]
 fn show_database_init_error_dialog(
     app: &tauri::AppHandle,
     db_path: &std::path::Path,
@@ -2205,8 +2245,10 @@ enum ExitRequestAction {
 }
 
 /// 收到过重启请求。重启时 Tauri 也会发 `RunEvent::Exit`，靠它跳过系统终止那条清理。
+#[cfg(feature = "desktop")]
 static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(feature = "desktop")]
 fn classify_exit_request(code: Option<i32>) -> ExitRequestAction {
     match code {
         None => ExitRequestAction::StayInTray,
@@ -2219,12 +2261,14 @@ fn classify_exit_request(code: Option<i32>) -> ExitRequestAction {
 // 在应用主动退出前显式持久化窗口状态
 // ============================================================
 
+#[cfg(feature = "desktop")]
 fn window_state_flags() -> StateFlags {
     StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED
 }
 
 /// 当前应用的退出路径会拦截 `ExitRequested` 并最终直接 `std::process::exit(0)`，
 /// 这里需要在真正结束进程前手动落盘，避免 window-state 插件的默认退出钩子被绕过。
+#[cfg(feature = "desktop")]
 pub fn save_window_state_before_exit(app_handle: &tauri::AppHandle) {
     if let Err(err) = app_handle.save_window_state(window_state_flags()) {
         log::error!("退出前保存窗口状态失败: {err}");
@@ -2238,6 +2282,7 @@ pub fn save_window_state_before_exit(app_handle: &tauri::AppHandle) {
 /// macOS single-instance 使用 `/tmp/{identifier}.sock`。我们有若干路径会直接
 /// `std::process::exit(0)`，不会触发插件挂在 `RunEvent::Exit` 上的清理钩子。
 /// 重启前主动 destroy 可以避免新进程误连旧 listener 后自行退出。
+#[cfg(feature = "desktop")]
 pub fn destroy_single_instance_lock(app_handle: &tauri::AppHandle) {
     #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     tauri_plugin_single_instance::destroy(app_handle);
@@ -2253,13 +2298,14 @@ pub fn destroy_single_instance_lock(app_handle: &tauri::AppHandle) {
 /// 有意不调 `AppHandle::cleanup_before_exit()`：它会在调用线程上 Drop 托盘
 /// 图标，而 macOS 的 NSStatusItem 操作要求主线程；`set_visible(false)` 走
 /// `run_item_main_thread` 代理，跨线程安全（见 `remove_tray_icon_before_exit`）。
+#[cfg(feature = "desktop")]
 pub fn restart_process(app_handle: &tauri::AppHandle) -> ! {
     remove_tray_icon_before_exit(app_handle);
     destroy_single_instance_lock(app_handle);
     tauri::process::restart(&app_handle.env());
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "desktop"))]
 mod tests {
     use super::{
         classify_exit_request, redact_url_for_log, redact_url_for_log_with_secrets,

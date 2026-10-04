@@ -11,17 +11,25 @@ use crate::proxy::switch_lock::SwitchLockManager;
 use crate::proxy::types::*;
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tauri::Emitter;
 use tokio::sync::RwLock;
 
 use crate::live::project::claude::PROXY_TOKEN_PLACEHOLDER;
+
+/// 本地代理路由是否可用。服务端（`server` feature）没有 Tauri 宿主，
+/// 代理服务器依赖的托盘/窗口联动无法工作，因此暂不支持；用常量而不是
+/// `#[cfg]` 分支是为了让编译器保留整段启动逻辑（避免大片 unreachable/dead_code 警告）。
+#[cfg(feature = "desktop")]
+const LOCAL_PROXY_SUPPORTED: bool = true;
+#[cfg(not(feature = "desktop"))]
+const LOCAL_PROXY_SUPPORTED: bool = false;
 
 #[derive(Clone)]
 pub struct ProxyService {
     db: Arc<Database>,
     server: Arc<RwLock<Option<ProxyServer>>>,
-    /// AppHandle，用于传递给 ProxyServer 以支持故障转移时的 UI 更新
-    app_handle: Arc<RwLock<Option<tauri::AppHandle>>>,
+    /// 宿主句柄（桌面版 = AppHandle），用于传递给 ProxyServer 以支持故障转移时的 UI 更新。
+    /// 服务端模式下恒为 `None`（没有 Tauri 宿主）。
+    app_handle: Arc<RwLock<Option<crate::host::HostHandle>>>,
     switch_locks: SwitchLockManager,
 }
 
@@ -66,8 +74,8 @@ impl ProxyService {
         }
     }
 
-    /// 设置 AppHandle（在应用初始化时调用）
-    pub fn set_app_handle(&self, handle: tauri::AppHandle) {
+    /// 设置宿主句柄（在应用初始化时调用；服务端模式不会调用）
+    pub fn set_app_handle(&self, handle: crate::host::HostHandle) {
         futures::executor::block_on(async {
             *self.app_handle.write().await = Some(handle);
         });
@@ -96,12 +104,18 @@ impl ProxyService {
 
     /// 托盘在后台线程比对、变了才重建，这里不等它。
     async fn notify_tray(&self) {
+        #[cfg(feature = "desktop")]
         if let Some(handle) = self.app_handle.read().await.as_ref() {
             crate::tray::schedule_tray_status_check(handle);
         }
     }
 
     async fn start_server(&self) -> Result<ProxyServerInfo, String> {
+        // 服务端（web 模式）没有 Tauri 宿主，本地代理路由留到后续阶段。
+        if !LOCAL_PROXY_SUPPORTED {
+            return Err("Web 模式暂不支持本地代理路由".to_string());
+        }
+
         // 1. 启动时自动设置 proxy_enabled = true
         let mut global_config = self
             .db
@@ -209,11 +223,9 @@ impl ProxyService {
     }
 
     pub(crate) async fn emit(&self, event: &str, payload: Value) {
-        if let Some(handle) = self.app_handle.read().await.as_ref() {
-            if let Err(error) = handle.emit(event, payload) {
-                log::warn!("发送事件 {event} 失败: {error}");
-            }
-        }
+        // 桌面版由 event_sink 转发给 AppHandle，服务端转发给 SSE 广播；
+        // 出口未安装时（启动早期、单元测试）静默丢弃，与旧行为一致。
+        crate::event_sink::emit(event, payload);
     }
 
     async fn stop_server(&self) -> Result<(), String> {

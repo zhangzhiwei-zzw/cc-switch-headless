@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# web 模式（cc-switch-server）的前端产物
+dist-web/
 release/
 .DS_Store
 *.log

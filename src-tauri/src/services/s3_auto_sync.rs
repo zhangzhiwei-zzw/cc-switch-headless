@@ -4,7 +4,6 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use serde_json::json;
-use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
@@ -75,7 +74,7 @@ fn persist_auto_sync_error(settings: &mut S3SyncSettings, error: &AppError) {
     let _ = settings::update_s3_sync_status(settings.status.clone());
 }
 
-fn emit_auto_sync_status_updated(app: &AppHandle, status: &str, error: Option<&str>) {
+fn emit_auto_sync_status_updated(status: &str, error: Option<&str>) {
     let payload = match error {
         Some(message) => json!({
             "source": "auto",
@@ -88,15 +87,10 @@ fn emit_auto_sync_status_updated(app: &AppHandle, status: &str, error: Option<&s
         }),
     };
 
-    if let Err(err) = app.emit("s3-sync-status-updated", payload) {
-        log::debug!("[S3] failed to emit sync status update event: {err}");
-    }
+    crate::event_sink::emit("s3-sync-status-updated", payload);
 }
 
-async fn run_auto_sync_upload(
-    db: &crate::database::Database,
-    app: &AppHandle,
-) -> Result<(), AppError> {
+async fn run_auto_sync_upload(db: &crate::database::Database) -> Result<(), AppError> {
     let mut settings = settings::get_s3_sync_settings();
     if !should_run_auto_sync(settings.as_ref()) {
         return Ok(());
@@ -110,12 +104,12 @@ async fn run_auto_sync_upload(
     let result = s3_sync::run_with_sync_lock(s3_sync::upload(db, &mut sync_settings)).await;
     match result {
         Ok(_) => {
-            emit_auto_sync_status_updated(app, "success", None);
+            emit_auto_sync_status_updated("success", None);
             Ok(())
         }
         Err(err) => {
             persist_auto_sync_error(&mut sync_settings, &err);
-            emit_auto_sync_status_updated(app, "error", Some(&err.to_string()));
+            emit_auto_sync_status_updated("error", Some(&err.to_string()));
             Err(err)
         }
     }
@@ -134,7 +128,7 @@ pub fn notify_db_changed(table: &str) {
     let _ = enqueue_change_signal(tx, table);
 }
 
-pub fn start_worker(db: Arc<crate::database::Database>, app: tauri::AppHandle) {
+pub fn start_worker(db: Arc<crate::database::Database>) {
     if DB_CHANGE_TX.get().is_some() {
         return;
     }
@@ -145,16 +139,13 @@ pub fn start_worker(db: Arc<crate::database::Database>, app: tauri::AppHandle) {
         return;
     }
 
-    tauri::async_runtime::spawn(async move {
-        run_worker_loop(db, rx, app).await;
+    // 同 webdav_auto_sync：调用点在 Tauri 的 `setup`（非 tokio 上下文）。
+    crate::host::spawn(async move {
+        run_worker_loop(db, rx).await;
     });
 }
 
-async fn run_worker_loop(
-    db: Arc<crate::database::Database>,
-    mut rx: Receiver<String>,
-    app: tauri::AppHandle,
-) {
+async fn run_worker_loop(db: Arc<crate::database::Database>, mut rx: Receiver<String>) {
     while let Some(first_table) = rx.recv().await {
         let started_at = Instant::now();
         let mut merged_count = 1usize;
@@ -173,7 +164,7 @@ async fn run_worker_loop(
             "[S3][AutoSync] Triggered by table={first_table}, merged_changes={merged_count}"
         );
 
-        if let Err(err) = run_auto_sync_upload(&db, &app).await {
+        if let Err(err) = run_auto_sync_upload(&db).await {
             log::warn!("[S3][AutoSync] Upload failed: {err}");
         }
     }

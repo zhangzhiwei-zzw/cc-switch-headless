@@ -41,7 +41,7 @@ import {
 } from "@/utils/errorUtils";
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { deepClone } from "@/utils/deepClone";
-import { isLinux, isWindows } from "@/lib/platform";
+import { isLinux, isTauriRuntime, isWindows } from "@/lib/platform";
 import {
   APP_STORAGE_KEY,
   appPageBelongsTo,
@@ -166,9 +166,11 @@ function App() {
   }, [currentView]);
 
   const { data: settingsData } = useSettingsQuery();
-  // Windows 一律去掉系统标题栏，用页头里的应用内窗口按钮；Linux 由设置决定
+  // Windows 一律去掉系统标题栏，用页头里的应用内窗口按钮；Linux 由设置决定。
+  // 浏览器（web 模式）没有原生窗口控制，一律不显示。
   const useAppWindowControls =
-    isWindows() || (isLinux() && (settingsData?.useAppWindowControls ?? false));
+    isTauriRuntime() &&
+    (isWindows() || (isLinux() && (settingsData?.useAppWindowControls ?? false)));
   const visibleApps = useMemo<VisibleApps>(
     () => ({
       ...DEFAULT_VISIBLE_APPS,

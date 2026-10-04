@@ -8,6 +8,7 @@
 use crate::error::AppError;
 use std::collections::HashSet;
 use std::sync::Arc;
+#[cfg(feature = "desktop")]
 use tauri::{Emitter, Manager};
 use tokio::sync::RwLock;
 
@@ -37,7 +38,7 @@ impl FailoverSwitchManager {
     /// - `Err(e)` - 切换过程中发生错误
     pub async fn try_switch(
         &self,
-        app_handle: Option<&tauri::AppHandle>,
+        app_handle: Option<&crate::host::HostHandle>,
         app_type: &str,
         provider_id: &str,
         provider_name: &str,
@@ -68,9 +69,10 @@ impl FailoverSwitchManager {
         result
     }
 
+    #[cfg(feature = "desktop")]
     async fn do_switch(
         &self,
-        app_handle: Option<&tauri::AppHandle>,
+        app_handle: Option<&crate::host::HostHandle>,
         app_type: &str,
         provider_id: &str,
         provider_name: &str,
@@ -124,5 +126,17 @@ impl FailoverSwitchManager {
         }
 
         Ok(switched)
+    }
+
+    /// 服务端模式不启动本地代理（`ProxyService::start` 直接置错），故障转移不适用。
+    #[cfg(not(feature = "desktop"))]
+    async fn do_switch(
+        &self,
+        _app_handle: Option<&crate::host::HostHandle>,
+        _app_type: &str,
+        _provider_id: &str,
+        _provider_name: &str,
+    ) -> Result<bool, AppError> {
+        Ok(false)
     }
 }

@@ -18,6 +18,18 @@ export const isWindows = (): boolean => {
   }
 };
 
+// 是否运行在 Tauri 桌面壳里。判定方式与 `@tauri-apps/api` 的 `isTauri()` 一致
+// （内部就是 `!!globalThis.isTauri`），但不 import 那个模块——测试里
+// `@tauri-apps/api/core` 常被 mock，缺 `isTauri` 导出会让整棵组件树崩掉；
+// 浏览器（web 模式）下这里天然是 false。
+export const isTauriRuntime = (): boolean => {
+  try {
+    return Boolean((globalThis as { isTauri?: boolean }).isTauri);
+  } catch {
+    return false;
+  }
+};
+
 export const isLinux = (): boolean => {
   try {
     const ua = navigator.userAgent || "";
