@@ -13,11 +13,14 @@
 桌面版未做改动——上游功能与其问题请反馈给<a href="https://github.com/farion1231/cc-switch">上游</a>。
 </sub>
 
+> 📄 **本文是上游应用的完整中文文档**（桌面版的全部功能、FAQ、赞助商等）。
+> 想直接用 Web 服务端模式，请看 **[README.md](README.md)** 的快速开始。
+
 [![基于](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.0-blue)](https://github.com/farion1231/cc-switch)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange.svg)](https://tauri.app/)
 
-[English](README.md) | 中文 | [日本語](README_JA.md) | [Deutsch](README_DE.md) | [更新日志](CHANGELOG.md)
+[中文快速开始](README.md) | [English](README_EN.md) | 本文（上游完整文档） | [日本語](README_JA.md) | [Deutsch](README_DE.md) | [更新日志](CHANGELOG.md)
 
 **[这个 fork 加了什么](#这个-fork-加了什么) · [Web 模式快速开始](#web-模式快速开始) · [功能特性](#功能特性) · [常见问题](#常见问题) · [Web 模式文档](docs/web-mode-zh.md)**
 
