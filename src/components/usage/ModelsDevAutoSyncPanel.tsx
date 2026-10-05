@@ -57,6 +57,7 @@ import { usageKeys } from "@/lib/query/usage";
 import { formatRelativeTime } from "./format";
 import type { ModelsDevSyncConfig, ModelsDevSyncState } from "@/types/usage";
 import { isTextEditableTarget } from "@/utils/domUtils";
+import { supports } from "@/lib/capabilities";
 
 const DEFAULT_VISIBLE_ROWS = 80;
 const MAX_VISIBLE_ROWS = 300;
@@ -665,13 +666,16 @@ export function ModelsDevAutoSyncPanel() {
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-body"
-                  onSelect={() => void openLocalFileFolder()}
-                >
-                  <FolderOpen className="h-4 w-4" strokeWidth={1.5} />
-                  {t("usage.modelsDevAutoSync.openFolder")}
-                </DropdownMenuItem>
+                {/* web 模式下服务端没法替用户弹文件管理器，隐藏入口 */}
+                {supports("openInFileManager") && (
+                  <DropdownMenuItem
+                    className="text-body"
+                    onSelect={() => void openLocalFileFolder()}
+                  >
+                    <FolderOpen className="h-4 w-4" strokeWidth={1.5} />
+                    {t("usage.modelsDevAutoSync.openFolder")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   className="text-body"
                   disabled={isReloading}

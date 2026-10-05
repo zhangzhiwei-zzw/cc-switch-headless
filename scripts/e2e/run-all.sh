@@ -5,7 +5,7 @@ set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED=()
 
-for script in smoke.sh flags.sh proxy.sh import-export.sh sessions.sh; do
+for script in smoke.sh flags.sh proxy.sh import-export.sh sessions.sh pages.sh; do
   echo "════════════════════════════════════════"
   echo "  $script"
   echo "════════════════════════════════════════"

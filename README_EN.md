@@ -85,11 +85,18 @@ The UI is the desktop one. From a browser you can:
 - **Data** — export an SQL backup (downloaded straight to the browser), restore by uploading one, and
   create / restore / rename / delete backups
 - **Sessions** — browse the session logs the CLIs on **that machine** left behind: search, read, delete
+- **MCP** — CRUD, per-app toggles, import from the apps' own configs, re-sync back to them
+- **Skills** — install / update / uninstall, repo management, import unmanaged ones, migrate storage,
+  install from a ZIP (browser picks the file → upload → the server unpacks it), backups, skills.sh search
+- **Prompts** — the prompt library plus Pi's native prompt files and templates
+- **Usage** — summaries, trends, per-provider / per-model breakdowns, request logs, model pricing and
+  models.dev sync, session-log sync and Codex usage rebuild, provider balance and quota queries
 
 ## Not ported yet
 
-Managed-account login (Copilot / Codex / xAI), Stack mode, the circuit-breaker panel, the usage dashboard,
-the MCP / Skills / Prompts panels, and desktop-only actions such as directory pickers and terminal launch.
+Managed-account login (Copilot / Codex / xAI) and their quota queries, Stack mode, the circuit-breaker
+panel, CLI tool version management, and desktop-only actions such as directory pickers, terminal launch
+and "open in file manager".
 
 The UI reads `GET /api/capabilities` and **hides what is not there** instead of leading you into dead ends.
 

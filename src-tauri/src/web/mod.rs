@@ -10,8 +10,12 @@
 //!
 //! 启动与桌面版一致的部分见 [`state::bootstrap`]。
 
+pub mod mcp;
+pub mod prompts;
 pub mod routes;
+pub mod skills;
 pub mod state;
+pub mod usage;
 
 use std::collections::HashMap;
 use std::convert::Infallible;

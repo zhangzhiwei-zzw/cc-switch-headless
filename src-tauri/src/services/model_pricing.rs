@@ -428,6 +428,57 @@ fn update_model_pricing_batch_inner(
     Ok(changed)
 }
 
+/// 读出全部模型定价（按显示名排序），读之前先补齐内置种子与本地覆盖文件。
+///
+/// 桌面版与服务端的 `get_model_pricing` 共用这一份实现。
+pub fn list_model_pricing(db: &Database) -> Result<Vec<ModelPricingInfo>, AppError> {
+    log::info!("获取模型定价列表");
+    db.ensure_model_pricing_seeded()?;
+    sync_local_model_pricing(db)?;
+
+    let conn = lock_conn!(db.conn);
+
+    // 检查表是否存在
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='model_pricing'",
+            [],
+            |row| row.get::<_, i64>(0).map(|count| count > 0),
+        )
+        .unwrap_or(false);
+
+    if !table_exists {
+        log::error!("model_pricing 表不存在,可能需要重启应用以触发数据库迁移");
+        return Ok(Vec::new());
+    }
+
+    let mut stmt = conn.prepare(
+        "SELECT model_id, display_name, input_cost_per_million, output_cost_per_million,
+                cache_read_cost_per_million, cache_creation_cost_per_million
+         FROM model_pricing
+         ORDER BY display_name",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(ModelPricingInfo {
+            model_id: row.get(0)?,
+            display_name: row.get(1)?,
+            input_cost_per_million: row.get(2)?,
+            output_cost_per_million: row.get(3)?,
+            cache_read_cost_per_million: row.get(4)?,
+            cache_creation_cost_per_million: row.get(5)?,
+        })
+    })?;
+
+    let mut pricing = Vec::new();
+    for row in rows {
+        pricing.push(row?);
+    }
+
+    log::info!("成功获取 {} 条模型定价数据", pricing.len());
+    Ok(pricing)
+}
+
 pub fn update_model_pricing(db: &Database, entry: ModelPricingInfo) -> Result<usize, AppError> {
     update_model_pricing_batch_inner(db, vec![entry], false)
 }

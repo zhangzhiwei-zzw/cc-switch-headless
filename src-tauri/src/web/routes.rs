@@ -6,7 +6,8 @@
 //! 在 `services/` 里。
 //!
 //! 目前实现的范围：启动链路、供应商页、设置保存、本地路由（代理）与故障转移队列、
-//! 导入导出与数据库备份、会话浏览。
+//! 导入导出与数据库备份、会话浏览，以及 MCP / Skills / Prompts / 用量统计四页
+//! （后四页各自成表，见 [`super::mcp`] 等同级模块）。
 //! 未实现的命令返回 `E_NOT_IMPLEMENTED:<cmd>`，前端会以普通错误提示，不会白屏。
 //! 凡是命令体里有真实逻辑的（如故障转移的开启流程），逻辑都放在 `services/` 里
 //! 由两种构建共用——这里只做参数解析与调用。
@@ -30,7 +31,7 @@ use crate::services::provider::{ProviderService, ProviderSortUpdate};
 
 /// 分发表的函数指针类型。
 pub type HandlerFuture = Pin<Box<dyn std::future::Future<Output = Result<Value, String>> + Send>>;
-type Handler = fn(Arc<Context>, Value) -> HandlerFuture;
+pub type Handler = fn(Arc<Context>, Value) -> HandlerFuture;
 
 /// 前端发来的调用请求（与 Tauri 的 `invoke(cmd, args)` 一一对应）。
 #[derive(serde::Deserialize)]
@@ -90,10 +91,10 @@ pub async fn capabilities() -> Response {
         "pageRouting": has("start_proxy_server"),
         "pageSessions": has("list_sessions"),
         "pageImportExport": has("export_config_to_file"),
-        "pageUsage": false,   // 用量聚合与统计命令未接入
-        "pageMcp": false,     // MCP 管理命令未接入
-        "pageSkills": false,  // Skills 管理命令未接入
-        "pagePrompts": false, // Prompts 管理命令未接入
+        "pageUsage": has("get_usage_summary"),
+        "pageMcp": has("get_mcp_servers"),
+        "pageSkills": has("get_installed_skills"),
+        "pagePrompts": has("get_prompts"),
         "pageAuth": false,    // 托管账号（Copilot / Codex / xAI）登录流程未接入
         "pageApps": false,    // CLI 工具版本检测与安装未接入
 
@@ -102,6 +103,7 @@ pub async fn capabilities() -> Response {
         "sessionReveal": false,   // 服务端没有文件管理器
         "sessionTerminal": false, // 服务端没有桌面终端
         "pickDirectory": false,   // 浏览器无法为服务端选目录
+        "openInFileManager": false, // 「在文件管理器里打开」类按钮
 
         // —— 桌面专属 ——
         "tray": false,
@@ -273,6 +275,21 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             launch_session_terminal as Handler,
         );
 
+        // ---- MCP / Prompts / Skills / 用量 ----
+        // 这四页命令量大且各自独立，分表放在子模块里，这里只做注册。
+        for (name, handler) in super::mcp::HANDLERS {
+            table.insert(name, *handler);
+        }
+        for (name, handler) in super::prompts::HANDLERS {
+            table.insert(name, *handler);
+        }
+        for (name, handler) in super::skills::HANDLERS {
+            table.insert(name, *handler);
+        }
+        for (name, handler) in super::usage::HANDLERS {
+            table.insert(name, *handler);
+        }
+
         table
     })
 }
@@ -281,16 +298,16 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
 // 工具函数
 // ============================================================================
 
-fn serializable<T: Serialize>(value: T) -> Result<Value, String> {
+pub fn serializable<T: Serialize>(value: T) -> Result<Value, String> {
     serde_json::to_value(value).map_err(|error| error.to_string())
 }
 
-fn parse<T: DeserializeOwned>(raw: Value) -> Result<T, String> {
+pub fn parse<T: DeserializeOwned>(raw: Value) -> Result<T, String> {
     serde_json::from_value(raw).map_err(|error| format!("参数解析失败: {error}"))
 }
 
 /// 在阻塞线程池里跑同步的 service 调用（SQLite、文件读写都在其中）。
-async fn blocking<T, F>(work: F) -> Result<T, String>
+pub async fn blocking<T, F>(work: F) -> Result<T, String>
 where
     F: FnOnce() -> Result<T, String> + Send + 'static,
     T: Send + 'static,
@@ -300,7 +317,16 @@ where
         .map_err(|error| format!("后台任务异常退出: {error}"))?
 }
 
-fn to_app_type(app: &str) -> Result<AppType, String> {
+/// 把一个同步调用包成 handler，并丢进阻塞线程池：SQLite 聚合、文件读写用它。
+pub fn deferred<T, F>(work: F) -> HandlerFuture
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Serialize + Send + 'static,
+{
+    Box::pin(async move { blocking(work).await.and_then(serializable) })
+}
+
+pub fn to_app_type(app: &str) -> Result<AppType, String> {
     AppType::from_str(app).map_err(|error| error.to_string())
 }
 

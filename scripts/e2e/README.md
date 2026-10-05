@@ -19,6 +19,7 @@ bash scripts/e2e/smoke.sh
 bash scripts/e2e/proxy.sh
 bash scripts/e2e/import-export.sh
 bash scripts/e2e/sessions.sh
+bash scripts/e2e/pages.sh
 ```
 
 依赖：`curl`、`python3`。可用环境变量覆盖路径：
@@ -37,5 +38,6 @@ bash scripts/e2e/sessions.sh
 | `proxy.sh` | 起假上游 → 本地代理 → 请求真的被转发（路径、凭据、模型都对）、进入/退出路由模式改写与回退 CLI 配置 |
 | `import-export.sh` | 导出 → 下载 → 上传 → 恢复的完整回环、`/api/download` 的目录越权防护（`/etc/passwd` 与 `../` 都是 403）、备份创建与列表 |
 | `sessions.sh` | 会话列表（标题 / resume 命令）、消息与整段读取、删除 |
+| `pages.sh` | 能力表开关、MCP（含真实写进 `~/.claude.json`）、Prompts 增删启用、Skills 仓库与存储路径、用量汇总 / 定价增删 / 计费来源 |
 
 失败时测试目录会保留并打印路径，里面有服务端日志（`server.log`）与各步骤产物。

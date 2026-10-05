@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
 import { settingsApi, type AppId } from "@/lib/api";
 import { promptKeys, usePromptFileLocationQuery } from "@/lib/query/prompts";
+import { supports } from "@/lib/capabilities";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import type { PromptMoreItem } from "./PromptPageFrame";
 import { copyText, promptFileName, showPromptToast } from "./promptUtils";
@@ -25,17 +26,22 @@ export function usePromptPageCommon(appId: AppId) {
     copyPath: { label: string; path: string | undefined },
   ): PromptMoreItem[] => [
     importItem,
-    {
-      key: "open-folder",
-      label: t("prompts.openFolder"),
-      onSelect: () => {
-        settingsApi.openConfigFolder(appId).catch((error: unknown) => {
-          toast.error(t("prompts.openFolderFailed"), {
-            description: extractErrorMessage(error) || undefined,
-          });
-        });
-      },
-    },
+    // web 模式下服务端没法替用户弹文件管理器，隐藏入口
+    ...(supports("openInFileManager")
+      ? [
+          {
+            key: "open-folder",
+            label: t("prompts.openFolder"),
+            onSelect: () => {
+              settingsApi.openConfigFolder(appId).catch((error: unknown) => {
+                toast.error(t("prompts.openFolderFailed"), {
+                  description: extractErrorMessage(error) || undefined,
+                });
+              });
+            },
+          } satisfies PromptMoreItem,
+        ]
+      : []),
     {
       key: "copy-path",
       label: copyPath.label,

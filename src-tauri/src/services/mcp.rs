@@ -90,6 +90,62 @@ impl McpService {
         }
     }
 
+    /// 兼容层：按「单个应用 + 裸 spec」的旧接口写入，内部转成统一结构。
+    ///
+    /// `sync_other_side` 为真时把 Claude/Codex/Gemini/OpenCode 一起勾上。
+    /// 桌面版的 `upsert_mcp_server_in_config` 与 web 模式共用这一份实现。
+    pub fn upsert_from_legacy(
+        state: &AppState,
+        app: &AppType,
+        id: &str,
+        spec: serde_json::Value,
+        sync_other_side: bool,
+    ) -> Result<(), AppError> {
+        use crate::app_config::McpApps;
+
+        // 读取现有的服务器（如果存在）
+        let existing = state.db.get_all_mcp_servers()?.get(id).cloned();
+
+        let mut server = if let Some(mut existing) = existing {
+            // 更新现有服务器
+            existing.server = spec;
+            existing.apps.set_enabled_for(app, true);
+            existing
+        } else {
+            // 创建新服务器
+            let mut apps = McpApps::default();
+            apps.set_enabled_for(app, true);
+
+            // 尝试从 spec 中提取 name，否则使用 id
+            let name = spec
+                .get("name")
+                .and_then(|value| value.as_str())
+                .unwrap_or(id)
+                .to_string();
+
+            McpServer {
+                id: id.to_string(),
+                name,
+                server: spec,
+                apps,
+                description: None,
+                homepage: None,
+                docs: None,
+                tags: Vec::new(),
+            }
+        };
+
+        // 如果 sync_other_side 为 true，也启用其他应用
+        if sync_other_side {
+            server.apps.claude = true;
+            server.apps.codex = true;
+            server.apps.gemini = true;
+            server.apps.opencode = true;
+        }
+
+        Self::upsert_server(state, server)
+    }
+
     /// 切换指定应用的启用状态
     pub fn toggle_app(
         state: &AppState,

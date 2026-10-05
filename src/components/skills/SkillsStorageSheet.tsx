@@ -21,6 +21,7 @@ import { skillsApi, type SkillAppSyncOutcome } from "@/lib/api/skills";
 import type { AppId } from "@/lib/api/types";
 import type { SkillStorageLocation, SkillSyncMethod } from "@/types";
 import { extractErrorMessage } from "@/utils/errorUtils";
+import { supports } from "@/lib/capabilities";
 
 interface SkillsStorageSheetProps {
   open: boolean;
@@ -225,16 +226,19 @@ export function SkillsStorageSheet({
                   >
                     {ccSwitchDir}
                   </code>
-                  <button
-                    type="button"
-                    aria-label={t("skills.storageSheet.openFolderAria", {
-                      path: ccSwitchDir,
-                    })}
-                    onClick={() => void handleOpenFolder()}
-                    className="shrink-0 whitespace-nowrap text-caption font-medium text-fg-1 underline decoration-border-strong underline-offset-[3px] hover:decoration-fg-1"
-                  >
-                    {t("skills.storageSheet.openFolder")}
-                  </button>
+                  {/* web 模式下服务端没法替用户弹文件管理器，隐藏入口 */}
+                  {supports("openInFileManager") && (
+                    <button
+                      type="button"
+                      aria-label={t("skills.storageSheet.openFolderAria", {
+                        path: ccSwitchDir,
+                      })}
+                      onClick={() => void handleOpenFolder()}
+                      className="shrink-0 whitespace-nowrap text-caption font-medium text-fg-1 underline decoration-border-strong underline-offset-[3px] hover:decoration-fg-1"
+                    >
+                      {t("skills.storageSheet.openFolder")}
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col gap-0.5">
