@@ -64,7 +64,7 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 # 3. 运行（默认 127.0.0.1:15800）
 ./target/release/cc-switch-server
 #   前端产物已编进二进制，直接跑就行；首次访问的地址与令牌会打印在启动日志里：
-#   http://127.0.0.1:15800/auth?token=<32字节令牌>
+#   http://127.0.0.1:15800/auth?token=<64 位令牌>
 ```
 
 **前端产物被编译进二进制**（`rust-embed`），所以部署只需要拷一个文件。改了前端又不想
@@ -230,7 +230,7 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
   -H 'Content-Type: application/json' -d '{}'
 ```
 
-- 请求体缺省（或 `token` 为空）时随机生成 128 位新令牌；传
+- 请求体缺省（或 `token` 为空）时随机生成 256 位新令牌（64 个字符）；传
   `{"token":"..."}` 可以指定自己的值（至少 16 个字符）。
 - 新令牌立刻写进 `<配置目录>/web-token` 并生效，**旧令牌当场失效**——别的浏览器
   里的 cookie 也一样，需要重新用 `/auth?token=<新令牌>` 打开一次。

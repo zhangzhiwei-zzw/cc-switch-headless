@@ -181,6 +181,15 @@ pnpm typecheck && pnpm format:check && pnpm test:unit && pnpm build:renderer
 cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 ```
 
+If you touched the headless server (`src-tauri/**` or `scripts/**`), also run its own job — the
+commands below are exactly what CI runs (see the `server` job in `.github/workflows/ci.yml`):
+
+```bash
+cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
+cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
+bash scripts/e2e/run-all.sh
+```
+
 ## Pull Request Guidelines
 
 1. **Open an issue first** for new features — PRs for features that are not a good fit may be closed.
@@ -194,6 +203,7 @@ cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 - [ ] `pnpm format:check` passes
 - [ ] `pnpm test:unit` passes
 - [ ] If Rust code changed: `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` pass
+- [ ] If the headless server is affected (`src-tauri/**`, `scripts/**`): the server-feature clippy/build and `scripts/e2e/run-all.sh` pass
 - [ ] If user-facing text changed: all four locale files are updated
 
 ### Commit Convention
@@ -426,6 +436,15 @@ pnpm typecheck && pnpm format:check && pnpm test:unit && pnpm build:renderer
 cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 ```
 
+如改动了无头服务端（`src-tauri/**` 或 `scripts/**`），还要跑它自己的 job——下面就是 CI
+里那几条命令（见 `.github/workflows/ci.yml` 的 `server` job）：
+
+```bash
+cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
+cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
+bash scripts/e2e/run-all.sh
+```
+
 ## Pull Request 指南
 
 1. **先开 Issue 讨论** — 新功能请先开 Issue，不适合项目方向的 PR 可能会被关闭。
@@ -439,6 +458,7 @@ cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 - [ ] `pnpm format:check` 通过
 - [ ] `pnpm test:unit` 通过
 - [ ] 如修改了 Rust 代码：`cargo fmt --check`、`cargo clippy -- -D warnings`、`cargo test` 通过
+- [ ] 如影响到无头服务端（`src-tauri/**`、`scripts/**`）：server feature 的 clippy/build 与 `scripts/e2e/run-all.sh` 通过
 - [ ] 如修改了用户可见文本，已同步更新四个语言文件
 
 ### 提交信息规范

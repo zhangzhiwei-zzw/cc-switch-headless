@@ -372,7 +372,7 @@ fn resolve_token(
 /// 手工指定令牌时至少要这么长——太短的话暴力猜解就可行了。
 const MIN_TOKEN_LEN: usize = 16;
 
-/// 128 位随机令牌（两个 UUID v4 的十六进制拼接）。
+/// 256 位随机令牌（两个 UUID v4 的十六进制拼接，64 个字符）。
 fn generate_token() -> String {
     format!(
         "{}{}",
