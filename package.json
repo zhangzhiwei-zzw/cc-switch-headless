@@ -1,7 +1,7 @@
 {
   "name": "cc-switch",
   "version": "4.0.0",
-  "description": "All-in-One Assistant for Claude Code, Codex & Gemini CLI",
+  "description": "Headless web server mode for CC Switch: manage AI CLI providers, routing and sessions from a browser.",
   "type": "module",
   "scripts": {
     "dev": "pnpm tauri dev",

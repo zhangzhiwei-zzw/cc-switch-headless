@@ -1,8 +1,10 @@
 # Web 模式（`cc-switch-server`）
 
-> 非官方改造：在系统库过旧、跑不了桌面版的机器（如 **Ubuntu 20.04**：只有 glibc 2.31 与
-> WebKitGTK 4.0，而桌面版要求 glibc 2.35+ / WebKitGTK 4.1）上，用**同一个前端源码**
-> 起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
+> `cc-switch-headless` fork 的核心改动：在系统库过旧、跑不了桌面版的机器（如 **Ubuntu 20.04**：
+> 只有 glibc 2.31 与 WebKitGTK 4.0，而桌面版要求 glibc 2.35+ / WebKitGTK 4.1）上，
+> 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
+>
+> 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
 
 ## 它是怎么做到的
 

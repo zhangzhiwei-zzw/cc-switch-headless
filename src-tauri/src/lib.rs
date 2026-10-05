@@ -536,8 +536,10 @@ pub fn run() {
                     .handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())
                 {
-                    // 若配置不完整（如缺少 pubkey），跳过 Updater 而不中断应用
-                    log::warn!("初始化 Updater 插件失败，已跳过：{e}");
+                    // 若配置不完整（如缺少 pubkey），跳过 Updater 而不中断应用。
+                    // 本 fork（cc-switch-headless）有意不配置更新源：没有自己的发布与签名密钥，
+                    // 指向上游只会让用户"更新"成上游版本，所以这里必然走到这个分支。
+                    log::warn!("初始化 Updater 插件失败，已跳过（本 fork 未配置更新源，属预期）：{e}");
                 }
             }
 

@@ -1,26 +1,73 @@
 <div align="center">
 
-# CC Switch
+# cc-switch-headless
 
-### The All-in-One Manager for Claude Code, Claude Desktop, Codex, Gemini CLI, Grok Build, OpenCode, OpenClaw, Hermes Agent, Pi & MiniMax Code
+### Headless web server for CC Switch — manage Claude Code, Codex, Gemini CLI & 7 more from a browser
 
-**Switch API providers in one click and manage MCP, Skills, and Prompts in one place — no more hand-editing JSON / TOML / YAML config files.**
+**Same UI, served over HTTP. Built for servers, containers, and distros without WebKitGTK.**
 
-[![Version](https://img.shields.io/github/v/release/farion1231/cc-switch?color=blue&label=version)](https://github.com/farion1231/cc-switch/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/farion1231/cc-switch/releases)
+<sub>
+🙏 Fork of <a href="https://github.com/farion1231/cc-switch">farion1231/cc-switch</a> by Jason Young.<br/>
+This fork adds <code>cc-switch-server</code>: a headless binary that serves the same frontend over HTTP and reuses the same
+<code>~/.cc-switch</code> data, so provider switching, local routing, sessions and backups all work without a desktop.
+The desktop app is unchanged — upstream features and their bugs belong to
+<a href="https://github.com/farion1231/cc-switch">upstream</a>.
+</sub>
+
+[![Based on](https://img.shields.io/badge/based%20on-cc--switch%20v4.0.0-blue)](https://github.com/farion1231/cc-switch)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange.svg)](https://tauri.app/)
-[![Downloads](https://img.shields.io/github/downloads/farion1231/cc-switch/total)](https://github.com/farion1231/cc-switch/releases/latest)
-
-<a href="https://trendshift.io/repositories/15372" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15372" alt="farion1231%2Fcc-switch | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-<a href="https://www.star-history.com/#farion1231/cc-switch&Date"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=farion1231/cc-switch&theme=dark" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=farion1231/cc-switch" width="196" height="55" /></picture></a>
-
-### 🌐 The Only Official Website: **[ccswitch.io](https://ccswitch.io)**
 
 English | [中文](README_ZH.md) | [日本語](README_JA.md) | [Deutsch](README_DE.md) | [Changelog](CHANGELOG.md)
 
-**[Download](#download--installation) · [Quick Start](#quick-start) · [Features](#features) · [FAQ](#faq) · [User Manual](docs/user-manual/en/README.md)**
+**[What this fork adds](#what-this-fork-adds) · [Web mode quick start](#web-mode-quick-start) · [Features](#features) · [FAQ](#faq) · [Web mode docs](docs/web-mode-zh.md)**
 
 </div>
+
+## What this fork adds
+
+A **server mode** (`cc-switch-server`) that runs the same UI in a browser, for machines where the desktop app
+cannot run at all: Ubuntu 20.04 and other distros whose glibc / WebKitGTK are too old, headless servers, and containers.
+
+- **Browser UI, one frontend** — desktop and web builds come from the same source tree; the web build swaps the
+  Tauri IPC layer for HTTP, so the two never drift apart.
+- **No WebKitGTK, no Tauri** — the server binary builds on Ubuntu 20.04 and its dependency tree contains no
+  webkit / gtk crates.
+- **Single-file deployment** — the frontend is embedded into the binary (`rust-embed`): copy one file, run it.
+- **Real local routing** — the proxy runs server-side: point a CLI at the local port, convert between Anthropic /
+  OpenAI Chat / OpenAI Responses / Gemini protocols, fail over between providers.
+- **Import, export, backups, session browsing** — over upload / download instead of native file dialogs.
+- **Capability negotiation** — `GET /api/capabilities` tells the UI what this build supports; unsupported pages
+  are hidden instead of leading to dead ends.
+
+Not ported yet: managed-account login (Copilot / Codex / xAI), Stack mode, circuit-breaker panel, usage dashboard,
+MCP / Skills / Prompts panels, directory pickers. The full list lives in
+[docs/web-mode-zh.md](docs/web-mode-zh.md).
+
+## Web mode quick start
+
+```bash
+# 1. frontend (Node 22+ and pnpm)
+pnpm install && pnpm build:web
+
+# 2. server (no webkit/gtk packages needed)
+cd src-tauri
+cargo build --release --no-default-features --features server --bin cc-switch-server
+
+# 3. run — it defaults to 127.0.0.1:15800
+./target/release/cc-switch-server
+```
+
+Open the `http://127.0.0.1:15800/auth?token=<token>` URL printed at startup. For a remote machine use
+`ssh -L 15800:127.0.0.1:15800 user@host`; for containers there is a `Dockerfile` and `docker-compose.yml`
+in the repository root. Parameters, security notes and the systemd unit are documented in
+[docs/web-mode-zh.md](docs/web-mode-zh.md)（中文）.
+
+---
+
+> **Everything below describes the upstream app**, which this fork builds on unchanged.
+> Upstream links (official website, sponsor offers, download buttons) point to the original project.
+
 
 ## ❤️Sponsor
 
@@ -234,6 +281,10 @@ AI coding tools like Claude Code, Codex, and Gemini CLI each have their own conf
 | ![Main Interface](assets/screenshots/main-en.png) | ![Add Provider](assets/screenshots/add-en.png) |
 
 ## Download & Installation
+
+> **The web mode has no prebuilt binary yet** — build it with the
+> [quick start](#web-mode-quick-start) above (`cc-switch-server`, one file, no installer).
+> The installers described below are **upstream's desktop builds** and do not include this fork's changes.
 
 ### System Requirements
 

@@ -1,26 +1,66 @@
 <div align="center">
 
-# CC Switch
+# cc-switch-headless
 
-### Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes Agent、Pi、MiniMax Code 的全方位管理工具
+### CC Switch 的无头 Web 服务端 —— 在浏览器里管理 Claude Code、Codex、Gemini CLI 等 10 个 AI CLI
 
-**一键切换 API 供应商，统一管理 MCP、Skills 与提示词，不用再手改 JSON / TOML / YAML 配置文件。**
+**界面和桌面版一模一样，只是走 HTTP。为服务器、容器和装不了 WebKitGTK 的系统而做。**
 
-[![Version](https://img.shields.io/github/v/release/farion1231/cc-switch?color=blue&label=version)](https://github.com/farion1231/cc-switch/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/farion1231/cc-switch/releases)
+<sub>
+🙏 Fork 自 <a href="https://github.com/farion1231/cc-switch">farion1231/cc-switch</a>（作者 Jason Young）。<br/>
+本 fork 增加了 <code>cc-switch-server</code>：一个无头二进制，用 HTTP 提供同一套前端、读写同一份
+<code>~/.cc-switch</code> 数据，所以供应商切换、本地路由、会话浏览和备份在没有桌面的机器上一样能用。
+桌面版未做改动——上游功能与其问题请反馈给<a href="https://github.com/farion1231/cc-switch">上游</a>。
+</sub>
+
+[![基于](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.0-blue)](https://github.com/farion1231/cc-switch)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange.svg)](https://tauri.app/)
-[![Downloads](https://img.shields.io/github/downloads/farion1231/cc-switch/total)](https://github.com/farion1231/cc-switch/releases/latest)
-
-<a href="https://trendshift.io/repositories/15372" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15372" alt="farion1231%2Fcc-switch | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-<a href="https://www.star-history.com/#farion1231/cc-switch&Date"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=farion1231/cc-switch&theme=dark" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=farion1231/cc-switch" width="196" height="55" /></picture></a>
-
-### 🌐 唯一官方网站：**[ccswitch.io](https://ccswitch.io)**
 
 [English](README.md) | 中文 | [日本語](README_JA.md) | [Deutsch](README_DE.md) | [更新日志](CHANGELOG.md)
 
-**[下载安装](#下载安装) · [快速开始](#快速开始) · [功能特性](#功能特性) · [常见问题](#常见问题) · [用户手册](docs/user-manual/zh/README.md)**
+**[这个 fork 加了什么](#这个-fork-加了什么) · [Web 模式快速开始](#web-模式快速开始) · [功能特性](#功能特性) · [常见问题](#常见问题) · [Web 模式文档](docs/web-mode-zh.md)**
 
 </div>
+
+## 这个 fork 加了什么
+
+新增**服务端模式**（`cc-switch-server`）：把同一套界面放进浏览器，面向**跑不了桌面版**的机器——
+Ubuntu 20.04 这类 glibc / WebKitGTK 过旧的发行版、无显示器的服务器、容器。
+
+- **浏览器界面，同一份前端** —— 桌面版与 Web 版来自同一套源码；Web 构建只把 Tauri 的 IPC 层换成 HTTP，两边不会各自漂移
+- **不需要 WebKitGTK，也不需要 Tauri** —— 服务端二进制能在 Ubuntu 20.04 上编译，依赖树里没有 webkit / gtk
+- **单文件部署** —— 前端被编进二进制（`rust-embed`），拷一个文件就能跑
+- **本地路由是真跑的** —— 代理在服务端工作：把 CLI 指向本地端口、做协议转换（Anthropic / OpenAI Chat / Responses / Gemini）、支持故障转移
+- **导入导出、备份、会话浏览** —— 用上传 / 下载替代原生文件对话框
+- **能力协商** —— `GET /api/capabilities` 告诉前端这个构建支持什么，没接入的页面直接隐藏，而不是点进去看报错
+
+尚未移植：托管账号登录（Copilot / Codex / xAI）、Stack 聚合模式、熔断器面板、用量统计、
+MCP / Skills / Prompts 面板、目录选择对话框。完整清单见 [docs/web-mode-zh.md](docs/web-mode-zh.md)。
+
+## Web 模式快速开始
+
+```bash
+# 1. 前端（需要 Node 22+ 与 pnpm）
+pnpm install && pnpm build:web
+
+# 2. 服务端（机器上不需要任何 webkit/gtk 开发包）
+cd src-tauri
+cargo build --release --no-default-features --features server --bin cc-switch-server
+
+# 3. 运行，默认监听 127.0.0.1:15800
+./target/release/cc-switch-server
+```
+
+打开启动日志里打印的 `http://127.0.0.1:15800/auth?token=<令牌>` 即可。远程机器用
+`ssh -L 15800:127.0.0.1:15800 user@host`；容器用仓库根目录的 `Dockerfile` 与 `docker-compose.yml`。
+参数、安全说明与 systemd 单元见 [docs/web-mode-zh.md](docs/web-mode-zh.md)。
+
+---
+
+> **以下内容描述的是上游应用本身**，本 fork 未做改动。
+> 其中的官网、赞助商与下载按钮都指向上游项目。
+
 
 ## ❤️赞助商
 
@@ -235,6 +275,10 @@ Claude Code、Codex、Gemini CLI 等 AI 编程工具各有各的配置格式。�
 | ![主界面](assets/screenshots/main-zh.png) | ![添加供应商](assets/screenshots/add-zh.png) |
 
 ## 下载安装
+
+> **Web 模式暂时没有预编译产物**，请按上面的 [Web 模式快速开始](#web-模式快速开始) 自行构建
+> （`cc-switch-server` 只有一个文件，不需要安装器）。
+> 下面的安装包都是**上游的桌面版**，不含本 fork 的改动。
 
 ### 系统要求
 
