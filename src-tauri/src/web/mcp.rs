@@ -22,10 +22,7 @@ pub const HANDLERS: &[(&str, Handler)] = &[
     ("delete_claude_mcp_server", delete_claude_mcp_server),
     ("validate_mcp_command", validate_mcp_command),
     ("get_mcp_config", get_mcp_config),
-    (
-        "upsert_mcp_server_in_config",
-        upsert_mcp_server_in_config,
-    ),
+    ("upsert_mcp_server_in_config", upsert_mcp_server_in_config),
     ("delete_mcp_server_in_config", delete_mcp_server_in_config),
     ("set_mcp_enabled", set_mcp_enabled),
     ("get_mcp_servers", get_mcp_servers),
@@ -172,10 +169,8 @@ fn delete_mcp_server_in_config(context: Arc<Context>, args: Value) -> HandlerFut
         let Args { id, .. } = parse(args)?;
         let state = context.require_state()?;
 
-        deferred(move || {
-            McpService::delete_server(&state, &id).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || McpService::delete_server(&state, &id).map_err(|error| error.to_string()))
+            .await
     })
 }
 
@@ -203,10 +198,8 @@ fn set_mcp_enabled(context: Arc<Context>, args: Value) -> HandlerFuture {
 fn get_mcp_servers(context: Arc<Context>, _args: Value) -> HandlerFuture {
     Box::pin(async move {
         let state = context.require_state()?;
-        deferred(move || {
-            McpService::get_all_servers(&state).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || McpService::get_all_servers(&state).map_err(|error| error.to_string()))
+            .await
     })
 }
 
@@ -237,10 +230,8 @@ fn delete_mcp_server(context: Arc<Context>, args: Value) -> HandlerFuture {
         let Args { id } = parse(args)?;
         let state = context.require_state()?;
 
-        deferred(move || {
-            McpService::delete_server(&state, &id).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || McpService::delete_server(&state, &id).map_err(|error| error.to_string()))
+            .await
     })
 }
 

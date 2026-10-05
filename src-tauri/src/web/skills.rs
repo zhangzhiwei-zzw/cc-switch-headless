@@ -14,9 +14,7 @@ use serde_json::Value;
 
 use super::routes::{deferred, parse, serializable, to_app_type, Handler, HandlerFuture};
 use super::Context;
-use crate::services::skill::{
-    SkillService, SkillStorageLocation, SkillUninstallResult,
-};
+use crate::services::skill::{SkillService, SkillStorageLocation, SkillUninstallResult};
 
 pub const HANDLERS: &[(&str, Handler)] = &[
     ("get_installed_skills", get_installed_skills),
@@ -114,10 +112,8 @@ fn uninstall_skill_unified(context: Arc<Context>, args: Value) -> HandlerFuture 
         let Args { id } = parse(args)?;
         let state = context.require_state()?;
 
-        deferred(move || {
-            SkillService::uninstall(&state.db, &id).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || SkillService::uninstall(&state.db, &id).map_err(|error| error.to_string()))
+            .await
     })
 }
 
@@ -168,10 +164,8 @@ fn toggle_skill_app(context: Arc<Context>, args: Value) -> HandlerFuture {
 fn scan_unmanaged_skills(context: Arc<Context>, _args: Value) -> HandlerFuture {
     Box::pin(async move {
         let state = context.require_state()?;
-        deferred(move || {
-            SkillService::scan_unmanaged(&state.db).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || SkillService::scan_unmanaged(&state.db).map_err(|error| error.to_string()))
+            .await
     })
 }
 

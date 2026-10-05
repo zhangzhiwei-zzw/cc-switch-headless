@@ -186,10 +186,7 @@ fn get_pi_prompt_file(_context: Arc<Context>, args: Value) -> HandlerFuture {
             kind: PiPromptFileKind,
         }
         let Args { kind } = parse(args)?;
-        deferred(move || {
-            PiPromptFileService::read(kind).map_err(|error| error.to_string())
-        })
-        .await
+        deferred(move || PiPromptFileService::read(kind).map_err(|error| error.to_string())).await
     })
 }
 
@@ -228,8 +225,7 @@ fn delete_pi_prompt_file(_context: Arc<Context>, args: Value) -> HandlerFuture {
             expected_revision,
         } = parse(args)?;
         deferred(move || {
-            PiPromptFileService::delete(kind, &expected_revision)
-                .map_err(|error| error.to_string())
+            PiPromptFileService::delete(kind, &expected_revision).map_err(|error| error.to_string())
         })
         .await
     })

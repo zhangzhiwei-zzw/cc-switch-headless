@@ -453,17 +453,12 @@ fn sync_session_usage(context: Arc<Context>, _args: Value) -> HandlerFuture {
         let _guard = crate::services::session_usage::session_sync_mutex()
             .lock()
             .await;
-        deferred(move || {
-            Ok(crate::services::session_usage::sync_all_unlocked(&db))
-        })
-        .await
+        deferred(move || Ok(crate::services::session_usage::sync_all_unlocked(&db))).await
     })
 }
 
 fn get_session_usage_last_sync(_context: Arc<Context>, _args: Value) -> HandlerFuture {
-    Box::pin(async move {
-        serializable(crate::services::session_usage::last_sync_completed_at())
-    })
+    Box::pin(async move { serializable(crate::services::session_usage::last_sync_completed_at()) })
 }
 
 /// 备份数据库后，仅重建 Codex session 用量。锁覆盖 backup → reset → import

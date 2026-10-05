@@ -170,7 +170,8 @@ function App() {
   // 浏览器（web 模式）没有原生窗口控制，一律不显示。
   const useAppWindowControls =
     isTauriRuntime() &&
-    (isWindows() || (isLinux() && (settingsData?.useAppWindowControls ?? false)));
+    (isWindows() ||
+      (isLinux() && (settingsData?.useAppWindowControls ?? false)));
   const visibleApps = useMemo<VisibleApps>(
     () => ({
       ...DEFAULT_VISIBLE_APPS,

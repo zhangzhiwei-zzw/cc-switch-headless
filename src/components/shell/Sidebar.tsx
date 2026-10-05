@@ -228,7 +228,12 @@ function MainDirectory({
     feature?: string;
   }[] = [
     { page: "mcp", label: "MCP", icon: Server, feature: "pageMcp" },
-    { page: "skills", label: "Skills", icon: SkillsIcon, feature: "pageSkills" },
+    {
+      page: "skills",
+      label: "Skills",
+      icon: SkillsIcon,
+      feature: "pageSkills",
+    },
     {
       page: "prompts",
       label: t("nav.prompts"),

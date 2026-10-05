@@ -115,7 +115,9 @@ function pickAndUploadFile(): Promise<string | null> {
 /** 导出到服务端路径后，触发浏览器下载同一个文件。 */
 async function exportAndDownload(args: InvokeArgs): Promise<unknown> {
   const filePath = typeof args?.filePath === "string" ? args.filePath : "";
-  const result = await callServer<unknown>("export_config_to_file", { filePath });
+  const result = await callServer<unknown>("export_config_to_file", {
+    filePath,
+  });
 
   if (filePath) {
     const link = document.createElement("a");
@@ -137,8 +139,10 @@ async function exportAndDownload(args: InvokeArgs): Promise<unknown> {
  */
 async function streamSessionMessages(args: InvokeArgs): Promise<void> {
   const channel = args?.onChunk as Channel<unknown> | undefined;
-  const providerId = typeof args?.providerId === "string" ? args.providerId : "";
-  const sourcePath = typeof args?.sourcePath === "string" ? args.sourcePath : "";
+  const providerId =
+    typeof args?.providerId === "string" ? args.providerId : "";
+  const sourcePath =
+    typeof args?.sourcePath === "string" ? args.sourcePath : "";
 
   try {
     const payload = await callServer<{

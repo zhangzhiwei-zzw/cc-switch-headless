@@ -638,8 +638,8 @@ async fn query_provider_usage_inner(
         let account_id = provider
             .and_then(|p| p.meta.as_ref())
             .and_then(|m| m.managed_account_id_for("xai_oauth"));
-        let quota = crate::commands::xai_oauth::query_xai_oauth_quota_for(xai_state, account_id)
-            .await?;
+        let quota =
+            crate::commands::xai_oauth::query_xai_oauth_quota_for(xai_state, account_id).await?;
         return Ok(subscription_quota_to_usage_result(quota));
     }
 
@@ -1051,4 +1051,3 @@ mod import_claude_desktop_tests {
         );
     }
 }
-

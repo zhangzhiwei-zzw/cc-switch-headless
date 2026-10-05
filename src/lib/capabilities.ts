@@ -48,6 +48,8 @@ export function supports(feature: string): boolean {
 }
 
 /** 测试用：重置内部状态。 */
-export function resetCapabilitiesForTest(next: CapabilityMap | null = null): void {
+export function resetCapabilitiesForTest(
+  next: CapabilityMap | null = null,
+): void {
   features = next;
 }

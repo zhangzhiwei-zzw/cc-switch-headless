@@ -23,7 +23,9 @@ export class WebWindow {
     return () => {};
   }
 
-  async onFocusChanged(_handler: (event: { payload: boolean }) => void): Promise<() => void> {
+  async onFocusChanged(
+    _handler: (event: { payload: boolean }) => void,
+  ): Promise<() => void> {
     return () => {};
   }
 

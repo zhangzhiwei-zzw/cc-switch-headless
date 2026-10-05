@@ -16,11 +16,17 @@ export async function message(
   window.alert(title ? `${title}\n\n${text}` : text);
 }
 
-export async function ask(text: string, options?: MessageDialogOptions): Promise<boolean> {
+export async function ask(
+  text: string,
+  options?: MessageDialogOptions,
+): Promise<boolean> {
   return window.confirm(options?.title ? `${options.title}\n\n${text}` : text);
 }
 
-export async function confirm(text: string, options?: MessageDialogOptions): Promise<boolean> {
+export async function confirm(
+  text: string,
+  options?: MessageDialogOptions,
+): Promise<boolean> {
   return window.confirm(options?.title ? `${options.title}\n\n${text}` : text);
 }
 

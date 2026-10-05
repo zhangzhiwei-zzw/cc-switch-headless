@@ -4,22 +4,37 @@
 
 type LogOptions = Record<string, unknown> | undefined;
 
-export async function error(message: string, _options?: LogOptions): Promise<void> {
+export async function error(
+  message: string,
+  _options?: LogOptions,
+): Promise<void> {
   console.error(message);
 }
 
-export async function warn(message: string, _options?: LogOptions): Promise<void> {
+export async function warn(
+  message: string,
+  _options?: LogOptions,
+): Promise<void> {
   console.warn(message);
 }
 
-export async function info(message: string, _options?: LogOptions): Promise<void> {
+export async function info(
+  message: string,
+  _options?: LogOptions,
+): Promise<void> {
   console.info(message);
 }
 
-export async function debug(message: string, _options?: LogOptions): Promise<void> {
+export async function debug(
+  message: string,
+  _options?: LogOptions,
+): Promise<void> {
   console.debug(message);
 }
 
-export async function trace(message: string, _options?: LogOptions): Promise<void> {
+export async function trace(
+  message: string,
+  _options?: LogOptions,
+): Promise<void> {
   console.debug(message);
 }

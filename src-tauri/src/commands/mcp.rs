@@ -79,15 +79,9 @@ pub async fn upsert_mcp_server_in_config(
 ) -> Result<bool, String> {
     let app_ty = AppType::from_str(&app).map_err(|e| e.to_string())?;
 
-    McpService::upsert_from_legacy(
-        &state,
-        &app_ty,
-        &id,
-        spec,
-        sync_other_side.unwrap_or(false),
-    )
-    .map(|_| true)
-    .map_err(|e| e.to_string())
+    McpService::upsert_from_legacy(&state, &app_ty, &id, spec, sync_other_side.unwrap_or(false))
+        .map(|_| true)
+        .map_err(|e| e.to_string())
 }
 
 /// 在 config.json 中删除一个 MCP 服务器定义
