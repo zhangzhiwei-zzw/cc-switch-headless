@@ -1454,7 +1454,7 @@ function App() {
         <main
           ref={mainScrollRef}
           id="content-area"
-          className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+          className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden bg-app"
         >
           {showEnvBanner && envConflicts.length > 0 && (
             <EnvWarningBanner

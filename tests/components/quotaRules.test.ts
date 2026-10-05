@@ -5,6 +5,7 @@ import {
   cardRows,
   expiredLine,
   failedLines,
+  lineHint,
   pickLines,
   resetCreditsLine,
   tierLine,
@@ -26,6 +27,7 @@ const t = ((key: string, options?: Record<string, unknown>) => {
     "quota.resetCredits.title": "存下的限额重置",
     "quota.resetCredits.times": "{{count}} 次",
     "quota.resetCredits.inTime": "{{time}}后",
+    "subscription.resetsIn": "{{time}}后重置",
   };
   const template = templates[key] ?? key;
   return template.replace(/\{\{(\w+)\}\}/g, (_, name) =>
@@ -72,12 +74,16 @@ describe("quota lines", () => {
     expect(toneForLeft(9)).toBe("warning");
   });
 
-  it("only colors a balance without a total once it runs out", () => {
+  it("only colors a balance once it runs out, even when nearly gone", () => {
     expect(balanceLine(t, { remaining: 82.1, unit: "¥" })).toMatchObject({
       text: "余额 82.10 ¥",
       tone: "normal",
     });
-    expect(balanceLine(t, { remaining: 5, total: 100 }).tone).toBe("warning");
+    // 不到总额 10% 也不加深，条长照旧按总额算
+    expect(balanceLine(t, { remaining: 5, total: 100 })).toMatchObject({
+      tone: "normal",
+      left: 5,
+    });
     expect(balanceLine(t, { remaining: 0 })).toMatchObject({
       text: "quota.balanceUsedUp",
       tone: "danger",
@@ -247,5 +253,36 @@ describe("saved limit resets", () => {
       "每周剩余 64%",
       "重置剩余 1 次",
     ]);
+  });
+});
+
+describe("reset time in hints", () => {
+  const now = Date.parse("2026-10-04T10:00:00Z");
+  const fiveHour = tierLine(
+    t,
+    {
+      name: "five_hour",
+      utilization: 31,
+      resetsAt: "2026-10-04T12:30:00Z",
+    },
+    "5 小时",
+  );
+
+  it("counts down from the render time, not when the line was built", () => {
+    expect(fiveHour.detail).toBeUndefined();
+    expect(lineHint(t, fiveHour, now)).toBe("5 小时 · 2h30m后重置");
+    expect(lineHint(t, fiveHour, now + 60 * 60 * 1000)).toBe(
+      "5 小时 · 1h30m后重置",
+    );
+  });
+
+  it("keeps the extra detail in front and falls back to the line itself", () => {
+    expect(lineHint(t, { ...fiveHour, detail: "Pro" }, now)).toBe(
+      "Pro · 5 小时 · 2h30m后重置",
+    );
+    // 重置时间已过：只剩这行本身
+    expect(lineHint(t, fiveHour, Date.parse("2026-10-05T00:00:00Z"))).toBe(
+      "5 小时剩余 69%",
+    );
   });
 });

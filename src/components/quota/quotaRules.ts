@@ -2,8 +2,8 @@ import type { TFunction } from "i18next";
 import type { QuotaTier, ResetCredits } from "@/types/subscription";
 
 /**
- * 额度的文字和颜色（v7 QuotaSpec）：一律写「剩余」，平时灰色；任一档剩余不到 10%（余额不到
- * 总额 10%）加深加粗（不用橙色，见 TONE_TEXT）；用完 / 过期 / 没查到红色。卡片最多两行：
+ * 额度的文字和颜色（v7 QuotaSpec）：一律写「剩余」，平时灰色；任一档剩余不到 10% 加深加粗
+ * （不用橙色，见 TONE_TEXT；余额不算，见 balanceLine）；用完 / 过期 / 没查到红色。卡片最多两行：
  * 档数更多时，第一行固定写窗口最短的那档，其余并成一行（见 cardRows）。
  */
 export type QuotaTone = "normal" | "warning" | "danger" | "muted";
@@ -16,8 +16,12 @@ export interface QuotaLine {
   tone: QuotaTone;
   /** 剩余百分比；余额没有总额时是 Infinity，失败 / 过期是负数（排在最前） */
   left: number;
-  /** 悬停时补充的一句（重置时间、套餐名） */
+  /** 悬停时补充的一句（套餐名、失败原因）；重置时间不写这里，见 resetsAt */
   detail?: string;
+  /** 档名（「5 小时」），悬停说明里接在重置倒计时前面 */
+  label?: string;
+  /** 这档下次重置的时间；倒计时在渲染时按当前时间现算（resetText / lineHint） */
+  resetsAt?: string | null;
   /** 并进卡片合并行时的写法（「每周 64%」）；只有按档的额度行才有 */
   short?: string;
   /** 档位窗口的长短次序，越小越短（见 TIER_WINDOW_ORDER） */
@@ -104,7 +108,6 @@ export function tierLine(
 ): QuotaLine {
   const left = Math.max(0, Math.round(100 - (tier.utilization ?? 0)));
   const params = labelParams(label);
-  const countdown = countdownStr(tier.resetsAt);
   return {
     key: tier.name,
     left,
@@ -114,15 +117,34 @@ export function tierLine(
         ? t("quota.tierUsedUp", params)
         : t("quota.tierLeft", { ...params, value: left }),
     value: left <= 0 ? t("quota.usedUp") : t("quota.left", { value: left }),
-    detail: countdown
-      ? `${label} · ${t("subscription.resetsIn", { time: countdown })}`
-      : undefined,
+    label,
+    resetsAt: tier.resetsAt,
     short:
       shortLabel === undefined
         ? undefined
         : t("quota.tierShort", { label: shortLabel, value: left }),
     window: TIER_WINDOW_ORDER[tier.name] ?? UNKNOWN_WINDOW,
   };
+}
+
+/** 「2h30m后重置」；没有重置时间或已经过了时为 null */
+export function resetText(
+  t: TFunction,
+  line: Pick<QuotaLine, "resetsAt">,
+  now = Date.now(),
+): string | null {
+  const countdown = countdownStr(line.resetsAt, now);
+  return countdown ? t("subscription.resetsIn", { time: countdown }) : null;
+}
+
+/** 一行额度的悬停说明：补充说明 + 「档名 · x 后重置」；两样都没有时就是这行本身 */
+export function lineHint(t: TFunction, line: QuotaLine, now = Date.now()) {
+  const reset = resetText(t, line, now);
+  return (
+    [line.detail, reset && (line.label ? `${line.label} · ${reset}` : reset)]
+      .filter(Boolean)
+      .join(" · ") || line.text
+  );
 }
 
 /** 最早那次重置三天内就过期时加深提醒 */
@@ -229,6 +251,11 @@ function resetCreditGroups(
   });
 }
 
+/**
+ * 余额一律灰色，只有用完才变红：不做「快用完」的加深。几张卡片的余额深浅不一，
+ * 读起来像出了什么错，而不是「快用完了」（10-04 Jason 定）。left 照旧按总额算，
+ * 展开时的条长、多行时挑哪几行还用它
+ */
 export function balanceLine(
   t: TFunction,
   {
@@ -252,7 +279,7 @@ export function balanceLine(
   return {
     key,
     left,
-    tone: toneForLeft(left),
+    tone: remaining <= 0 ? "danger" : "normal",
     text:
       remaining <= 0 ? t("quota.balanceUsedUp") : t("quota.balance", { value }),
     detail,
