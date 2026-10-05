@@ -1,9 +1,16 @@
 name: Release
 
+# 桌面版打包流水线（上游继承）。
+#
+# 本 fork 的发布面是**无头服务端**，见 release-server.yml。这条流水线原本和它
+# 共用 `push: tags: v*` 触发条件，于是推一个服务器 tag 会顺带启动 5 个平台的
+# 桌面构建——而它要 TAURI_SIGNING_PRIVATE_KEY / APPLE_CERTIFICATE / APPLE_ID
+# 等签名密钥，fork 上没有，只会红着跑掉一小时。
+#
+# 改成只留手动触发。真要发桌面版时在 Actions 里选这条 workflow、把 ref 选成
+# 对应 tag 再跑（先配好上面那些 secrets）。
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
