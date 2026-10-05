@@ -25,9 +25,8 @@ on:
 
 permissions:
   contents: write
-  # publish job 用 actions/download-artifact 取 build 的产物，需要读本 run 的
-  # artifacts；写死 permissions 后没列出的 scope 一律是 none。第一次发布时只
-  # 写了 contents: write，publish 在下载那步失败了。
+  # publish job 用 actions/download-artifact 读本 run 的产物；写死 permissions 后
+  # 没列出的 scope 一律是 none，所以这里显式给 actions: read。
   actions: read
 
 env:
@@ -134,10 +133,13 @@ jobs:
     runs-on: ubuntu-22.04
     if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
     steps:
-      # 第一次发布用的是 @v4：重试约 50 秒后失败（产物本身在，见 build job）。
-      # 本仓库 release.yml 里同一用途用的是 @v8，这里对齐。
+      # 必须带 pattern：同一个 run 里除了服务端产物，还有 buildx 用
+      # `cache-to: type=gha` 注册的缓存 artifact（`<owner>~<repo>~<hash>.dockerbuild`）。
+      # 不带 pattern 时 download-artifact 会「下载全部」，那个缓存不是普通压缩包，
+      # 解压失败会让整个步骤报 "failed after 5 retries"——哪怕真正的二进制已经下载好了。
       - uses: actions/download-artifact@v8
         with:
+          pattern: cc-switch-server-linux-*
           path: assets
           merge-multiple: true
 
