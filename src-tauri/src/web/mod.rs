@@ -256,6 +256,10 @@ fn build_router(context: Arc<Context>, dist: &Path) -> Router {
         .route("/commands", get(routes::list_commands))
         .route("/env", get(env_info))
         .route("/events", get(events))
+        // 导入 / 导出：浏览器没有服务端文件系统，用上传 / 下载代替文件对话框
+        .route("/upload", post(upload))
+        .route("/download", get(download))
+        .layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024))
         .route_layer(middleware::from_fn_with_state(context.clone(), guard_token));
 
     Router::new()
@@ -345,6 +349,98 @@ async fn events(
     };
 
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+/// `POST /api/upload?name=<文件名>`：把浏览器选中的文件放到服务端的上传目录。
+///
+/// 返回服务端路径，前端随后把它交给 `import_config_from_file` 等命令使用——
+/// 这样"选择文件 → 导入"的既有流程在 web 模式下原样成立。
+#[derive(serde::Deserialize)]
+struct UploadQuery {
+    name: String,
+}
+
+async fn upload(Query(params): Query<UploadQuery>, body: axum::body::Bytes) -> Response {
+    if body.is_empty() {
+        return (StatusCode::BAD_REQUEST, "上传内容为空").into_response();
+    }
+
+    // 只取文件名部分，杜绝 `../` 穿越
+    let file_name = Path::new(&params.name)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "upload.sql".to_string());
+
+    let dir = crate::config::get_app_config_dir().join("uploads");
+    if let Err(error) = std::fs::create_dir_all(&dir) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("创建上传目录失败: {error}"),
+        )
+            .into_response();
+    }
+
+    let path = dir.join(file_name);
+    if let Err(error) = std::fs::write(&path, &body) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("写入上传文件失败: {error}"),
+        )
+            .into_response();
+    }
+
+    log::info!("[web] 已接收上传: {path:?}（{} 字节）", body.len());
+    axum::Json(serde_json::json!({ "path": path.to_string_lossy() })).into_response()
+}
+
+/// `GET /api/download?path=<服务端路径>`：下载配置目录下的文件（导出、备份、上传）。
+///
+/// 只允许 `<配置目录>` 之内的路径：即使令牌泄露，也不能拿来读任意文件。
+#[derive(serde::Deserialize)]
+struct DownloadQuery {
+    path: String,
+}
+
+async fn download(Query(params): Query<DownloadQuery>) -> Response {
+    let root = match crate::config::get_app_config_dir().canonicalize() {
+        Ok(root) => root,
+        Err(error) => {
+            return (StatusCode::NOT_FOUND, format!("配置目录不可用: {error}")).into_response();
+        }
+    };
+    let path = match std::path::PathBuf::from(&params.path).canonicalize() {
+        Ok(path) => path,
+        Err(error) => {
+            return (StatusCode::NOT_FOUND, format!("文件不存在: {error}")).into_response();
+        }
+    };
+    if !path.starts_with(&root) {
+        return (StatusCode::FORBIDDEN, "只能下载 CC Switch 配置目录里的文件").into_response();
+    }
+
+    let bytes = match tokio::fs::read(&path).await {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return (StatusCode::NOT_FOUND, format!("读取文件失败: {error}")).into_response();
+        }
+    };
+
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "download.bin".to_string());
+
+    let mut response = bytes.into_response();
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
+    if let Ok(value) = HeaderValue::from_str(&format!("attachment; filename=\"{file_name}\"")) {
+        headers.insert(header::CONTENT_DISPOSITION, value);
+    }
+    response
 }
 
 /// `GET /api/env`：前端 shim 需要的宿主信息（版本、home 目录、配置目录）。

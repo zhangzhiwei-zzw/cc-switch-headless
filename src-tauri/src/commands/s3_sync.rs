@@ -3,11 +3,11 @@
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::commands::sync_support::{
-    attach_warning, post_sync_warning_from_result, run_post_import_sync,
-};
 use crate::error::AppError;
 use crate::services::s3_sync as s3_sync_service;
+use crate::services::sync_support::{
+    attach_warning, post_sync_warning_from_result, run_post_import_sync,
+};
 use crate::settings::{self, S3SyncSettings};
 use crate::store::AppState;
 

@@ -1,0 +1,42 @@
+#
+# CC Switch Web 模式（cc-switch-server）的用户级 systemd 服务。
+#
+# 安装（把 <SOURCES> 换成你的源码目录，或把可执行文件与前端产物拷到下面的路径）：
+#
+#   mkdir -p ~/.local/bin ~/.local/share/cc-switch
+#   cp <SOURCES>/src-tauri/target/release/cc-switch-server ~/.local/bin/
+#   cp -r <SOURCES>/dist-web ~/.local/share/cc-switch/
+#   mkdir -p ~/.config/systemd/user
+#   cp <SOURCES>/scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now cc-switch-server
+#   loginctl enable-linger "$USER"        # 未登录时也保持运行
+#
+# 访问地址与令牌：
+#   cat ~/.cc-switch/web-token            # 令牌（首次启动生成）
+#   浏览器打开 http://127.0.0.1:15800/auth?token=<令牌>
+#   远程访问：ssh -L 15800:127.0.0.1:15800 user@host
+#
+# 日志：journalctl --user -u cc-switch-server -f
+#      以及 ~/.cc-switch/logs/cc-switch.log
+#
+[Unit]
+Description=CC Switch web server (provider manager + local routing)
+Documentation=https://github.com/farion1231/cc-switch
+After=network-online.target
+
+[Service]
+Type=simple
+# 只监听回环地址；端口与前端的产物目录都可以按需调整
+ExecStart=%h/.local/bin/cc-switch-server --port 15800 --dist %h/.local/share/cc-switch/dist-web
+WorkingDirectory=%h
+# 日志同时写 stderr（进 journal）与 ~/.cc-switch/logs/cc-switch.log
+Environment=RUST_LOG=info
+Restart=on-failure
+RestartSec=3
+# 退出时给正在写库/写客户端配置的操作留出时间
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=default.target

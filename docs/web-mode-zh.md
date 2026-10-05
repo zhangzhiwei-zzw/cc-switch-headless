@@ -51,6 +51,21 @@ ssh -L 15800:127.0.0.1:15800 user@your-server
 # 然后在本机浏览器打开 http://127.0.0.1:15800/auth?token=...
 ```
 
+### 作为 systemd 服务运行（推荐）
+
+```bash
+mkdir -p ~/.local/bin ~/.local/share/cc-switch ~/.config/systemd/user
+cp src-tauri/target/release/cc-switch-server ~/.local/bin/
+cp -r dist-web ~/.local/share/cc-switch/
+cp scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now cc-switch-server
+loginctl enable-linger "$USER"          # 未登录时也保持运行
+journalctl --user -u cc-switch-server -f
+```
+
+单元文件里的路径、端口都写在 `ExecStart` 一行，改完 `systemctl --user daemon-reload` 即可。
+
 ### 常用参数与环境变量
 
 | 参数 | 环境变量 | 说明 |
@@ -79,18 +94,28 @@ CLI 命令。因此：
 - 设置保存、配置目录查询；
 - **本地路由（代理）**：启动/停止代理、全局与应用级代理配置、进入/退出路由模式、
   指定路由目标、故障转移队列与自动故障转移开关；
+- **导入导出与备份**：导出 SQL 备份（浏览器直接下载）、上传 SQL 恢复配置、
+  备份的创建 / 列表 / 重命名 / 删除 / 恢复；
+- **会话浏览**：列出 / 读取 / 删除各 CLI 工具在**服务器上**留下的会话，
+  搜索与分块渲染照常（浏览器里用一次性拉取模拟 Channel）；
 - 事件推送（SSE，事件名与桌面版一致）。
 
-本地路由在服务端是真跑的：进入路由模式会把该应用的 CLI 配置改写到本地代理地址，
-请求经代理做协议转换后转发到供应商，退出时按直连那家写回。
+两处与桌面不同的实现方式：
+
+- **本地路由是真跑的**：进入路由模式会把该应用的 CLI 配置改写到本地代理地址，
+  请求经代理做协议转换后转发到供应商，退出时按直连那家写回。
+- **文件对话框换成上传/下载**：桌面版用系统对话框选路径，浏览器里改成——
+  导出时服务端在 `<配置目录>/exports/` 下分配文件名、导出后浏览器自动下载；
+  导入时浏览器选文件先上传到 `<配置目录>/uploads/`，再把服务端路径交给同一条导入流程。
+  下载接口只允许读取配置目录内的文件（防路径穿越）。
 
 未实现（会返回 `E_NOT_IMPLEMENTED`，界面会提示而不是白屏）：
 
 - 托盘、自动更新、`ccswitch://` 深链、开机自启、窗口控制；
-- 文件选择对话框（导入/导出、目录选择）——服务端没有桌面会话；
+- 目录选择对话框（`pick_directory`）——浏览器无法为服务端选路径；
 - 托管账号（Copilot / Codex / xAI）的**登录流程**（转发链路已支持托管账号，
   但 OAuth 登录命令尚未接入）；
-- Stack（聚合）模式、熔断器配置面板、定价来源切换。
+- Stack（聚合）模式、熔断器配置面板、定价来源切换；
 - 会话浏览与流式读取、用量统计、MCP / Skills / Prompts 面板等其余命令。
 
 ## 与桌面版的行为差异

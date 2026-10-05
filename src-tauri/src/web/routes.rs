@@ -5,7 +5,8 @@
 //! 薄封装（解析参数 → 调 service 层）在这里重写一遍——业务逻辑仍然只有一份，
 //! 在 `services/` 里。
 //!
-//! 目前实现的范围：启动链路、供应商页、设置保存、本地路由（代理）与故障转移队列。
+//! 目前实现的范围：启动链路、供应商页、设置保存、本地路由（代理）与故障转移队列、
+//! 导入导出与数据库备份、会话浏览。
 //! 未实现的命令返回 `E_NOT_IMPLEMENTED:<cmd>`，前端会以普通错误提示，不会白屏。
 //! 凡是命令体里有真实逻辑的（如故障转移的开启流程），逻辑都放在 `services/` 里
 //! 由两种构建共用——这里只做参数解析与调用。
@@ -187,6 +188,44 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
         table.insert(
             "set_auto_failover_enabled",
             set_auto_failover_enabled as Handler,
+        );
+
+        // ---- 导入导出与数据库备份 ----
+        table.insert("export_config_to_file", export_config_to_file as Handler);
+        table.insert(
+            "import_config_from_file",
+            import_config_from_file as Handler,
+        );
+        table.insert("create_db_backup", create_db_backup as Handler);
+        table.insert("list_db_backups", list_db_backups as Handler);
+        table.insert("restore_db_backup", restore_db_backup as Handler);
+        table.insert("rename_db_backup", rename_db_backup as Handler);
+        table.insert("delete_db_backup", delete_db_backup as Handler);
+        // 浏览器里没有"保存文件对话框"：由前端 shim 调它拿一个服务端导出路径
+        table.insert(
+            "web_allocate_export_path",
+            web_allocate_export_path as Handler,
+        );
+
+        // ---- 会话浏览 ----
+        table.insert("list_sessions", list_sessions as Handler);
+        table.insert("get_session_messages", get_session_messages as Handler);
+        table.insert(
+            "get_session_block_content",
+            get_session_block_content as Handler,
+        );
+        table.insert("delete_session", delete_session as Handler);
+        table.insert("delete_sessions", delete_sessions as Handler);
+        table.insert(
+            "export_session_markdown",
+            export_session_markdown as Handler,
+        );
+        // 浏览器里没有 Channel：shim 用它读整段会话再分块喂回调
+        table.insert("web_session_transcript", web_session_transcript as Handler);
+        table.insert("reveal_session_path", reveal_session_path as Handler);
+        table.insert(
+            "launch_session_terminal",
+            launch_session_terminal as Handler,
         );
 
         table
@@ -966,5 +1005,313 @@ fn set_auto_failover_enabled(context: Arc<Context>, args: Value) -> HandlerFutur
             );
         }
         Ok(Value::Bool(true))
+    })
+}
+
+// ============================================================================
+// 导入导出与数据库备份
+//
+// 桌面的文件对话框在浏览器里没有对应物：shim 用 `open_file_dialog` 选择文件后
+// POST 到 `/api/upload`，拿到**服务端路径**再交给下面这些命令；导出方向则由
+// `web_allocate_export_path` 分配一个服务端路径，导出成功后 shim 触发
+// `/api/download`。
+// ============================================================================
+
+/// 为一次导出分配服务端路径（仅前端 shim 使用）。
+fn web_allocate_export_path(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            default_name: String,
+        }
+        let Args { default_name } = parse(args)?;
+
+        // 只取文件名部分，杜绝 `../` 穿越
+        let file_name = std::path::Path::new(&default_name)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "cc-switch-export.sql".to_string());
+
+        let dir = crate::config::get_app_config_dir().join("exports");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("创建导出目录失败: {e}"))?;
+        let path = dir.join(file_name);
+        Ok(Value::String(path.to_string_lossy().into_owned()))
+    })
+}
+
+fn export_config_to_file(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            file_path: String,
+        }
+        let Args { file_path } = parse(args)?;
+        let state = context.require_state()?;
+        crate::services::import_export::export_to_file(&state, &file_path).await
+    })
+}
+
+fn import_config_from_file(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            file_path: String,
+        }
+        let Args { file_path } = parse(args)?;
+        let state = context.require_state()?;
+        crate::services::import_export::import_from_file(&state, &file_path).await
+    })
+}
+
+fn create_db_backup(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        let file_name = crate::services::import_export::create_backup(&state).await?;
+        Ok(Value::String(file_name))
+    })
+}
+
+fn list_db_backups(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        context.require_state()?;
+        let backups = crate::services::import_export::list_backups()?;
+        serializable(backups)
+    })
+}
+
+fn restore_db_backup(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            filename: String,
+        }
+        let Args { filename } = parse(args)?;
+        let state = context.require_state()?;
+        let restored = crate::services::import_export::restore_backup(&state, &filename).await?;
+        Ok(Value::String(restored))
+    })
+}
+
+fn rename_db_backup(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            old_filename: String,
+            new_name: String,
+        }
+        let Args {
+            old_filename,
+            new_name,
+        } = parse(args)?;
+        context.require_state()?;
+        let renamed = crate::services::import_export::rename_backup(&old_filename, &new_name)?;
+        Ok(Value::String(renamed))
+    })
+}
+
+fn delete_db_backup(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            filename: String,
+        }
+        let Args { filename } = parse(args)?;
+        context.require_state()?;
+        crate::services::import_export::delete_backup(&filename)?;
+        Ok(Value::Bool(true))
+    })
+}
+
+// ============================================================================
+// 会话浏览
+//
+// 读的是**服务端这台机器**上各 CLI 工具留下的会话文件——在服务器上跑 CLI
+// 的场景里这正是要看的东西。桌面的终端/文件管理器相关命令在服务端没有对应物。
+// ============================================================================
+
+fn list_sessions(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let sessions = blocking(|| Ok(crate::session_manager::scan_sessions())).await?;
+        serializable(sessions)
+    })
+}
+
+fn get_session_messages(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            provider_id: String,
+            source_path: String,
+        }
+        let Args {
+            provider_id,
+            source_path,
+        } = parse(args)?;
+
+        blocking(move || {
+            crate::session_manager::load_transcript(&provider_id, &source_path)
+                .map(|loaded| loaded.transcript.messages.clone())
+        })
+        .await
+        .and_then(serializable)
+    })
+}
+
+/// 一次性返回整段会话（含轮次索引）。
+///
+/// 浏览器端不支持 Tauri 的 `Channel`，`stream_session_messages` 由前端 shim 用
+/// 这个命令的数据在浏览器里分块喂给回调——分块逻辑在浏览器侧做，服务端只读一次。
+fn web_session_transcript(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            provider_id: String,
+            source_path: String,
+        }
+        let Args {
+            provider_id,
+            source_path,
+        } = parse(args)?;
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload {
+            messages: Vec<crate::session_manager::SessionMessage>,
+            turns: Vec<crate::session_manager::model::TurnIndex>,
+            approx_bytes: u64,
+            cached: bool,
+            parse_ms: u64,
+        }
+
+        blocking(move || {
+            let loaded = crate::session_manager::load_transcript(&provider_id, &source_path)?;
+            Ok(Payload {
+                messages: loaded.transcript.messages.clone(),
+                turns: loaded.transcript.turns.clone(),
+                approx_bytes: loaded.transcript.approx_bytes as u64,
+                cached: loaded.cached,
+                parse_ms: loaded.parse_ms,
+            })
+        })
+        .await
+        .and_then(serializable)
+    })
+}
+
+fn get_session_block_content(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            provider_id: String,
+            source_path: String,
+            content_ref: crate::session_manager::model::ContentRef,
+            offset: Option<u32>,
+            limit: Option<u32>,
+        }
+        let Args {
+            provider_id,
+            source_path,
+            content_ref,
+            offset,
+            limit,
+        } = parse(args)?;
+
+        blocking(move || {
+            let source =
+                crate::session_manager::content::validate_source(&provider_id, &source_path)?;
+            let full = crate::session_manager::content::resolve_content_ref(&source, &content_ref)?;
+            Ok(crate::session_manager::content::paginate(
+                &full, offset, limit,
+            ))
+        })
+        .await
+        .and_then(serializable)
+    })
+}
+
+fn delete_session(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            provider_id: String,
+            session_id: String,
+            source_path: String,
+        }
+        let Args {
+            provider_id,
+            session_id,
+            source_path,
+        } = parse(args)?;
+
+        blocking(move || {
+            crate::session_manager::delete_session(&provider_id, &session_id, &source_path)
+        })
+        .await
+        .and_then(serializable)
+    })
+}
+
+fn delete_sessions(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            items: Vec<crate::session_manager::DeleteSessionRequest>,
+        }
+        let Args { items } = parse(args)?;
+        blocking(move || Ok(crate::session_manager::delete_sessions(&items)))
+            .await
+            .and_then(serializable)
+    })
+}
+
+/// 导出会话为 Markdown：服务端写进 `<配置目录>/exports/`，前端随后下载
+/// （与配置导出一致，见 `web_allocate_export_path`）。
+fn export_session_markdown(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            default_name: String,
+            content: String,
+        }
+        let Args {
+            default_name,
+            content,
+        } = parse(args)?;
+
+        let file_name = std::path::Path::new(&default_name)
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "session.md".to_string());
+
+        let dir = crate::config::get_app_config_dir().join("exports");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("创建导出目录失败: {e}"))?;
+        let path = dir.join(file_name);
+        crate::config::write_text_file(&path, &content).map_err(|e| e.to_string())?;
+        Ok(Value::String(path.to_string_lossy().into_owned()))
+    })
+}
+
+/// 在文件管理器中显示路径：服务端没有桌面会话。
+fn reveal_session_path(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        Err("Web 模式下没有文件管理器，请在服务器上直接查看该路径".to_string())
+    })
+}
+
+/// 在终端里恢复会话：服务端没有桌面终端。
+fn launch_session_terminal(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        Err("Web 模式下不能打开终端；请在服务器上用 CLI 自行恢复会话".to_string())
     })
 }
