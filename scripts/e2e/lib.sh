@@ -63,6 +63,19 @@ start_server() {
     fi
   done
 
+  # 端口真的要能连上：重启场景下令牌文件早就存在，光等它会在数据库初始化完成前
+  # 就返回，后面的请求全变成连不上。HTTP 有响应（任何状态码）即视为就绪。
+  local waited_port=0
+  while ! curl -s -o /dev/null --max-time 1 "$CC_BASE/"; do
+    sleep 0.3
+    waited_port=$((waited_port + 1))
+    if [ "$waited_port" -gt 200 ]; then
+      echo "!! 服务端端口没起来，日志：" >&2
+      cat "$CC_TEST_HOME/server.log" >&2
+      exit 1
+    fi
+  done
+
   CC_TOKEN=$(cat "$CC_TEST_HOME/.cc-switch/web-token")
   CC_COOKIE="Cookie: ccswitch_web_token=$CC_TOKEN"
 }

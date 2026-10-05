@@ -29,6 +29,15 @@ WebKitGTK 4.1**（Ubuntu 22.04 起）——在 Ubuntu 20.04 这类系统上跑�
 
 ## 快速开始
 
+**装预编译包**（不用装 Rust，二进制在 Ubuntu 20.04 上构建，20.04 到 24.04 都能跑）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
+~/.local/bin/cc-switch-server          # 加 --service 顺带装成 systemd 用户服务
+```
+
+**或者从源码构建**：
+
 ```bash
 # 1. 前端（需要 Node 22+ 与 pnpm）
 pnpm install && pnpm build:web
@@ -101,7 +110,18 @@ CLI 工具版本管理，以及目录选择、终端拉起、「在文件管理�
 
 - 默认**只监听 `127.0.0.1`**，并校验 `Host` / `Origin`（防 DNS rebinding）
 - `/api/*` 需要令牌；`--no-token` 只允许配合回环地址（配非回环会被拒绝启动）
+- 带 `nosniff` / `X-Frame-Options: DENY` / `Referrer-Policy: no-referrer` 等安全响应头
+- 令牌可以**不重启轮换**（旧令牌当场失效）：
+
+  ```bash
+  curl -X POST http://127.0.0.1:15800/api/rotate-token \
+    -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+    -H 'Content-Type: application/json' -d '{}'
+  ```
+
+  也可以在 `-d` 里带上 `{"token":"你自己的够长的令牌"}` 指定新值。
 - 远程访问用 SSH 转发；容器里用 `--bind 0.0.0.0`，但端口只映射到宿主机回环
+- 放在 TLS 反代后面时加 `--hsts`
 
 参数、systemd、Docker 与实现原理见 **[docs/web-mode-zh.md](docs/web-mode-zh.md)**。
 

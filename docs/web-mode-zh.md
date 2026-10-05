@@ -23,7 +23,32 @@
 （`src-tauri/src/commands/`，302 个 `#[tauri::command]`）只在桌面版编译，服务端在
 `src-tauri/src/web/routes.rs` 里用同一套 `services/` 接口重新实现了一部分命令。
 
-## 构建与运行
+## 安装
+
+预编译包（不用装 Rust，一行装完；`--service` 顺带装成 systemd 用户服务）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
+```
+
+脚本会**强制校验 sha256**：校验文件取不到就直接失败，不会「跳过校验继续装」。
+换下载源（镜像站/内网）用 `CC_SWITCH_BASE_URL`，换版本用 `--version <tag>`。
+
+产物随 Release 发布，由 `.github/workflows/release-server.yml` 生成：
+
+| 资产 | 说明 |
+| --- | --- |
+| `cc-switch-server-linux-x86_64` | 可执行文件 |
+| `cc-switch-server-linux-x86_64.sha256` | 校验和 |
+
+流水线**在 `ubuntu:20.04` 容器里编译**（GitHub 已经没有 20.04 runner，所以复用仓库
+自带的 Dockerfile），构建末尾有两道断言：最高 glibc 符号引用不得高于 **2.31**，且
+不得动态链接 `libssl`/`libcrypto`。两者任一不满足就直接失败，避免推出一个「看着能下、
+装上跑不起来」的包。这也是为什么 `reqwest` 关掉了 `default-features`——它的
+`default-tls` 会把 OpenSSL 链进来，而 20.04 是 libssl 1.1.1、22.04+ 是 3.x，
+两边互不兼容。
+
+## 从源码构建与运行
 
 ```bash
 # 1. 前端（Node 22+ 与 pnpm）
@@ -95,6 +120,7 @@ journalctl --user -u cc-switch-server -f
 | `--dist <目录>` | `CC_SWITCH_WEB_DIST` | 前端产物目录；缺省时用编译进二进制的那份 |
 | `--token <令牌>` | `CC_SWITCH_WEB_TOKEN` | 访问令牌（默认自动生成并写入配置目录） |
 | `--no-token` | — | 关闭令牌校验（只能配合回环地址） |
+| `--hsts` | `CC_SWITCH_WEB_HSTS` | 下发 `Strict-Transport-Security`（放在 TLS 反代后面时才需要） |
 | `--allow-host <主机名>` | `CC_SWITCH_ALLOW_HOSTS`（逗号分隔） | 除回环外额外允许的 `Host`，用域名/局域网访问时才需要 |
 | — | `CC_SWITCH_CONFIG_DIR` | 覆盖配置目录（默认 `~/.cc-switch`） |
 
@@ -105,7 +131,32 @@ CLI 命令。因此：
 
 - 默认**只监听 127.0.0.1**，且校验 `Host` 与 `Origin`（防 DNS rebinding）；
 - `/api/*` 需要令牌（cookie 或 `Authorization: Bearer <token>`）；
+- 每个响应都带 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、
+  `Referrer-Policy: no-referrer`、`Permissions-Policy`；
+- 上传体积上限 64 MiB；
 - 不要把端口暴露到公网/局域网；远程用 SSH 转发。
+
+> 没上 CSP：前端 `src/index.html` 里有一段内联的主题初始化脚本（避免深色模式闪烁），
+> `script-src 'self'` 会把它拦掉，写死 sha256 又会在上游改动那段脚本时静默失效。
+> 要加 CSP，得先把那段脚本抽成独立文件。
+
+### 轮换访问令牌
+
+令牌泄露、或者只是不想再用启动日志里那串，可以不重启换掉：
+
+```bash
+curl -X POST http://127.0.0.1:15800/api/rotate-token \
+  -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+  -H 'Content-Type: application/json' -d '{}'
+```
+
+- 请求体缺省（或 `token` 为空）时随机生成 128 位新令牌；传
+  `{"token":"..."}` 可以指定自己的值（至少 16 个字符）。
+- 新令牌立刻写进 `<配置目录>/web-token` 并生效，**旧令牌当场失效**——别的浏览器
+  里的 cookie 也一样，需要重新用 `/auth?token=<新令牌>` 打开一次。
+- 令牌来自 `--token` / `CC_SWITCH_WEB_TOKEN` 时，轮换只对本次运行有效：下次启动
+  那两个来源仍然优先，日志会提醒你同步更新。
+- `--no-token` 启动时没有令牌可换，接口返回 400。
 
 ## 当前范围
 

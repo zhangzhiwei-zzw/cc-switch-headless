@@ -30,6 +30,16 @@ The desktop app is unchanged.
 
 ## Quick start
 
+**Install a prebuilt binary** (no Rust toolchain needed; built on Ubuntu 20.04, runs on 20.04
+through 24.04):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
+~/.local/bin/cc-switch-server          # add --service for a systemd user unit
+```
+
+**Or build from source**:
+
 ```bash
 # 1. frontend (Node 22+ and pnpm)
 pnpm install && pnpm build:web
@@ -107,8 +117,18 @@ external commands. Therefore:
 
 - it **binds to `127.0.0.1` only** by default and validates `Host` / `Origin` (anti DNS rebinding)
 - `/api/*` requires the token; `--no-token` is refused unless the bind address is loopback
+- responses carry `nosniff` / `X-Frame-Options: DENY` / `Referrer-Policy: no-referrer` and friends
+- the token can be **rotated without a restart** (the old one stops working immediately):
+
+  ```bash
+  curl -X POST http://127.0.0.1:15800/api/rotate-token \
+    -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+    -H 'Content-Type: application/json' -d '{}'
+  ```
+
+  Pass `{"token":"your-own-long-enough-token"}` to choose the value yourself.
 - use an SSH tunnel for remote access; in containers use `--bind 0.0.0.0` but publish the port to the host
-  loopback only
+  loopback only; behind a TLS reverse proxy add `--hsts`
 
 Parameters, systemd, Docker and the implementation notes are documented in
 [docs/web-mode-zh.md](docs/web-mode-zh.md) (Chinese).

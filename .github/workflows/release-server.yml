@@ -1,0 +1,146 @@
+# 给 cc-switch-server 出预编译产物，挂到对应的 GitHub Release 上。
+#
+# 为什么不直接 `cargo build --release` 了事：这个 fork 存在的理由就是老系统
+# （Ubuntu 20.04，glibc 2.31）跑不了桌面版，产物必须在 **老 glibc** 上编。
+# GitHub 已经没有 20.04 的 runner 了，所以编译放在 ubuntu:20.04 容器里做
+# ——复用仓库自带的 Dockerfile，构建环境与本地 `docker build` 完全一致。
+#
+# 产物名与安装脚本 scripts/install-server.sh 的约定一致：
+#   cc-switch-server-linux-<arch>          可执行文件
+#   cc-switch-server-linux-<arch>.sha256   校验和
+#
+# 与上游那份 release.yml（打桌面版安装包）互不干扰：两个 workflow 都往同一个
+# tag 的 Release 里加资产。
+name: Release server
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要附加产物的已有 tag（留空则只构建、不发 Release）"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  # 产物必须能在 Ubuntu 20.04 上跑——超过这个版本就在构建阶段失败，
+  # 而不是等用户下回去才发现「找不到 GLIBC_2.3x」。
+  MAX_GLIBC: "2.31"
+
+jobs:
+  build:
+    name: build linux/${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            platform: linux/amd64
+          # aarch64 走 QEMU 模拟，Rust 全量编译会慢很多（小时级）。
+          # 需要 ARM 产物时把下面两行取消注释，并把 ubuntu-22.04 换成
+          # 原生 arm runner（如 ubuntu-24.04-arm，注意其 glibc 更新，
+          # 会破坏 MAX_GLIBC 断言——那种情况下得改用容器交叉编译）。
+          # - arch: aarch64
+          #   platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build the runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: cc-switch-server:ci
+          cache-from: type=gha,scope=server-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=server-${{ matrix.arch }}
+
+      - name: Extract the binary
+        run: |
+          set -euo pipefail
+          container=$(docker create --platform ${{ matrix.platform }} cc-switch-server:ci)
+          docker cp "$container:/usr/local/bin/cc-switch-server" cc-switch-server
+          docker rm "$container"
+          chmod +x cc-switch-server
+          strip cc-switch-server || true
+          ls -lh cc-switch-server
+
+      - name: Assert the glibc floor
+        run: |
+          set -euo pipefail
+          python3 - "${{ env.MAX_GLIBC }}" <<'PY'
+          import re, subprocess, sys
+          limit = tuple(int(p) for p in sys.argv[1].split("."))
+          out = subprocess.run(["objdump", "-T", "cc-switch-server"],
+                               capture_output=True, text=True, check=True).stdout
+          needed = sorted({tuple(int(p) for p in v.split("."))
+                           for v in re.findall(r"GLIBC_(\d+\.\d+)", out)})
+          if not needed:
+              print("没有读到任何 glibc 版本引用，检查一下 objdump 输出")
+              sys.exit(1)
+          worst = needed[-1]
+          print(f"最高需要 glibc {'.'.join(map(str, worst))}（上限 {sys.argv[1]}）")
+          if worst > limit:
+              print(f"::error::产物需要 glibc {'.'.join(map(str, worst))}，"
+                    f"超出 {sys.argv[1]}，老系统装不上")
+              sys.exit(1)
+          PY
+          # 动态依赖也顺带列出来：出现 libssl/libcrypto 说明又链回 OpenSSL 了
+          echo "--- ldd ---"
+          ldd cc-switch-server || true
+
+      - name: Reject an OpenSSL dependency
+        run: |
+          set -euo pipefail
+          if ldd cc-switch-server | grep -qE 'libssl|libcrypto'; then
+            echo "::error::产物动态链接了 OpenSSL：不同发行版的 libssl 主版本不同"
+            echo "（20.04 是 1.1.1、22.04+ 是 3.x），这样的包跨版本装不上。"
+            echo "检查 reqwest 的 default-features 是否又被打开了。"
+            exit 1
+          fi
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          name="cc-switch-server-linux-${{ matrix.arch }}"
+          mv cc-switch-server "$name"
+          sha256sum "$name" > "$name.sha256"
+          cat "$name.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-switch-server-linux-${{ matrix.arch }}
+          path: |
+            cc-switch-server-linux-${{ matrix.arch }}
+            cc-switch-server-linux-${{ matrix.arch }}.sha256
+          if-no-files-found: error
+
+  publish:
+    name: attach to release
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -lh assets
+
+      - name: Upload to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: assets/*
+          fail_on_unmatched_files: true

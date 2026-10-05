@@ -45,7 +45,9 @@ WORKDIR /app/src-tauri
 RUN cargo build --release --no-default-features --features server --bin cc-switch-server
 
 # ── 3. 运行 ───────────────────────────────────────────────────────
-FROM ubuntu:20.04
+# 发布流水线用 `--target runtime` 只构建到这一步，再从镜像里取出二进制
+# 当预编译产物（见 .github/workflows/release-server.yml）。
+FROM ubuntu:20.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \

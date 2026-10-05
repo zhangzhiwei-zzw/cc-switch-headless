@@ -72,7 +72,19 @@ mime_guess = { version = "2", optional = true }
 dirs = "5.0"
 toml = "0.8"
 toml_edit = "0.22"
-reqwest = { version = "0.12", features = ["rustls-tls", "json", "stream", "socks"] }
+# default-features = false 去掉 default-tls（native-tls → OpenSSL）。保留它会让
+# 二进制动态链接 libssl.so.3，而 Ubuntu 20.04 只有 1.1.1、22.04+ 只有 3.x——
+# 任何一个平台上编出来的包都装不到另一个平台上。改用 rustls + 系统根证书，
+# 信任来源与原生 TLS 一致（公司自签 CA 仍生效），但不再依赖外部 TLS 库。
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls-native-roots",
+    "json",
+    "stream",
+    "socks",
+    "http2",
+    "charset",
+    "macos-system-configuration",
+] }
 arboard = { version = "3.6", optional = true }
 flate2 = "1"
 brotli = "7"

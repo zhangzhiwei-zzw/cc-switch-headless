@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use axum::extract::{Query, State as AxumState};
 use axum::http::{header, HeaderMap, HeaderValue, Request, StatusCode, Uri};
@@ -29,7 +29,7 @@ use axum::middleware::{self, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
-use axum::Router;
+use axum::{Json, Router};
 use futures::Stream;
 use tokio::sync::broadcast;
 
@@ -60,8 +60,13 @@ pub struct Context {
     /// 数据库不可用（版本过新/初始化失败）时为 `None`，此时只有 `get_init_error` 可用，
     /// 前端会渲染「升级应用」恢复界面。
     pub state: Option<Arc<AppState>>,
-    /// `None` 表示用 `--no-token` 显式关闭了令牌校验。
-    pub token: Option<String>,
+    /// 访问令牌。`None` 表示用 `--no-token` 显式关闭了令牌校验。
+    ///
+    /// 放在锁里是为了支持运行期轮换（`POST /api/rotate-token`）：换令牌不需要重启。
+    pub token: Arc<RwLock<Option<String>>>,
+    /// 令牌是否来自命令行/环境变量。是的话轮换只对本次运行有效——重启后
+    /// 那个来源仍然优先，轮换前得先把它改掉。
+    pub token_from_flag: bool,
     /// 事件广播：`event_sink` 往这里发，`/api/events` 从这里读。
     pub events: broadcast::Sender<ServerEvent>,
     /// `--dist` 指向的前端产物目录；`None` 表示用编译进二进制的那份。
@@ -69,9 +74,29 @@ pub struct Context {
     /// 除回环之外额外允许的 `Host`（`--allow-host`，可多次）。
     /// 用域名/局域网 IP 访问时才需要；默认只认回环。
     pub allowed_hosts: Vec<String>,
+    /// 是否下发 `Strict-Transport-Security`。默认关：回环上的明文 HTTP 用不上，
+    /// 放在 TLS 反代后面才有意义。
+    pub hsts: bool,
 }
 
 impl Context {
+    /// 当前令牌；`None` 表示没启用令牌校验。
+    pub fn token(&self) -> Option<String> {
+        self.token
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    /// 换一个新令牌。锁中毒也照常写入——只是别的线程 panic 过，值本身仍然有效。
+    pub fn set_token(&self, token: Option<String>) {
+        let mut guard = self
+            .token
+            .write()
+            .unwrap_or_else(|error| error.into_inner());
+        *guard = token;
+    }
+
     /// 取应用状态；数据库不可用时返回给前端的错误文案。
     pub fn require_state(&self) -> Result<Arc<AppState>, String> {
         self.state
@@ -123,9 +148,13 @@ struct Options {
     dist: PathBuf,
     /// 显式传入的令牌；`None` 表示自动生成或读取
     token: Option<String>,
+    /// 令牌来自命令行/环境变量（而不是 web-token 文件）——轮换时提醒用户
+    token_from_flag: bool,
     /// 显式关闭令牌校验（仅当确实只在本机、且能接受同机其他用户访问时使用）
     no_token: bool,
     allow_hosts: Vec<String>,
+    /// 下发 HSTS；只在 TLS 反代后面有意义
+    hsts: bool,
 }
 
 fn parse_options() -> Result<Options, String> {
@@ -142,8 +171,12 @@ fn parse_options() -> Result<Options, String> {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("dist-web")),
         token: None,
+        token_from_flag: false,
         no_token: false,
         allow_hosts: Vec::new(),
+        hsts: std::env::var("CC_SWITCH_WEB_HSTS")
+            .map(|value| matches!(value.trim(), "1" | "true" | "yes"))
+            .unwrap_or(false),
     };
 
     let mut args = std::env::args().skip(1);
@@ -168,8 +201,10 @@ fn parse_options() -> Result<Options, String> {
             }
             "--token" => {
                 options.token = Some(args.next().ok_or("--token 需要一个值")?);
+                options.token_from_flag = true;
             }
             "--no-token" => options.no_token = true,
+            "--hsts" => options.hsts = true,
             "--allow-host" => {
                 let value = args.next().ok_or("--allow-host 需要一个主机名")?;
                 options.allow_hosts.push(value.trim().to_lowercase());
@@ -183,9 +218,15 @@ fn parse_options() -> Result<Options, String> {
                        --dist <目录>            前端产物目录（缺省时用编译进二进制的那份）\n\
                        --token <令牌>           访问令牌（默认自动生成并写入 <配置目录>/web-token）\n\
                        --no-token               关闭令牌校验（只允许与回环地址同用）\n\
+                       --hsts                   下发 HSTS 头（放在 TLS 反向代理后面时用）\n\
                        --allow-host <主机名>    除回环外额外允许的 Host，可多次（用域名/局域网访问时）\n\n\
+                     运行期换令牌（需要先持有效令牌）：\n\
+                       curl -X POST http://127.0.0.1:{DEFAULT_PORT}/api/rotate-token \\\n\
+                            -H \"Cookie: ccswitch_web_token=<当前令牌>\" \\\n\
+                            -H 'Content-Type: application/json' -d '{{}}'\n\n\
                      环境变量：CC_SWITCH_WEB_PORT / CC_SWITCH_WEB_BIND / CC_SWITCH_WEB_DIST /\n\
-                     CC_SWITCH_WEB_TOKEN / CC_SWITCH_ALLOW_HOSTS（逗号分隔）/ CC_SWITCH_CONFIG_DIR"
+                     CC_SWITCH_WEB_TOKEN / CC_SWITCH_WEB_HSTS / CC_SWITCH_ALLOW_HOSTS（逗号分隔）/\n\
+                     CC_SWITCH_CONFIG_DIR"
                 );
                 std::process::exit(0);
             }
@@ -212,12 +253,13 @@ fn parse_options() -> Result<Options, String> {
     Ok(options)
 }
 
-async fn serve(options: Options) -> Result<(), String> {
+async fn serve(mut options: Options) -> Result<(), String> {
     // 1. 启动业务层（数据库、种子、后台任务），与桌面版同序
     let app_state = state::bootstrap();
 
     // 2. 解析访问令牌（此时配置目录已就绪）
-    let token = resolve_token(options.token.clone(), options.no_token)?;
+    let (token, token_from_flag) = resolve_token(options.token.clone(), options.no_token)?;
+    options.token_from_flag = token_from_flag;
 
     // 3. 事件广播 + 安装全局事件出口
     let (events, _rx) = broadcast::channel::<ServerEvent>(512);
@@ -242,10 +284,12 @@ async fn serve(options: Options) -> Result<(), String> {
 
     let context = Arc::new(Context {
         state: app_state,
-        token: token.clone(),
+        token: Arc::new(RwLock::new(token.clone())),
+        token_from_flag: options.token_from_flag,
         events,
         dist_dir,
         allowed_hosts: options.allow_hosts.clone(),
+        hsts: options.hsts,
     });
 
     // 5. 路由
@@ -287,20 +331,26 @@ async fn serve(options: Options) -> Result<(), String> {
 }
 
 /// 令牌优先级：命令行 → 环境变量 → 已有文件 → 新生成并写入 `<配置目录>/web-token`。
-fn resolve_token(explicit: Option<String>, no_token: bool) -> Result<Option<String>, String> {
+///
+/// 第二个返回值表示令牌是否来自命令行/环境变量——那两个来源在下次启动时仍然
+/// 优先，运行期轮换只对本次运行有效。
+fn resolve_token(
+    explicit: Option<String>,
+    no_token: bool,
+) -> Result<(Option<String>, bool), String> {
     if no_token {
-        return Ok(None);
+        return Ok((None, false));
     }
     if let Some(token) = explicit {
         let token = token.trim().to_string();
         if !token.is_empty() {
-            return Ok(Some(token));
+            return Ok((Some(token), true));
         }
     }
     if let Ok(token) = std::env::var("CC_SWITCH_WEB_TOKEN") {
         let token = token.trim().to_string();
         if !token.is_empty() {
-            return Ok(Some(token));
+            return Ok((Some(token), true));
         }
     }
 
@@ -308,22 +358,36 @@ fn resolve_token(explicit: Option<String>, no_token: bool) -> Result<Option<Stri
     if let Ok(existing) = std::fs::read_to_string(&token_path) {
         let existing = existing.trim().to_string();
         if !existing.is_empty() {
-            return Ok(Some(existing));
+            return Ok((Some(existing), false));
         }
     }
 
-    let token = format!(
+    let token = generate_token();
+    if let Err(error) = persist_token(&token) {
+        log::warn!("写入 {token_path:?} 失败（令牌只在本次运行有效）: {error}");
+    }
+    Ok((Some(token), false))
+}
+
+/// 手工指定令牌时至少要这么长——太短的话暴力猜解就可行了。
+const MIN_TOKEN_LEN: usize = 16;
+
+/// 128 位随机令牌（两个 UUID v4 的十六进制拼接）。
+fn generate_token() -> String {
+    format!(
         "{}{}",
         uuid::Uuid::new_v4().simple(),
         uuid::Uuid::new_v4().simple()
-    );
+    )
+}
+
+/// 把令牌写进 `<配置目录>/web-token`。
+fn persist_token(token: &str) -> Result<(), std::io::Error> {
+    let token_path = crate::config::get_app_config_dir().join("web-token");
     if let Some(parent) = token_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        std::fs::create_dir_all(parent)?;
     }
-    if let Err(error) = std::fs::write(&token_path, &token) {
-        log::warn!("写入 {token_path:?} 失败（令牌只在本次运行有效）: {error}");
-    }
-    Ok(Some(token))
+    std::fs::write(&token_path, token)
 }
 
 fn build_router(context: Arc<Context>) -> Router {
@@ -336,6 +400,8 @@ fn build_router(context: Arc<Context>) -> Router {
         // 导入 / 导出：浏览器没有服务端文件系统，用上传 / 下载代替文件对话框
         .route("/upload", post(upload))
         .route("/download", get(download))
+        // 换访问令牌（需要持有效令牌才能调）
+        .route("/rotate-token", post(rotate_token))
         .layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024))
         .route_layer(middleware::from_fn_with_state(context.clone(), guard_token));
 
@@ -344,7 +410,48 @@ fn build_router(context: Arc<Context>) -> Router {
         .nest("/api", api)
         .fallback(static_files)
         .layer(middleware::from_fn_with_state(context.clone(), guard_host))
+        .layer(middleware::from_fn_with_state(
+            context.clone(),
+            security_headers,
+        ))
         .with_state(context)
+}
+
+/// 给所有响应加一组安全头。
+///
+/// 没上 CSP：前端 `src/index.html` 里有一段内联的主题初始化脚本（避免深色模式闪烁），
+/// `script-src 'self'` 会把它拦掉，而写死它的 sha256 又会在上游改动那段脚本时
+/// 静默失效。要加 CSP 得先把那段脚本抽成独立文件。
+async fn security_headers(
+    AxumState(context): AxumState<Arc<Context>>,
+    request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
+    let mut response = next.run(request).await;
+    let headers = response.headers_mut();
+    // 别让浏览器猜类型（上传目录里的文件也会经由本服务返回）
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    // 服务端持有各家 API Key，禁止被任何页面套进 iframe
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    // 别把带令牌的 URL 通过 Referer 漏给外部站点
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        axum::http::HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static("camera=(), microphone=(), geolocation=(), payment=()"),
+    );
+    if context.hsts {
+        headers.insert(
+            header::STRICT_TRANSPORT_SECURITY,
+            HeaderValue::from_static("max-age=31536000"),
+        );
+    }
+    response
 }
 
 /// 托管前端产物：`--dist` 目录优先，其次是编译进二进制的那份，最后回退 `index.html`（SPA）。
@@ -435,9 +542,9 @@ async fn guard_token(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
-    if let Some(expected) = &context.token {
+    if let Some(expected) = context.token() {
         match token_from_headers(request.headers()) {
-            Some(token) if token == *expected => {}
+            Some(token) if token == expected => {}
             _ => {
                 return (StatusCode::UNAUTHORIZED, "缺少或无效的访问令牌").into_response();
             }
@@ -453,11 +560,10 @@ async fn auth(
 ) -> Response {
     let provided = params.get("token").map(String::as_str).unwrap_or_default();
 
-    match &context.token {
+    match context.token() {
         Some(expected) if provided == expected => {
-            let cookie = format!("{TOKEN_COOKIE}={expected}; Path=/; HttpOnly; SameSite=Strict");
             let mut response = Redirect::to("/").into_response();
-            match HeaderValue::from_str(&cookie) {
+            match token_cookie(&expected) {
                 Ok(value) => {
                     response.headers_mut().insert(header::SET_COOKIE, value);
                     response
@@ -468,6 +574,82 @@ async fn auth(
         Some(_) => (StatusCode::UNAUTHORIZED, "访问令牌不正确").into_response(),
         None => Redirect::to("/").into_response(),
     }
+}
+
+fn token_cookie(token: &str) -> Result<HeaderValue, axum::http::header::InvalidHeaderValue> {
+    HeaderValue::from_str(&format!(
+        "{TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict"
+    ))
+}
+
+/// `POST /api/rotate-token`：换一个访问令牌，可选自定义值。
+///
+/// 请求体 `{"token": "..."}`，缺省时随机生成。新令牌会写进 `<配置目录>/web-token`
+/// 并立刻生效——旧令牌（包括别的浏览器里的 cookie）当场失效，调用方拿响应里的
+/// 新令牌重新 `GET /auth?token=...` 即可。
+///
+/// 本接口自身要求持有效令牌（`/api/*` 统一校验），所以轮换者必须先是合法持有者。
+async fn rotate_token(
+    AxumState(context): AxumState<Arc<Context>>,
+    Json(body): Json<RotateTokenRequest>,
+) -> Response {
+    if context.token().is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "服务端以 --no-token 启动，没有可轮换的令牌",
+        )
+            .into_response();
+    }
+
+    let requested = body
+        .token
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    let token = match requested {
+        Some(value) if value.len() < MIN_TOKEN_LEN => {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!("令牌太短：至少 {MIN_TOKEN_LEN} 个字符"),
+            )
+                .into_response();
+        }
+        Some(value) => value.to_string(),
+        None => generate_token(),
+    };
+
+    if let Err(error) = persist_token(&token) {
+        log::warn!("写入 web-token 失败，新令牌只在本次运行有效: {error}");
+    }
+    context.set_token(Some(token.clone()));
+
+    if context.token_from_flag {
+        log::warn!(
+            "令牌已轮换，但启动参数/环境变量里仍有旧值；下次启动会以那个来源为准，\
+             请同步更新 --token / CC_SWITCH_WEB_TOKEN"
+        );
+    }
+    log::info!("访问令牌已轮换（旧令牌立即失效）");
+
+    let mut response = Json(serde_json::json!({
+        "ok": true,
+        "token": token,
+        "persisted": true,
+        "fromFlag": context.token_from_flag,
+    }))
+    .into_response();
+    // 顺手给当前浏览器换上新 cookie，省掉一次重新登录
+    if let Ok(value) = token_cookie(&token) {
+        response.headers_mut().insert(header::SET_COOKIE, value);
+    }
+    response
+}
+
+#[derive(serde::Deserialize)]
+struct RotateTokenRequest {
+    #[serde(default)]
+    token: Option<String>,
 }
 
 /// `GET /api/events`：SSE 事件流。
