@@ -1,0 +1,14 @@
+# 构建上下文只需要源码与锁文件
+.git
+.github
+node_modules
+dist
+dist-web
+src-tauri/target
+src-tauri/gen
+assets
+docs
+tests
+*.md
+!README.md
+.worktrees

@@ -35,7 +35,7 @@ desktop = [
     "dep:webkit2gtk",
     "dep:arboard",
 ]
-server = ["dep:env_logger", "tower-http/fs"]
+server = ["dep:env_logger", "dep:rust-embed", "dep:mime_guess"]
 test-hooks = []
 
 [[bin]]
@@ -66,6 +66,9 @@ tauri-plugin-store = { version = "2", optional = true }
 tauri-plugin-deep-link = { version = "2", optional = true }
 tauri-plugin-window-state = { version = "2", optional = true }
 env_logger = { version = "0.11", optional = true }
+# 服务端把前端产物编译进二进制（单文件部署），并在 --dist 缺省时用它兜底
+rust-embed = { version = "8", optional = true }
+mime_guess = { version = "2", optional = true }
 dirs = "5.0"
 toml = "0.8"
 toml_edit = "0.22"

@@ -26,6 +26,7 @@ import type { VisibleApps } from "@/types";
 import { APP_IDS } from "@/config/appConfig";
 import type { GlobalPage, SettingsSection, View } from "@/lib/navigation";
 import { isAppPage } from "@/lib/navigation";
+import { supports } from "@/lib/capabilities";
 import { SkillsIcon } from "@/components/BrandIcons";
 import { useUpdate } from "@/contexts/UpdateContext";
 import {
@@ -221,30 +222,48 @@ function MainDirectory({
       ? t("nav.todayCost", { cost: fmtUsd(todayCost, 2) })
       : undefined;
 
-  const globals: {
+  // web 模式下服务端没接入的页面直接不显示（见 @/lib/capabilities）
+  const globalEntries: {
     page: GlobalPage;
     label: string;
     icon: IconComponent;
     trailing?: string;
     alert?: string;
+    feature?: string;
   }[] = [
-    { page: "mcp", label: "MCP", icon: Server },
-    { page: "skills", label: "Skills", icon: SkillsIcon },
-    { page: "prompts", label: t("nav.prompts"), icon: BookOpen },
-    { page: "sessions", label: t("nav.sessions"), icon: History },
+    { page: "mcp", label: "MCP", icon: Server, feature: "pageMcp" },
+    { page: "skills", label: "Skills", icon: SkillsIcon, feature: "pageSkills" },
+    {
+      page: "prompts",
+      label: t("nav.prompts"),
+      icon: BookOpen,
+      feature: "pagePrompts",
+    },
+    {
+      page: "sessions",
+      label: t("nav.sessions"),
+      icon: History,
+      feature: "pageSessions",
+    },
     {
       page: "auth",
       label: t("nav.auth"),
       icon: KeyRound,
       alert: authNeedsAttention ? t("nav.authNeedsReauth") : undefined,
+      feature: "pageAuth",
     },
     {
       page: "usage",
       label: t("nav.usage"),
       icon: ChartColumn,
       trailing: todayLabel,
+      feature: "pageUsage",
     },
   ];
+
+  const globals = globalEntries.filter(
+    (entry) => !entry.feature || supports(entry.feature),
+  );
 
   const isGlobalSelected = (page: GlobalPage) =>
     view === page || (page === "skills" && view === "skillsDiscovery");
@@ -304,18 +323,21 @@ function MainDirectory({
           collapsed ? "flex-col gap-0.5" : "mx-0 gap-1 px-2",
         )}
       >
-        <NavItem
-          collapsed={collapsed}
-          compact={!collapsed}
-          selected={view === "apps"}
-          icon={LayoutGrid}
-          label={t("nav.apps")}
-          title={
-            appsUpdateAvailable ? t("nav.appsHasUpdate") : t("nav.appsTitle")
-          }
-          dot={appsUpdateAvailable}
-          onClick={() => onSelectPage("apps")}
-        />
+        {/* CLI 工具管理：web 模式下服务端没接入版本检测/安装，隐藏入口 */}
+        {supports("pageApps") && (
+          <NavItem
+            collapsed={collapsed}
+            compact={!collapsed}
+            selected={view === "apps"}
+            icon={LayoutGrid}
+            label={t("nav.apps")}
+            title={
+              appsUpdateAvailable ? t("nav.appsHasUpdate") : t("nav.appsTitle")
+            }
+            dot={appsUpdateAvailable}
+            onClick={() => onSelectPage("apps")}
+          />
+        )}
         <NavItem
           collapsed={collapsed}
           compact={!collapsed}

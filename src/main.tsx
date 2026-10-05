@@ -26,6 +26,7 @@ import {
   syncModelsDevPricingOnStartup,
 } from "./lib/modelsDevAutoSync";
 import { initializeWindowActivity } from "@/lib/windowActivity";
+import { initializeCapabilities } from "@/lib/capabilities";
 import { initializeInputModality } from "@/lib/inputModality";
 
 installGlobalErrorHandlers();
@@ -120,6 +121,8 @@ async function bootstrap() {
 
   initializeWindowActivity();
   initializeInputModality();
+  // web 模式下先问服务端有哪些能力，界面据此隐藏没接入的入口（桌面模式是空操作）
+  await initializeCapabilities();
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

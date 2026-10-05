@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use axum::extract::{Query, State as AxumState};
-use axum::http::{header, HeaderMap, HeaderValue, Request, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, Request, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Redirect, Response};
@@ -28,9 +28,16 @@ use axum::routing::{get, post};
 use axum::Router;
 use futures::Stream;
 use tokio::sync::broadcast;
-use tower_http::services::{ServeDir, ServeFile};
 
 use crate::store::AppState;
+
+/// 编译进二进制的前端产物（`pnpm build:web` 的输出）。
+///
+/// 构建时 `dist-web/` 不存在的话，`build.rs` 会先放一个占位页，
+/// 保证服务端始终是"单文件可部署"的。
+#[derive(rust_embed::RustEmbed)]
+#[folder = "../dist-web"]
+struct EmbeddedWeb;
 
 /// 默认监听端口（本地回环）。
 const DEFAULT_PORT: u16 = 15800;
@@ -53,6 +60,11 @@ pub struct Context {
     pub token: Option<String>,
     /// 事件广播：`event_sink` 往这里发，`/api/events` 从这里读。
     pub events: broadcast::Sender<ServerEvent>,
+    /// `--dist` 指向的前端产物目录；`None` 表示用编译进二进制的那份。
+    pub dist_dir: Option<PathBuf>,
+    /// 除回环之外额外允许的 `Host`（`--allow-host`，可多次）。
+    /// 用域名/局域网 IP 访问时才需要；默认只认回环。
+    pub allowed_hosts: Vec<String>,
 }
 
 impl Context {
@@ -102,11 +114,14 @@ pub fn run() {
 
 struct Options {
     port: u16,
+    /// 监听地址，默认只绑回环；容器里需要 `0.0.0.0` 才能从端口映射进来
+    bind: std::net::IpAddr,
     dist: PathBuf,
     /// 显式传入的令牌；`None` 表示自动生成或读取
     token: Option<String>,
     /// 显式关闭令牌校验（仅当确实只在本机、且能接受同机其他用户访问时使用）
     no_token: bool,
+    allow_hosts: Vec<String>,
 }
 
 fn parse_options() -> Result<Options, String> {
@@ -115,11 +130,16 @@ fn parse_options() -> Result<Options, String> {
             .ok()
             .and_then(|value| value.trim().parse().ok())
             .unwrap_or(DEFAULT_PORT),
+        bind: std::env::var("CC_SWITCH_WEB_BIND")
+            .ok()
+            .and_then(|value| value.trim().parse().ok())
+            .unwrap_or(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST)),
         dist: std::env::var("CC_SWITCH_WEB_DIST")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("dist-web")),
         token: None,
         no_token: false,
+        allow_hosts: Vec::new(),
     };
 
     let mut args = std::env::args().skip(1);
@@ -132,6 +152,13 @@ fn parse_options() -> Result<Options, String> {
                     .parse()
                     .map_err(|_| format!("端口号不合法: {value}"))?;
             }
+            "--bind" => {
+                let value = args.next().ok_or("--bind 需要一个地址")?;
+                options.bind = value
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("监听地址不合法: {value}"))?;
+            }
             "--dist" => {
                 options.dist = PathBuf::from(args.next().ok_or("--dist 需要一个目录")?);
             }
@@ -139,16 +166,43 @@ fn parse_options() -> Result<Options, String> {
                 options.token = Some(args.next().ok_or("--token 需要一个值")?);
             }
             "--no-token" => options.no_token = true,
+            "--allow-host" => {
+                let value = args.next().ok_or("--allow-host 需要一个主机名")?;
+                options.allow_hosts.push(value.trim().to_lowercase());
+            }
             "--help" | "-h" => {
                 println!(
-                    "cc-switch-server [--port <端口>] [--dist <前端产物目录>] [--token <令牌>] [--no-token]\n\n\
-                     环境变量：CC_SWITCH_WEB_PORT / CC_SWITCH_WEB_DIST / CC_SWITCH_WEB_TOKEN /\n\
-                     CC_SWITCH_CONFIG_DIR（覆盖 ~/.cc-switch）"
+                    "cc-switch-server [选项]\n\n\
+                     选项：\n\
+                       --port <端口>            监听端口（默认 {DEFAULT_PORT}）\n\
+                       --bind <地址>            监听地址（默认 127.0.0.1；容器内端口映射需 0.0.0.0）\n\
+                       --dist <目录>            前端产物目录（缺省时用编译进二进制的那份）\n\
+                       --token <令牌>           访问令牌（默认自动生成并写入 <配置目录>/web-token）\n\
+                       --no-token               关闭令牌校验（只允许与回环地址同用）\n\
+                       --allow-host <主机名>    除回环外额外允许的 Host，可多次（用域名/局域网访问时）\n\n\
+                     环境变量：CC_SWITCH_WEB_PORT / CC_SWITCH_WEB_BIND / CC_SWITCH_WEB_DIST /\n\
+                     CC_SWITCH_WEB_TOKEN / CC_SWITCH_ALLOW_HOSTS（逗号分隔）/ CC_SWITCH_CONFIG_DIR"
                 );
                 std::process::exit(0);
             }
             other => return Err(format!("未知参数: {other}")),
         }
+    }
+
+    if let Ok(extra) = std::env::var("CC_SWITCH_ALLOW_HOSTS") {
+        options.allow_hosts.extend(
+            extra
+                .split(',')
+                .map(|value| value.trim().to_lowercase())
+                .filter(|value| !value.is_empty()),
+        );
+    }
+
+    // 非回环 + 无令牌 = 任何能连上的人都能读写你的 API Key
+    if options.no_token && !options.bind.is_loopback() {
+        return Err(
+            "拒绝启动：--no-token 只能配合回环地址使用（当前 --bind 不是回环地址）".to_string(),
+        );
     }
 
     Ok(options)
@@ -173,28 +227,49 @@ async fn serve(options: Options) -> Result<(), String> {
         }));
     }
 
+    // 4. 前端产物：--dist 目录优先（便于改前端不重编二进制），否则用编译进二进制的那份
+    let dist_dir = if options.dist.join("index.html").exists() {
+        log::info!("前端产物来自目录 {:?}", options.dist);
+        Some(options.dist.clone())
+    } else {
+        log::info!("前端产物来自二进制内置（未找到 {:?}）", options.dist);
+        None
+    };
+
     let context = Arc::new(Context {
         state: app_state,
         token: token.clone(),
         events,
+        dist_dir,
+        allowed_hosts: options.allow_hosts.clone(),
     });
 
-    // 4. 路由
-    let dist = options.dist.clone();
-    if !dist.join("index.html").exists() {
-        log::warn!(
-            "前端产物目录 {dist:?} 下没有 index.html；请先执行 `pnpm build:web`，或用 --dist 指定目录"
-        );
-    }
-    let router = build_router(context, &dist);
+    // 5. 路由
+    let router = build_router(context);
 
-    // 5. 只绑回环地址
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, options.port));
+    // 6. 监听
+    let addr = SocketAddr::new(options.bind, options.port);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|error| format!("监听 {addr} 失败: {error}"))?;
 
-    let base_url = format!("http://127.0.0.1:{}", options.port);
+    if !options.bind.is_loopback() {
+        log::warn!(
+            "已绑定非回环地址 {addr}：确认这是 Docker 端口映射或受控网络；\
+             远程访问建议改用 SSH 端口转发"
+        );
+    }
+
+    let base_url = match options.bind {
+        std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
+            format!("http://127.0.0.1:{}", options.port)
+        }
+        std::net::IpAddr::V6(v6) if v6.is_unspecified() => {
+            format!("http://127.0.0.1:{}", options.port)
+        }
+        std::net::IpAddr::V4(v4) => format!("http://{v4}:{}", options.port),
+        std::net::IpAddr::V6(v6) => format!("http://[{v6}]:{}", options.port),
+    };
     log::info!("CC Switch 服务端已启动: {base_url}");
     println!("CC Switch 服务端已启动: {base_url}");
     match &token {
@@ -247,13 +322,11 @@ fn resolve_token(explicit: Option<String>, no_token: bool) -> Result<Option<Stri
     Ok(Some(token))
 }
 
-fn build_router(context: Arc<Context>, dist: &Path) -> Router {
-    let index = dist.join("index.html");
-    let static_files = ServeDir::new(dist).fallback(ServeFile::new(index));
-
+fn build_router(context: Arc<Context>) -> Router {
     let api = Router::new()
         .route("/invoke", post(routes::invoke))
         .route("/commands", get(routes::list_commands))
+        .route("/capabilities", get(routes::capabilities))
         .route("/env", get(env_info))
         .route("/events", get(events))
         // 导入 / 导出：浏览器没有服务端文件系统，用上传 / 下载代替文件对话框
@@ -265,22 +338,88 @@ fn build_router(context: Arc<Context>, dist: &Path) -> Router {
     Router::new()
         .route("/auth", get(auth))
         .nest("/api", api)
-        .fallback_service(static_files)
+        .fallback(static_files)
         .layer(middleware::from_fn_with_state(context.clone(), guard_host))
         .with_state(context)
 }
 
-/// 校验 `Host` 与 `Origin`：只接受本机来源，挡住 DNS rebinding。
+/// 托管前端产物：`--dist` 目录优先，其次是编译进二进制的那份，最后回退 `index.html`（SPA）。
+async fn static_files(AxumState(context): AxumState<Arc<Context>>, uri: Uri) -> Response {
+    let requested = uri.path().trim_start_matches('/');
+    let requested = if requested.is_empty() {
+        "index.html"
+    } else {
+        requested
+    };
+
+    if let Some(dir) = &context.dist_dir {
+        let candidate = dir.join(requested);
+        if candidate.is_file() {
+            match tokio::fs::read(&candidate).await {
+                Ok(bytes) => return asset_response(requested, bytes),
+                Err(error) => log::warn!("读取 {candidate:?} 失败: {error}"),
+            }
+        }
+    }
+
+    if let Some(asset) = EmbeddedWeb::get(requested) {
+        return asset_response(requested, asset.data.into_owned());
+    }
+
+    // SPA：未知路径交给前端路由
+    if let Some(index) = EmbeddedWeb::get("index.html") {
+        return asset_response("index.html", index.data.into_owned());
+    }
+    if let Some(dir) = &context.dist_dir {
+        if let Ok(bytes) = tokio::fs::read(dir.join("index.html")).await {
+            return asset_response("index.html", bytes);
+        }
+    }
+
+    (
+        StatusCode::NOT_FOUND,
+        "前端产物缺失：请在仓库根目录执行 `pnpm build:web` 后重新构建服务端",
+    )
+        .into_response()
+}
+
+fn asset_response(path: &str, bytes: Vec<u8>) -> Response {
+    let mime = mime_guess::from_path(path).first_or_octet_stream();
+    let mut response = bytes.into_response();
+    let headers = response.headers_mut();
+    if let Ok(value) = HeaderValue::from_str(mime.as_ref()) {
+        headers.insert(header::CONTENT_TYPE, value);
+    }
+    // 产物带内容哈希，可以长缓存；index.html 不缓存，保证升级后立刻生效
+    let cache_control = if path.ends_with("index.html") {
+        "no-cache"
+    } else {
+        "public, max-age=31536000, immutable"
+    };
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static(cache_control),
+    );
+    response
+}
+
+/// 校验 `Host` 与 `Origin`：默认只接受本机来源，挡住 DNS rebinding。
+///
+/// `--allow-host` 可以把额外的主机名加入白名单（用域名/局域网 IP 访问时才需要）。
 async fn guard_host(
-    AxumState(_context): AxumState<Arc<Context>>,
+    AxumState(context): AxumState<Arc<Context>>,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
     let headers = request.headers();
-    if !host_allowed(headers) {
-        return (StatusCode::BAD_REQUEST, "Host 不被允许").into_response();
+    if !host_allowed(headers, &context.allowed_hosts) {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Host 不被允许（用域名访问请在启动时加 --allow-host <主机名>）",
+        )
+            .into_response();
     }
-    if !origin_allowed(headers) {
+    if !origin_allowed(headers, &context.allowed_hosts) {
         return (StatusCode::FORBIDDEN, "Origin 不被允许").into_response();
     }
     next.run(request).await
@@ -454,18 +593,18 @@ async fn env_info() -> Response {
     .into_response()
 }
 
-fn host_allowed(headers: &HeaderMap) -> bool {
+fn host_allowed(headers: &HeaderMap, extra: &[String]) -> bool {
     match headers
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
     {
-        Some(host) => host_is_loopback(host),
+        Some(host) => host_matches(host, extra),
         // 没有 Host 的请求（HTTP/1.0）直接拒绝
         None => false,
     }
 }
 
-fn origin_allowed(headers: &HeaderMap) -> bool {
+fn origin_allowed(headers: &HeaderMap, extra: &[String]) -> bool {
     match headers
         .get(header::ORIGIN)
         .and_then(|value| value.to_str().ok())
@@ -477,20 +616,24 @@ fn origin_allowed(headers: &HeaderMap) -> bool {
                 .strip_prefix("http://")
                 .or_else(|| origin.strip_prefix("https://"))
                 .unwrap_or(origin);
-            host_is_loopback(rest)
+            host_matches(rest, extra)
         }
     }
 }
 
-/// `127.0.0.1`、`localhost`、`[::1]`（可带端口）。
-fn host_is_loopback(host: &str) -> bool {
-    let host = host.trim();
-    ["127.0.0.1", "localhost", "[::1]"].iter().any(|allowed| {
-        host == *allowed
-            || host
-                .strip_prefix(allowed)
-                .is_some_and(|rest| rest.starts_with(':'))
-    })
+/// `127.0.0.1`、`localhost`、`[::1]`（可带端口），或 `--allow-host` 列出的主机。
+fn host_matches(host: &str, extra: &[String]) -> bool {
+    let host = host.trim().to_lowercase();
+    ["127.0.0.1", "localhost", "[::1]"]
+        .iter()
+        .copied()
+        .chain(extra.iter().map(String::as_str))
+        .any(|allowed| {
+            host == allowed
+                || host
+                    .strip_prefix(allowed)
+                    .is_some_and(|rest| rest.starts_with(':'))
+        })
 }
 
 fn token_from_headers(headers: &HeaderMap) -> Option<String> {

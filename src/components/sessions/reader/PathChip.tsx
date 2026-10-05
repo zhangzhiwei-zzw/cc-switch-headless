@@ -4,6 +4,7 @@ import { memo, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { HoverTip } from "@/components/ui/hover-tip";
+import { supports } from "@/lib/capabilities";
 import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -143,16 +144,19 @@ export const PathChip = memo(function PathChip({
             (searchQuery ? highlightText(display, searchQuery) : display)}
         </span>
       </button>
-      <HoverTip content={revealLabel}>
-        <button
-          type="button"
-          aria-label={revealLabel}
-          onClick={() => void handleReveal()}
-          className="inline-flex h-full shrink-0 items-center rounded-e-control border-s border-border px-1 py-0.5 text-fg-3 transition-colors hover:bg-selected hover:text-fg-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <FolderOpen aria-hidden className="size-3" />
-        </button>
-      </HoverTip>
+      {/* 服务端没有文件管理器：web 模式下不显示"在文件管理器中显示" */}
+      {supports("sessionReveal") && (
+        <HoverTip content={revealLabel}>
+          <button
+            type="button"
+            aria-label={revealLabel}
+            onClick={() => void handleReveal()}
+            className="inline-flex h-full shrink-0 items-center rounded-e-control border-s border-border px-1 py-0.5 text-fg-3 transition-colors hover:bg-selected hover:text-fg-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <FolderOpen aria-hidden className="size-3" />
+          </button>
+        </HoverTip>
+      )}
     </span>
   );
 });

@@ -1,11 +1,10 @@
 #
 # CC Switch Web 模式（cc-switch-server）的用户级 systemd 服务。
 #
-# 安装（把 <SOURCES> 换成你的源码目录，或把可执行文件与前端产物拷到下面的路径）：
+# 安装（把 <SOURCES> 换成你的源码目录；前端产物已编进二进制，只拷可执行文件即可）：
 #
-#   mkdir -p ~/.local/bin ~/.local/share/cc-switch
+#   mkdir -p ~/.local/bin
 #   cp <SOURCES>/src-tauri/target/release/cc-switch-server ~/.local/bin/
-#   cp -r <SOURCES>/dist-web ~/.local/share/cc-switch/
 #   mkdir -p ~/.config/systemd/user
 #   cp <SOURCES>/scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload
@@ -28,7 +27,7 @@ After=network-online.target
 [Service]
 Type=simple
 # 只监听回环地址；端口与前端的产物目录都可以按需调整
-ExecStart=%h/.local/bin/cc-switch-server --port 15800 --dist %h/.local/share/cc-switch/dist-web
+ExecStart=%h/.local/bin/cc-switch-server --port 15800
 WorkingDirectory=%h
 # 日志同时写 stderr（进 journal）与 ~/.cc-switch/logs/cc-switch.log
 Environment=RUST_LOG=info

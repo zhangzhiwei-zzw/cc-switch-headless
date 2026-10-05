@@ -33,30 +33,48 @@ cd src-tauri
 cargo build --release --no-default-features --features server --bin cc-switch-server
 
 # 3. 运行（默认 127.0.0.1:15800）
-./target/release/cc-switch-server --dist ../dist-web
-#   首次访问的地址与令牌会打印在启动日志里，例如：
+./target/release/cc-switch-server
+#   前端产物已编进二进制，直接跑就行；首次访问的地址与令牌会打印在启动日志里：
 #   http://127.0.0.1:15800/auth?token=<32字节令牌>
 ```
 
+**前端产物被编译进二进制**（`rust-embed`），所以部署只需要拷一个文件。改了前端又不想
+重新编译服务端时，用 `--dist ../dist-web` 指向新产物即可（目录优先于内置版本）。
+
 浏览器打开上面那条带 token 的链接即可；服务端会下发 `HttpOnly` cookie，之后正常访问
 `http://127.0.0.1:15800/` 就行。令牌保存在 `<配置目录>/web-token`，也可用
-`--token` / `CC_SWITCH_WEB_TOKEN` 指定，或 `--no-token` 关闭校验（不建议）。
+`--token` / `CC_SWITCH_WEB_TOKEN` 指定，或 `--no-token` 关闭校验（**只能配合回环地址**，
+配非回环监听会被拒绝启动）。
 
 ### 远程机器
 
-服务端只监听回环地址，远程访问请用 SSH 端口转发：
+服务端默认只监听回环地址，远程访问请用 SSH 端口转发：
 
 ```bash
 ssh -L 15800:127.0.0.1:15800 user@your-server
 # 然后在本机浏览器打开 http://127.0.0.1:15800/auth?token=...
 ```
 
+### Docker
+
+```bash
+docker build -t cc-switch-web .
+docker run -d --name cc-switch-web -p 127.0.0.1:15800:15800 \
+  -v cc-switch-data:/data cc-switch-web
+docker logs cc-switch-web | grep token      # 取首次访问的令牌
+```
+
+或 `docker compose up -d`（见仓库根目录的 `docker-compose.yml`，里面有挂载宿主机 CLI
+配置的注释示例）。容器内配置目录是 `/data/.cc-switch`，挂卷持久化即可。
+
+容器里必须绑 `0.0.0.0`（镜像的默认 CMD 已经带了），否则端口映射进不来；对外仍然只把
+端口映射到宿主机回环。
+
 ### 作为 systemd 服务运行（推荐）
 
 ```bash
-mkdir -p ~/.local/bin ~/.local/share/cc-switch ~/.config/systemd/user
+mkdir -p ~/.local/bin ~/.config/systemd/user
 cp src-tauri/target/release/cc-switch-server ~/.local/bin/
-cp -r dist-web ~/.local/share/cc-switch/
 cp scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now cc-switch-server
@@ -71,9 +89,11 @@ journalctl --user -u cc-switch-server -f
 | 参数 | 环境变量 | 说明 |
 | --- | --- | --- |
 | `--port <端口>` | `CC_SWITCH_WEB_PORT` | 监听端口，默认 `15800` |
-| `--dist <目录>` | `CC_SWITCH_WEB_DIST` | 前端产物目录，默认 `dist-web` |
-| `--token <令牌>` | `CC_SWITCH_WEB_TOKEN` | 访问令牌 |
-| `--no-token` | — | 关闭令牌校验（仅限本机自用） |
+| `--bind <地址>` | `CC_SWITCH_WEB_BIND` | 监听地址，默认 `127.0.0.1`（容器里用 `0.0.0.0`） |
+| `--dist <目录>` | `CC_SWITCH_WEB_DIST` | 前端产物目录；缺省时用编译进二进制的那份 |
+| `--token <令牌>` | `CC_SWITCH_WEB_TOKEN` | 访问令牌（默认自动生成并写入配置目录） |
+| `--no-token` | — | 关闭令牌校验（只能配合回环地址） |
+| `--allow-host <主机名>` | `CC_SWITCH_ALLOW_HOSTS`（逗号分隔） | 除回环外额外允许的 `Host`，用域名/局域网访问时才需要 |
 | — | `CC_SWITCH_CONFIG_DIR` | 覆盖配置目录（默认 `~/.cc-switch`） |
 
 ## 安全
@@ -99,6 +119,10 @@ CLI 命令。因此：
 - **会话浏览**：列出 / 读取 / 删除各 CLI 工具在**服务器上**留下的会话，
   搜索与分块渲染照常（浏览器里用一次性拉取模拟 Channel）；
 - 事件推送（SSE，事件名与桌面版一致）。
+
+服务端还提供 `GET /api/capabilities`：返回各功能是否可用（页面级与页面内动作），
+界面据此**隐藏**没接入的入口，而不是让用户点进去看报错。`GET /api/commands`
+列出全部已实现的命令，排查时很有用。
 
 两处与桌面不同的实现方式：
 

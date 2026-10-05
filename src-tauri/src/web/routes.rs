@@ -76,6 +76,51 @@ pub async fn list_commands() -> Response {
     Json(json!({ "commands": names })).into_response()
 }
 
+/// `GET /api/capabilities`：这个服务端有哪些能力。
+///
+/// 前端据此**主动隐藏**不可用的入口，而不是让用户点进去看报错。键名按界面概念命名
+/// （页面级 / 页面内动作），布尔值直接对应"能不能用"。
+pub async fn capabilities() -> Response {
+    let table = dispatch_table();
+    let has = |cmd: &str| table.contains_key(cmd);
+
+    let features = json!({
+        // —— 页面级 ——
+        "pageProviders": has("get_providers"),
+        "pageRouting": has("start_proxy_server"),
+        "pageSessions": has("list_sessions"),
+        "pageImportExport": has("export_config_to_file"),
+        "pageUsage": false,   // 用量聚合与统计命令未接入
+        "pageMcp": false,     // MCP 管理命令未接入
+        "pageSkills": false,  // Skills 管理命令未接入
+        "pagePrompts": false, // Prompts 管理命令未接入
+        "pageAuth": false,    // 托管账号（Copilot / Codex / xAI）登录流程未接入
+        "pageApps": false,    // CLI 工具版本检测与安装未接入
+
+        // —— 页面内动作 ——
+        "sessionStream": has("web_session_transcript"),
+        "sessionReveal": false,   // 服务端没有文件管理器
+        "sessionTerminal": false, // 服务端没有桌面终端
+        "pickDirectory": false,   // 浏览器无法为服务端选目录
+
+        // —— 桌面专属 ——
+        "tray": false,
+        "updater": false,
+    });
+
+    let mut commands: Vec<&str> = table.keys().copied().collect();
+    commands.sort_unstable();
+
+    Json(json!({
+        "mode": "web",
+        "version": env!("CARGO_PKG_VERSION"),
+        "platform": std::env::consts::OS,
+        "features": features,
+        "commands": commands,
+    }))
+    .into_response()
+}
+
 fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
     static TABLE: OnceLock<HashMap<&'static str, Handler>> = OnceLock::new();
     TABLE.get_or_init(|| {
