@@ -1,7 +1,11 @@
 // 服务端（web 模式）只接入了部分命令（见 `web/routes.rs`），大量业务模块
-// 暂时"编译了但没被调用"，dead_code 警告会淹没真实问题——这里集中放行，
-// 等命令逐个接入后再撤掉。
-#![cfg_attr(feature = "server", allow(dead_code))]
+// 暂时"编译了但没被调用"，dead_code 与 unused_imports 警告会淹没真实问题
+// ——这里集中放行，等命令逐个接入后再撤掉。
+//
+// unused_imports 同样集中在这里、而不是逐个 `#[cfg]`：命中的都是
+// `deeplink/`、`services/` 里供桌面命令层用的 `pub use`，逐个加门面会改动
+// 上游共用的文件、给后续 rebase 添麻烦。
+#![cfg_attr(feature = "server", allow(dead_code, unused_imports))]
 
 mod app_config;
 mod app_store;

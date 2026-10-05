@@ -1,0 +1,17 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.0"
+upstream_commit = "412579f9ad81ed3c045476198aa9f8d1de36a2ae"
+resolved_at = "2026-10-05"
+
+# v4.0.0 是 annotated tag：refs/tags/v4.0.0 指向 tag 对象
+# c5560d18eb659647ff1d1fe1b275a19413b5a03f，peel 之后才是上面的 commit。
+# 记录的是 commit 而不是 tag 对象，避免日后审计时拿移动的 tag 做对比。
+#
+# 本 fork 还合入了该 tag 之后的上游提交（PR #7874），一并记下来，
+# 这样"这个 fork 跟到上游哪儿"是可查的。
+last_merged_commit = "a33c156e5f6b2b0b0d9b0b9c574cd544237f354e"
+last_merged_pr = "7874"
+
+# 复核方式（改这里的值之前先跑一遍）：
+#   git ls-remote https://github.com/farion1231/cc-switch.git 'refs/tags/v4.0.0*'
+# GitHub 页面：https://github.com/farion1231/cc-switch/tree/v4.0.0

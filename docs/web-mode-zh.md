@@ -5,6 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
+> 当前对标基线 **v4.0.0**（已合并至上游 `a33c156e`，PR #7874），见
+> [`upstream-v4.0.0.lock`](upstream-v4.0.0.lock)。
 
 ## 它是怎么做到的
 
@@ -80,6 +82,84 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 ```bash
 ssh -L 15800:127.0.0.1:15800 user@your-server
 # 然后在本机浏览器打开 http://127.0.0.1:15800/auth?token=...
+```
+
+### TLS 反向代理（Nginx / Caddy）
+
+用域名 + HTTPS 访问时，把服务端放在反向代理后面：
+
+1. 服务端保持默认只监听 `127.0.0.1`，由反代访问它——`15800` 不要对外发布；
+2. 启动时加 `--allow-host <域名>`（可多次，或 `CC_SWITCH_ALLOW_HOSTS=a.com,b.com`）。
+   `Host` 与 `Origin` 默认只放行回环地址，白名单是**精确匹配**（可以带端口，不支持通配符），
+   所以反代必须把浏览器原始的 `Host` 透传给服务端；域名也必须进白名单——浏览器发
+   `POST /api/invoke` 时会带 `Origin: https://<域名>`，它同样要过校验；
+3. 加 `--hsts`，让响应带 `Strict-Transport-Security: max-age=31536000`。
+
+systemd 单元的 `ExecStart` 相应改成：
+
+```ini
+ExecStart=%h/.local/bin/cc-switch-server --allow-host cc-switch.example.com --hsts
+```
+
+Nginx（`access_log` 用 `$uri` 而不是 `$request`，避免 `/auth?token=...` 里的令牌写进日志）：
+
+```nginx
+# log_format 要放在 http 上下文里
+log_format ccswitch '$remote_addr - $remote_user [$time_local] '
+                    '"$request_method $uri $server_protocol" $status '
+                    '$body_bytes_sent "$http_user_agent"';
+
+server {
+    listen 80;
+    server_name cc-switch.example.com;
+    return 301 https://$host$request_uri;      # 不要留明文入口（cookie 没有 Secure 标记）
+}
+
+server {
+    listen 443 ssl http2;
+    server_name cc-switch.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/cc-switch.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/cc-switch.example.com/privkey.pem;
+
+    access_log /var/log/nginx/cc-switch.access.log ccswitch;
+    client_max_body_size 64m;                  # 与服务端的上传上限一致
+
+    location / {
+        proxy_pass http://127.0.0.1:15800;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;           # 必须保留原始 Host，否则过不了 Host/Origin 校验
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Connection "";
+
+        proxy_buffering off;                   # /api/events 是 SSE，别缓冲
+        proxy_read_timeout 3600s;              # 同理，别让空闲的 SSE 连接被掐断
+    }
+}
+```
+
+Caddy（自动申请证书、默认透传原始 `Host`，但不替你加 HSTS——`--hsts` 仍然要加）：
+
+```
+cc-switch.example.com {
+    reverse_proxy 127.0.0.1:15800
+}
+```
+
+首次访问走 `https://cc-switch.example.com/auth?token=<令牌>`，通过后服务端下发
+`ccswitch_web_token` cookie（`Path=/; HttpOnly; SameSite=Strict`）并跳回首页。页面本身
+（`/` 与静态资源）不做令牌校验，但所有 `/api/*` 调用都要带这个 cookie。两点注意：
+
+- cookie **没有 `Secure` 标记**：别在同一域名下再开明文入口（上面 80 → 443 的跳转就是为此），
+  也别把后端端口发布出去；
+- `SameSite=Strict` 意味着从外部站点跳进来不会带上 cookie，首次访问必须用 `/auth?token=...` 链接。
+
+脚本 / 命令行用 Bearer 即可，不依赖 cookie：
+
+```bash
+curl -H "Authorization: Bearer $(cat ~/.cc-switch/web-token)" \
+  https://cc-switch.example.com/api/env
 ```
 
 ### Docker

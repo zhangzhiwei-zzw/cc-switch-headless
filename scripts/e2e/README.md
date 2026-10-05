@@ -30,6 +30,11 @@ bash scripts/e2e/pages.sh
 | `CC_SWITCH_SERVER_BIN` | `src-tauri/target/debug/cc-switch-server` | 服务端二进制 |
 | `CC_SWITCH_WEB_DIST` | `dist-web` | 前端产物目录（不存在时用二进制内置的那份） |
 
+CI 里由 `.github/workflows/ci.yml` 的 `server` job 按同样的命令跑。注意跑之前要清掉
+`CC_SWITCH_CONFIG_DIR` / `CC_SWITCH_WEB_*` / `CC_SWITCH_ALLOW_HOSTS` 这些**服务端自己认的**
+环境变量——`CC_SWITCH_CONFIG_DIR` 会覆盖用例的临时 HOME，`CC_SWITCH_WEB_TOKEN` 会让「等
+web-token 文件出现」那步永远等不到，CI 里用的是 `env -u …`。
+
 ## 用例覆盖
 
 | 脚本 | 覆盖 |

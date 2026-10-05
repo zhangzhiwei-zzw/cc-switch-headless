@@ -20,6 +20,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      server: ${{ steps.filter.outputs.server }}
     steps:
       # On pull_request the filter reads changed files via the API (no checkout);
       # on push it needs a local git history to diff against.
@@ -49,6 +50,14 @@ jobs:
               - ".github/workflows/**"
             backend:
               - "src-tauri/**"
+              - "rust-toolchain.toml"
+              - ".github/workflows/**"
+            # 服务端（headless）单独一路：scripts/** 只被 e2e 用到，不该顺带触发
+            # 三平台矩阵和 WSL2 那两个 job。前端构建由 frontend job 的 build:web 覆盖，
+            # 这里不重复。
+            server:
+              - "src-tauri/**"
+              - "scripts/**"
               - "rust-toolchain.toml"
               - ".github/workflows/**"
 
@@ -102,6 +111,11 @@ jobs:
       - name: Build frontend
         run: pnpm build:renderer
 
+      # Web 构建把 @tauri-apps/* 换成 src/web-shims/*（vite alias，仅 CC_SWITCH_WEB=1 时生效），
+      # 产物进 dist-web/、被服务端二进制嵌入。不构建它的话，shim 或 alias 坏了没人会发现。
+      - name: Build web frontend (server assets)
+        run: pnpm build:web
+
   backend:
     name: Backend Checks
     runs-on: ${{ matrix.os }}
@@ -154,6 +168,63 @@ jobs:
 
       - name: Run tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  server:
+    name: Server Checks (headless)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.server == 'true'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # 单独的 cache key：server 与桌面矩阵的 feature set 不同，不能共用同一条缓存
+      # 互相覆盖；第二条 restore-key 只在首次冷启动时借用桌面缓存。
+      - name: Cache Cargo registry and build (server features)
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-server-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-server-
+            ${{ runner.os }}-cargo-
+
+      # 不需要 GTK/WebKit：server feature 不带 Tauri。dist-web/ 缺失时 build.rs 会写占位页，
+      # 所以也不用先构建前端。
+      # 刻意用 --bin 而不是 --all-targets：lib 的 #[cfg(test)] 模块（services/provider、
+      # services/speedtest）与几个集成测试直接用桌面专属 API，server feature 下还编译不过，
+      # 别为了消 warning 改成 --all-targets。
+      - name: Clippy (server features)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
+
+      - name: Build server binary
+        run: cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
+
+      # e2e 自己在 /tmp 建临时 HOME、用固定回环端口起服务。必须清掉 CC_SWITCH_*：
+      # CC_SWITCH_CONFIG_DIR 会越过临时 HOME（等 token 的循环会空转 120s 后失败），
+      # CC_SWITCH_WEB_TOKEN 会预置令牌，CC_SWITCH_ALLOW_HOSTS 会削弱 flags.sh 的反向断言。
+      - name: Run server end-to-end suite
+        run: |
+          env -u CC_SWITCH_CONFIG_DIR \
+              -u CC_SWITCH_SERVER_BIN \
+              -u CC_SWITCH_WEB_PORT \
+              -u CC_SWITCH_WEB_BIND \
+              -u CC_SWITCH_WEB_DIST \
+              -u CC_SWITCH_WEB_TOKEN \
+              -u CC_SWITCH_WEB_HSTS \
+              -u CC_SWITCH_ALLOW_HOSTS \
+              bash scripts/e2e/run-all.sh
 
   backend-windows-wsl2:
     name: Backend Checks (Windows + WSL2 home)
