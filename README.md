@@ -29,15 +29,55 @@ WebKitGTK 4.1**（Ubuntu 22.04 起）——在 Ubuntu 20.04 这类系统上跑�
 
 ## 快速开始
 
-**装预编译包**（不用装 Rust；`linux-x86_64` 与 `linux-aarch64` 在 Ubuntu 20.04 上构建，
-20.04 到 24.04 都能跑；Windows 用 Release 里的 `.exe`）：
+### 装预编译包
+
+Release 里有三份产物，不用装 Rust：`linux-x86_64`、`linux-aarch64`、
+`windows-x86_64.exe`。Linux 两份在 Ubuntu 20.04 容器里构建、**动态链接 glibc，
+要求 glibc ≥ 2.31**（即 Ubuntu 20.04 及以上），已断言不会链到 OpenSSL。
+
+**Linux（x86_64 / aarch64）**——脚本按 `uname -m` 自动选架构、强制校验 sha256、
+装到 `~/.local/bin`：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
 ~/.local/bin/cc-switch-server          # 加 --service 顺带装成 systemd 用户服务
 ```
 
-**或者从源码构建**：
+不想用管道的话手动装（aarch64 把名字里的 `x86_64` 换成 `aarch64`）：
+
+```bash
+base=https://github.com/zhangzhiwei-zzw/cc-switch-headless/releases/latest/download
+curl -fLO $base/cc-switch-server-linux-x86_64
+curl -fLO $base/cc-switch-server-linux-x86_64.sha256
+sha256sum -c cc-switch-server-linux-x86_64.sha256      # 必须显示 OK
+chmod +x cc-switch-server-linux-x86_64                 # curl 下来的文件没有可执行位
+./cc-switch-server-linux-x86_64
+```
+
+**Windows（x86_64）**——下 `.exe` 直接运行，没有安装器也没有服务：
+
+```powershell
+certutil -hashfile .\cc-switch-server-windows-x86_64.exe SHA256   # 与 .sha256 文件比对
+.\cc-switch-server-windows-x86_64.exe
+```
+
+- 未签名，SmartScreen 会拦一次：**更多信息 → 仍要运行**
+- 关掉终端进程就结束；想常驻可以用任务计划程序
+
+### 启动之后
+
+启动日志里会打印一条带令牌的地址，用浏览器打开它即可：
+
+```
+http://127.0.0.1:15800/auth?token=<64 位令牌>
+```
+
+打开一次后会种下 cookie，之后直接访问 `http://127.0.0.1:15800/` 就行。令牌也保存在
+配置目录下的 `web-token`（Linux `~/.cc-switch/web-token`、Windows
+`%USERPROFILE%\.cc-switch\web-token`）。完整参数见 `--help` 或
+[docs/web-mode-zh.md](docs/web-mode-zh.md)。
+
+### 从源码构建
 
 ```bash
 # 1. 前端（需要 Node 22+ 与 pnpm）
@@ -50,15 +90,6 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 # 3. 启动，默认监听 127.0.0.1:15800
 ./target/release/cc-switch-server
 ```
-
-启动时日志里会打印一条带令牌的地址，用浏览器打开它即可：
-
-```
-http://127.0.0.1:15800/auth?token=<64 位令牌>
-```
-
-打开一次后会种下 cookie，之后直接访问 `http://127.0.0.1:15800/` 就行。
-令牌也保存在 `~/.cc-switch/web-token`。
 
 ## 换个地方用
 

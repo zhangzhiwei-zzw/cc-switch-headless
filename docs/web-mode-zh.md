@@ -45,7 +45,11 @@ curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/
 | `cc-switch-server-windows-x86_64.exe` | Windows x86_64 可执行文件（未签名，SmartScreen 会提示） |
 | 同名 `.sha256` | 各产物的校验和 |
 
-上面那个安装脚本只面向 Linux；Windows 直接下 `.exe` 手动跑即可。
+上面那个安装脚本只面向 Linux（它会按 `uname -m` 自动选 x86_64 / aarch64）。Windows 没有安装器，
+下 `cc-switch-server-windows-x86_64.exe` 直接运行即可；校验用
+`certutil -hashfile .\cc-switch-server-windows-x86_64.exe SHA256` 与同名 `.sha256` 比对。
+SmartScreen 会拦一次（未签名）：**更多信息 → 仍要运行**；关掉终端进程就结束，想常驻可以用
+任务计划程序。
 
 Linux 产物**在 `ubuntu:20.04` 容器里编译**（GitHub 已经没有 20.04 runner，所以复用仓库
 自带的 Dockerfile；两个架构各自在自己的原生 runner 上构建，不走 QEMU，所以 glibc 底线

@@ -30,16 +30,56 @@ The desktop app is unchanged.
 
 ## Quick start
 
-**Install a prebuilt binary** (no Rust toolchain needed; the `linux-x86_64` and `linux-aarch64`
-builds are made on Ubuntu 20.04 and run on 20.04 through 24.04; on Windows grab the `.exe` from
-the release):
+### Prebuilt binaries
+
+The release ships three artifacts, no Rust toolchain needed: `linux-x86_64`,
+`linux-aarch64` and `windows-x86_64.exe`. The Linux builds are made inside Ubuntu 20.04 and are
+**dynamically linked against glibc, so they need glibc ≥ 2.31** (Ubuntu 20.04 or newer); they are
+also asserted not to link OpenSSL.
+
+**Linux (x86_64 / aarch64)** — the script picks the right architecture from `uname -m`, verifies
+the sha256 and installs to `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
 ~/.local/bin/cc-switch-server          # add --service for a systemd user unit
 ```
 
-**Or build from source**:
+Without the pipe (swap `x86_64` for `aarch64` on ARM):
+
+```bash
+base=https://github.com/zhangzhiwei-zzw/cc-switch-headless/releases/latest/download
+curl -fLO $base/cc-switch-server-linux-x86_64
+curl -fLO $base/cc-switch-server-linux-x86_64.sha256
+sha256sum -c cc-switch-server-linux-x86_64.sha256      # must print OK
+chmod +x cc-switch-server-linux-x86_64                 # curl does not set the exec bit
+./cc-switch-server-linux-x86_64
+```
+
+**Windows (x86_64)** — download the `.exe` and run it; there is no installer and no service:
+
+```powershell
+certutil -hashfile .\cc-switch-server-windows-x86_64.exe SHA256   # compare with the .sha256 file
+.\cc-switch-server-windows-x86_64.exe
+```
+
+- Unsigned, so SmartScreen warns once: **More info → Run anyway**
+- Closing the terminal stops it; use Task Scheduler if you want it to stay up
+
+### After it starts
+
+The startup log prints a URL that carries the access token — open it in a browser:
+
+```
+http://127.0.0.1:15800/auth?token=<64-char token>
+```
+
+It sets a cookie once, after which `http://127.0.0.1:15800/` works directly. The token is also
+stored as `web-token` in the config directory (`~/.cc-switch/web-token` on Linux,
+`%USERPROFILE%\.cc-switch\web-token` on Windows). See `--help` or
+[docs/web-mode-zh.md](docs/web-mode-zh.md) for every flag.
+
+### Build from source
 
 ```bash
 # 1. frontend (Node 22+ and pnpm)
@@ -52,15 +92,6 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 # 3. run — listens on 127.0.0.1:15800 by default
 ./target/release/cc-switch-server
 ```
-
-The startup log prints a URL that carries the access token — open it in a browser:
-
-```
-http://127.0.0.1:15800/auth?token=<64-char token>
-```
-
-It sets a cookie once, after which `http://127.0.0.1:15800/` works directly.
-The token is also stored in `~/.cc-switch/web-token`.
 
 ## Running it elsewhere
 
