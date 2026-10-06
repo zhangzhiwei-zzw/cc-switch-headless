@@ -37,19 +37,19 @@ env:
 jobs:
   build:
     name: build linux/${{ matrix.arch }}
-    runs-on: ubuntu-22.04
+    # 每个架构在自己的原生 runner 上构建，不走 QEMU（模拟下 Rust 全量编译是小时级）。
+    # glibc 底线仍然由容器保证：ubuntu:20.04 有 arm64 镜像，产物照样是 2.31。
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x86_64
             platform: linux/amd64
-          # aarch64 走 QEMU 模拟，Rust 全量编译会慢很多（小时级）。
-          # 需要 ARM 产物时把下面两行取消注释，并把 ubuntu-22.04 换成
-          # 原生 arm runner（如 ubuntu-24.04-arm，注意其 glibc 更新，
-          # 会破坏 MAX_GLIBC 断言——那种情况下得改用容器交叉编译）。
-          # - arch: aarch64
-          #   platform: linux/arm64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            platform: linux/arm64
+            runner: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -127,9 +127,77 @@ jobs:
             cc-switch-server-linux-${{ matrix.arch }}.sha256
           if-no-files-found: error
 
+  # Windows 不能在 Linux 容器里编（MSVC 工具链 + Windows 头文件都在 Windows 上），
+  # 所以单独一条腿，直接用普通 cargo build，不套 Docker。
+  build-windows:
+    name: build windows/x86_64
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        env:
+          COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+        run: |
+          corepack enable
+          corepack install
+          pnpm --version
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      # 不能直接 `pnpm build:web`：那条脚本是 `CC_SWITCH_WEB=1 vite build …`，
+      # POSIX 的「前缀式环境变量」在 PowerShell 下不是合法命令。改成由 workflow
+      # 设置环境变量、直接调 vite，参数与脚本保持一致。
+      - name: Build web frontend (server assets)
+        env:
+          CC_SWITCH_WEB: "1"
+        run: pnpm exec vite build --outDir ../dist-web
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-server-release-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-server-
+
+      - name: Build the server
+        run: cargo build --release --no-default-features --features server --bin cc-switch-server --manifest-path src-tauri/Cargo.toml
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "cc-switch-server-windows-x86_64"
+          Copy-Item "src-tauri/target/release/cc-switch-server.exe" "$name.exe"
+          $hash = (Get-FileHash "$name.exe" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.exe" | Out-File -Encoding ascii "$name.exe.sha256"
+          Get-Content "$name.exe.sha256"
+          Get-Item "$name.exe" | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cc-switch-server-windows-x86_64
+          path: |
+            cc-switch-server-windows-x86_64.exe
+            cc-switch-server-windows-x86_64.exe.sha256
+          if-no-files-found: error
+
   publish:
     name: attach to release
-    needs: build
+    needs: [build, build-windows]
     runs-on: ubuntu-22.04
     if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
     steps:
@@ -139,7 +207,7 @@ jobs:
       # 解压失败会让整个步骤报 "failed after 5 retries"——哪怕真正的二进制已经下载好了。
       - uses: actions/download-artifact@v8
         with:
-          pattern: cc-switch-server-linux-*
+          pattern: cc-switch-server-*
           path: assets
           merge-multiple: true
 

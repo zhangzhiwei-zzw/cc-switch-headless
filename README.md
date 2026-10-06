@@ -29,7 +29,8 @@ WebKitGTK 4.1**（Ubuntu 22.04 起）——在 Ubuntu 20.04 这类系统上跑�
 
 ## 快速开始
 
-**装预编译包**（不用装 Rust，二进制在 Ubuntu 20.04 上构建，20.04 到 24.04 都能跑）：
+**装预编译包**（不用装 Rust；`linux-x86_64` 与 `linux-aarch64` 在 Ubuntu 20.04 上构建，
+20.04 到 24.04 都能跑；Windows 用 Release 里的 `.exe`）：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash

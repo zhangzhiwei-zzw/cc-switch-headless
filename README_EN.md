@@ -30,8 +30,9 @@ The desktop app is unchanged.
 
 ## Quick start
 
-**Install a prebuilt binary** (no Rust toolchain needed; built on Ubuntu 20.04, runs on 20.04
-through 24.04):
+**Install a prebuilt binary** (no Rust toolchain needed; the `linux-x86_64` and `linux-aarch64`
+builds are made on Ubuntu 20.04 and run on 20.04 through 24.04; on Windows grab the `.exe` from
+the release):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash

@@ -61,7 +61,8 @@ command -v sha256sum >/dev/null || die "需要 sha256sum（coreutils）"
 # ── 平台 ──────────────────────────────────────────────────────────
 case "$(uname -s)" in
   Linux) ;;
-  *) die "只提供 Linux 预编译包；其他平台请从源码构建" ;;
+  *) die "这个脚本只装 Linux 预编译包；Windows 请直接从 Release 下载
+  cc-switch-server-windows-x86_64.exe，其他平台请从源码构建" ;;
 esac
 
 case "$(uname -m)" in

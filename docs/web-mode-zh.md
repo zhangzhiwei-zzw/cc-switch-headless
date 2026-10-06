@@ -40,11 +40,16 @@ curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/
 
 | 资产 | 说明 |
 | --- | --- |
-| `cc-switch-server-linux-x86_64` | 可执行文件 |
-| `cc-switch-server-linux-x86_64.sha256` | 校验和 |
+| `cc-switch-server-linux-x86_64` | Linux x86_64 可执行文件 |
+| `cc-switch-server-linux-aarch64` | Linux arm64 可执行文件（树莓派、ARM 云主机） |
+| `cc-switch-server-windows-x86_64.exe` | Windows x86_64 可执行文件（未签名，SmartScreen 会提示） |
+| 同名 `.sha256` | 各产物的校验和 |
 
-流水线**在 `ubuntu:20.04` 容器里编译**（GitHub 已经没有 20.04 runner，所以复用仓库
-自带的 Dockerfile），构建末尾有两道断言：最高 glibc 符号引用不得高于 **2.31**，且
+上面那个安装脚本只面向 Linux；Windows 直接下 `.exe` 手动跑即可。
+
+Linux 产物**在 `ubuntu:20.04` 容器里编译**（GitHub 已经没有 20.04 runner，所以复用仓库
+自带的 Dockerfile；两个架构各自在自己的原生 runner 上构建，不走 QEMU，所以 glibc 底线
+不受 runner 版本影响），构建末尾有两道断言：最高 glibc 符号引用不得高于 **2.31**，且
 不得动态链接 `libssl`/`libcrypto`。两者任一不满足就直接失败，避免推出一个「看着能下、
 装上跑不起来」的包。这也是为什么 `reqwest` 关掉了 `default-features`——它的
 `default-tls` 会把 OpenSSL 链进来，而 20.04 是 libssl 1.1.1、22.04+ 是 3.x，
