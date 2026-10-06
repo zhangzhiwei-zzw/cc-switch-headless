@@ -587,6 +587,9 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-22.04
     needs: release
+    # 这条 workflow 现在只能手动 dispatch，而 UI 里 ref 可以随便选。tag_name 取的是
+    # github.ref_name，不加守卫的话从 main 跑一次就会建出一个叫 "main" 的 Release。
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
@@ -636,6 +639,8 @@ jobs:
     name: Assemble latest.json
     runs-on: ubuntu-22.04
     needs: publish-release
+    # 同 publish-release：下游全靠 GITHUB_REF_NAME 定位 Release，只认 tag。
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
