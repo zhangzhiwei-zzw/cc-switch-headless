@@ -77,6 +77,37 @@ jobs:
           strip cc-switch-server || true
           ls -lh cc-switch-server
 
+      # 产物能跑起来才算数：`--help` 证明动态链接没问题，起一次服务打
+      # /api/capabilities 证明它真的能工作。用临时 HOME，不碰 runner 上的真实配置；
+      # 这条腿在哪台 runner 上跑，就验证哪个架构的产物（aarch64 是在 ARM runner 上跑的）。
+      - name: Smoke test the binary
+        run: |
+          set -euo pipefail
+          ./cc-switch-server --help >/dev/null
+          tmp=$(mktemp -d)
+          HOME="$tmp" ./cc-switch-server --port 15999 >"$tmp/server.log" 2>&1 &
+          pid=$!
+          for _ in $(seq 1 60); do
+            [ -f "$tmp/.cc-switch/web-token" ] && break
+            sleep 0.5
+          done
+          token=$(cat "$tmp/.cc-switch/web-token")
+          code=""
+          for _ in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Cookie: ccswitch_web_token=$token" \
+              http://127.0.0.1:15999/api/capabilities || true)
+            [ "$code" = "200" ] && break
+            sleep 0.5
+          done
+          kill "$pid" 2>/dev/null || true
+          if [ "$code" != "200" ]; then
+            echo "::error::/api/capabilities 返回 $code（期望 200）"
+            cat "$tmp/server.log"
+            exit 1
+          fi
+          echo "✅ 二进制可执行，/api/capabilities 返回 200"
+
       - name: Assert the glibc floor
         run: |
           set -euo pipefail
@@ -176,6 +207,15 @@ jobs:
 
       - name: Build the server
         run: cargo build --release --no-default-features --features server --bin cc-switch-server --manifest-path src-tauri/Cargo.toml
+
+      # 只做 --help：证明 PE 能加载、依赖齐全。不做起服务那套——在 Windows 上
+      # HOME 不隔离配置目录（走 USERPROFILE），会把 runner 的真实用户目录写脏。
+      - name: Smoke test the binary
+        shell: pwsh
+        run: |
+          & "src-tauri/target/release/cc-switch-server.exe" --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "--help 退出码 $LASTEXITCODE" }
+          Write-Host "✅ 二进制可执行"
 
       - name: Package
         shell: pwsh
