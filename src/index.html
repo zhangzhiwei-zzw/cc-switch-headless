@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Claude Code 供应商切换器</title>
+    <!-- 程序图标（与桌面版打包用的是同一份：src-tauri/icons/32x32.png）。
+         vite 会把它带 hash 输出到产物里，web 模式下标签页才有图标；
+         桌面版 webview 用不到它，留着也无害。 -->
+    <link rel="icon" type="image/png" href="./assets/icons/app-icon.png" />
+    <link rel="apple-touch-icon" href="./assets/icons/app-icon.png" />
     <script>(function(){try{var t=localStorage.getItem("cc-switch-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})()</script>
   </head>
   <body>
