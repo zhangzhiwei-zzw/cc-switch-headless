@@ -10,11 +10,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::app_config::AppType;
+use crate::error::AppError;
 use crate::init_status::InitErrorPayload;
 use crate::store::AppState;
 
 /// Tauri Store 文件所在的应用数据目录名（与 `tauri.conf.json` 的 identifier 一致）。
 const APP_IDENTIFIER: &str = "com.ccswitch.desktop";
+
+/// 累加模式应用的 live 导入函数签名（OpenCode / OpenClaw / Hermes / Pi 四家一致）。
+type AdditiveLiveImport = fn(&AppState) -> Result<usize, AppError>;
 
 /// 执行启动流程。
 ///
@@ -279,6 +283,38 @@ fn import_live_configs_and_seed(state: &AppState) {
             Ok(true) => log::info!("✓ 已从 live 配置导入 {} 的默认供应商", app_type.as_str()),
             Ok(false) => {}
             Err(error) => log::debug!("○ {} 没有可导入的 live 配置: {error}", app_type.as_str()),
+        }
+    }
+
+    // 累加模式应用（OpenCode / OpenClaw / Hermes / Pi）不走上面这条通用路径——
+    // 对它们 `import_default_config` 直接返回 false——而是各自从 live 文件同步。
+    // 与桌面版启动流程（`lib.rs` 里那四个 match）一致：这些函数按 id 幂等，新 id
+    // 导入、已有 id 更新，所以每次启动跑都安全，外部改过的 live 文件重启后会同步
+    // 进数据库。少了这一段，浏览器里就看不到用户在 opencode.json / Pi 配置里
+    // 已经写好的供应商。
+    let additive_imports: [(&str, AdditiveLiveImport); 4] = [
+        (
+            "OpenCode",
+            crate::services::provider::import_opencode_providers_from_live,
+        ),
+        (
+            "OpenClaw",
+            crate::services::provider::import_openclaw_providers_from_live,
+        ),
+        (
+            "Hermes",
+            crate::services::provider::import_hermes_providers_from_live,
+        ),
+        (
+            "Pi",
+            crate::services::provider::import_pi_providers_from_live,
+        ),
+    ];
+    for (name, import) in additive_imports {
+        match import(state) {
+            Ok(count) if count > 0 => log::info!("✓ 已从 live 配置同步 {count} 个 {name} 供应商"),
+            Ok(_) => {}
+            Err(error) => log::warn!("✗ 同步 {name} 的 live 供应商失败: {error}"),
         }
     }
 

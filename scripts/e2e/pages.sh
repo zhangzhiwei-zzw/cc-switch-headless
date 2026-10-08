@@ -12,6 +12,37 @@ PORT=15854
 mkdir -p "$CC_TEST_HOME/.claude"
 echo '{}' > "$CC_TEST_HOME/.claude/settings.json"
 
+# 累加模式应用（OpenCode / Pi）的 live 配置要在启动**之前**就位：要验证的正是
+# 「服务端启动时会把它同步进数据库」（桌面版一直这么做，服务端曾漏掉这一段）。
+mkdir -p "$CC_TEST_HOME/.config/opencode"
+cat > "$CC_TEST_HOME/.config/opencode/opencode.json" <<'JSON'
+{
+  "provider": {
+    "opencode-go": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://opencode.example.invalid/v1",
+        "apiKey": "{env:OPENCODE_API_KEY}"
+      }
+    }
+  }
+}
+JSON
+
+# Pi 更依赖这段启动同步：它连「从 live 导入」的命令都没有（桌面版也没有），
+# 原生配置只能在启动时同步进数据库。
+mkdir -p "$CC_TEST_HOME/.pi/agent"
+cat > "$CC_TEST_HOME/.pi/agent/models.json" <<'JSON'
+{
+  "providers": {
+    "pi-e2e": {
+      "baseUrl": "https://pi.example.invalid/v1",
+      "apiKey": "sk-e2e"
+    }
+  }
+}
+JSON
+
 start_server "$PORT"
 
 # jget <命令 json> <作用于整个响应的 python 表达式>
@@ -110,5 +141,18 @@ check "非法计费来源被拒" "False" \
 check "数据来源分布可查" "0" "$(jget '{"cmd":"get_usage_data_sources"}' 'len(d["data"])')"
 check "会话同步可跑（临时 HOME 无会话）" "0" \
   "$(jget '{"cmd":"sync_session_usage"}' 'd["data"]["imported"]')"
+
+echo
+echo "== 累加模式应用（OpenCode）"
+# 这三条对应的是服务端曾经漏掉的那段：累加模式应用既不进通用导入
+# （import_default_config 对它们直接返回 false），启动时也要各自同步 live。
+check "启动时已从 live 同步进数据库" "True" \
+  "$(jget '{"cmd":"get_providers","args":{"app":"opencode"}}' '"opencode-go" in d["data"]')"
+check "再次导入是幂等的（返回 0）" "0" \
+  "$(jget '{"cmd":"import_opencode_providers_from_live"}' 'd["data"]')"
+check "live provider ids 可读" "1" \
+  "$(jget '{"cmd":"get_opencode_live_provider_ids"}' 'len(d["data"])')"
+check "Pi 也同步了（它只有启动同步这一条路）" "True" \
+  "$(jget '{"cmd":"get_providers","args":{"app":"pi"}}' '"pi-e2e" in d["data"]')"
 
 summary

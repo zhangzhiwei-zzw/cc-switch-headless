@@ -166,6 +166,23 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             get_provider_editor_view as Handler,
         );
         table.insert("import_default_config", import_default_config as Handler);
+        // 累加模式应用各自的 live 导入（桌面版是三条同名命令）
+        table.insert(
+            "import_opencode_providers_from_live",
+            import_opencode_providers_from_live as Handler,
+        );
+        table.insert(
+            "import_openclaw_providers_from_live",
+            import_openclaw_providers_from_live as Handler,
+        );
+        table.insert(
+            "import_hermes_providers_from_live",
+            import_hermes_providers_from_live as Handler,
+        );
+        table.insert(
+            "get_opencode_live_provider_ids",
+            get_opencode_live_provider_ids as Handler,
+        );
         table.insert(
             "update_providers_sort_order",
             update_providers_sort_order as Handler,
@@ -661,6 +678,55 @@ fn import_default_config(context: Arc<Context>, args: Value) -> HandlerFuture {
             Ok(Value::Bool(imported))
         })
         .await
+    })
+}
+
+/// 累加模式应用（OpenCode / OpenClaw / Hermes）的「从 live 导入供应商」。
+///
+/// 通用导入 `import_default_config` 对这几个应用直接返回 false，它们各自有专门的
+/// 同步函数——桌面版是三条同名命令，这里把同一批 service 函数接上，逻辑不重复。
+fn import_additive_providers(
+    context: Arc<Context>,
+    import: fn(&crate::store::AppState) -> Result<usize, crate::error::AppError>,
+) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        blocking(move || {
+            import(&state)
+                .map(|count| json!(count))
+                .map_err(|error| error.to_string())
+        })
+        .await
+    })
+}
+
+fn import_opencode_providers_from_live(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    import_additive_providers(
+        context,
+        crate::services::provider::import_opencode_providers_from_live,
+    )
+}
+
+fn import_openclaw_providers_from_live(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    import_additive_providers(
+        context,
+        crate::services::provider::import_openclaw_providers_from_live,
+    )
+}
+
+fn import_hermes_providers_from_live(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    import_additive_providers(
+        context,
+        crate::services::provider::import_hermes_providers_from_live,
+    )
+}
+
+/// OpenCode 页用它判断“某个供应商是否已经在 opencode.json 里”。
+fn get_opencode_live_provider_ids(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        crate::opencode_config::get_providers()
+            .map(|providers| providers.keys().cloned().collect::<Vec<String>>())
+            .map_err(|error| error.to_string())
     })
 }
 
