@@ -25,6 +25,18 @@ require_prerequisites() {
 EOF
     exit 1
   fi
+  # 服务端启动时带 `--dist "$DIST_DIR"`，目录里没有 index.html 会被它直接拒绝。
+  # 这里提前拦住并给出「怎么生成」的提示，比对着服务端日志猜要快。
+  if [ ! -f "$DIST_DIR/index.html" ]; then
+    cat >&2 <<EOF
+找不到前端产物：$DIST_DIR/index.html
+
+先构建：
+  pnpm build:web
+（也可用 CC_SWITCH_WEB_DIST 指定其它目录）
+EOF
+    exit 1
+  fi
   command -v curl >/dev/null || { echo "需要 curl" >&2; exit 1; }
   command -v python3 >/dev/null || { echo "需要 python3" >&2; exit 1; }
 }

@@ -145,7 +145,8 @@ struct Options {
     port: u16,
     /// 监听地址，默认只绑回环；容器里需要 `0.0.0.0` 才能从端口映射进来
     bind: std::net::IpAddr,
-    dist: PathBuf,
+    /// `--dist` / `CC_SWITCH_WEB_DIST` 指定的前端产物目录；`None` 表示用编译进二进制的那份
+    dist: Option<PathBuf>,
     /// 显式传入的令牌；`None` 表示自动生成或读取
     token: Option<String>,
     /// 令牌来自命令行/环境变量（而不是 web-token 文件）——轮换时提醒用户
@@ -167,9 +168,14 @@ fn parse_options() -> Result<Options, String> {
             .ok()
             .and_then(|value| value.trim().parse().ok())
             .unwrap_or(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST)),
+        // 只有显式指定才读目录：默认走编进二进制的那份。之前默认是相对路径
+        // `dist-web`，于是从任何带 dist-web 的目录（比如仓库根）启动已发布的
+        // 二进制时，会被那里可能过期的前端产物悄悄顶掉。
         dist: std::env::var("CC_SWITCH_WEB_DIST")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("dist-web")),
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from),
         token: None,
         token_from_flag: false,
         no_token: false,
@@ -197,7 +203,7 @@ fn parse_options() -> Result<Options, String> {
                     .map_err(|_| format!("监听地址不合法: {value}"))?;
             }
             "--dist" => {
-                options.dist = PathBuf::from(args.next().ok_or("--dist 需要一个目录")?);
+                options.dist = Some(PathBuf::from(args.next().ok_or("--dist 需要一个目录")?));
             }
             "--token" => {
                 options.token = Some(args.next().ok_or("--token 需要一个值")?);
@@ -215,7 +221,8 @@ fn parse_options() -> Result<Options, String> {
                      选项：\n\
                        --port <端口>            监听端口（默认 {DEFAULT_PORT}）\n\
                        --bind <地址>            监听地址（默认 127.0.0.1；容器内端口映射需 0.0.0.0）\n\
-                       --dist <目录>            前端产物目录（缺省时用编译进二进制的那份）\n\
+                       --dist <目录>            前端产物目录（默认用编译进二进制的那份；\n\
+                                                目录里没有 index.html 会拒绝启动）\n\
                        --token <令牌>           访问令牌（默认自动生成并写入 <配置目录>/web-token）\n\
                        --no-token               关闭令牌校验（只允许与回环地址同用）\n\
                        --hsts                   下发 HSTS 头（放在 TLS 反向代理后面时用）\n\
@@ -273,13 +280,28 @@ async fn serve(mut options: Options) -> Result<(), String> {
         }));
     }
 
-    // 4. 前端产物：--dist 目录优先（便于改前端不重编二进制），否则用编译进二进制的那份
-    let dist_dir = if options.dist.join("index.html").exists() {
-        log::info!("前端产物来自目录 {:?}", options.dist);
-        Some(options.dist.clone())
-    } else {
-        log::info!("前端产物来自二进制内置（未找到 {:?}）", options.dist);
-        None
+    // 4. 前端产物：`--dist` 显式指定的目录优先（便于改前端不重编二进制），否则用
+    //    编译进二进制的那份。显式指定却没有 index.html 时直接拒绝启动——静默回退
+    //    到内置版本，会让人对着另一份前端产物排查问题。
+    let dist_dir = match options.dist.clone() {
+        Some(dir) => {
+            if !dir.join("index.html").exists() {
+                return Err(format!(
+                    "{} 里没有 index.html：先跑 `pnpm build:web` 生成前端产物，\
+                     或去掉 --dist / CC_SWITCH_WEB_DIST 用二进制内置的那份",
+                    dir.display()
+                ));
+            }
+            log::info!(
+                "前端产物来自目录 {:?}（--dist 指定，覆盖二进制内置版本）",
+                dir
+            );
+            Some(dir)
+        }
+        None => {
+            log::info!("前端产物来自二进制内置");
+            None
+        }
     };
 
     let context = Arc::new(Context {

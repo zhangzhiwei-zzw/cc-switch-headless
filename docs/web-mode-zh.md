@@ -76,8 +76,10 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 #   http://127.0.0.1:15800/auth?token=<64 位令牌>
 ```
 
-**前端产物被编译进二进制**（`rust-embed`），所以部署只需要拷一个文件。改了前端又不想
-重新编译服务端时，用 `--dist ../dist-web` 指向新产物即可（目录优先于内置版本）。
+**前端产物被编译进二进制**（`rust-embed`），所以部署只需要拷一个文件，从任何目录启动
+都不会被别处的旧产物顶掉。改了前端又不想重新编译服务端时，用 `--dist ../dist-web` 指向
+新产物即可——**只有显式指定才会读目录**；目录里没有 `index.html` 会拒绝启动，不会悄悄
+退回内置版本（否则你会在浏览器里对着另一份前端产物排查问题）。
 
 浏览器打开上面那条带 token 的链接即可；服务端会下发 `HttpOnly` cookie，之后正常访问
 `http://127.0.0.1:15800/` 就行。令牌保存在 `<配置目录>/web-token`，也可用
@@ -206,7 +208,7 @@ journalctl --user -u cc-switch-server -f
 | --- | --- | --- |
 | `--port <端口>` | `CC_SWITCH_WEB_PORT` | 监听端口，默认 `15800` |
 | `--bind <地址>` | `CC_SWITCH_WEB_BIND` | 监听地址，默认 `127.0.0.1`（容器里用 `0.0.0.0`） |
-| `--dist <目录>` | `CC_SWITCH_WEB_DIST` | 前端产物目录；缺省时用编译进二进制的那份 |
+| `--dist <目录>` | `CC_SWITCH_WEB_DIST` | 前端产物目录；不指定时用编译进二进制的那份，指定的目录缺 `index.html` 会拒绝启动 |
 | `--token <令牌>` | `CC_SWITCH_WEB_TOKEN` | 访问令牌（默认自动生成并写入配置目录） |
 | `--no-token` | — | 关闭令牌校验（只能配合回环地址） |
 | `--hsts` | `CC_SWITCH_WEB_HSTS` | 下发 `Strict-Transport-Security`（放在 TLS 反代后面时才需要） |

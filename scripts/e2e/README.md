@@ -28,7 +28,7 @@ bash scripts/e2e/pages.sh
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `CC_SWITCH_SERVER_BIN` | `src-tauri/target/debug/cc-switch-server` | 服务端二进制 |
-| `CC_SWITCH_WEB_DIST` | `dist-web` | 前端产物目录（不存在时用二进制内置的那份） |
+| `CC_SWITCH_WEB_DIST` | `dist-web` | 前端产物目录；必须先 `pnpm build:web`（缺 `index.html` 会直接报错退出） |
 
 CI 里由 `.github/workflows/ci.yml` 的 `server` job 按同样的命令跑。注意跑之前要清掉
 `CC_SWITCH_CONFIG_DIR` / `CC_SWITCH_WEB_*` / `CC_SWITCH_ALLOW_HOSTS` 这些**服务端自己认的**
