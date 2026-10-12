@@ -340,6 +340,18 @@ mod tests {
     };
 
     #[test]
+    fn save_settings_should_keep_the_existing_proxy_client_host() {
+        let existing = AppSettings {
+            proxy_client_host: Some("172.25.144.1".to_string()),
+            ..AppSettings::default()
+        };
+
+        let merged = merge_settings_for_save(AppSettings::default(), &existing);
+
+        assert_eq!(merged.proxy_client_host.as_deref(), Some("172.25.144.1"));
+    }
+
+    #[test]
     fn save_settings_should_preserve_existing_webdav_when_payload_omits_it() {
         let existing = AppSettings {
             webdav_sync: Some(WebDavSyncSettings {

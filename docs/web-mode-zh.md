@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.0**（已合并至上游 `a33c156e`，PR #7874），见
-> [`upstream-v4.0.8.lock`](upstream-v4.0.8.lock)。
+> 当前对标基线 **v4.0.9**（已合并至上游 `99277921`），见
+> [`upstream-v4.0.9.lock`](upstream-v4.0.9.lock)。
 
 ## 它是怎么做到的
 

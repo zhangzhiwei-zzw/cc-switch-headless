@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.8.lock`](upstream-v4.0.8.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.9.lock`](upstream-v4.0.9.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -47,26 +47,27 @@ git merge upstream/main
 
 ## 实测：一次合并要解多少冲突
 
-2026-10-11 干跑过一次（`git merge --no-commit --no-ff upstream/main`，上游停在 **v4.0.8**，
-本 fork 落后 147 个提交、上游侧改了 479 个文件）：
+| 同步 | 上游范围 | 上游提交 | 上游改动文件 | 冲突 |
+| --- | --- | --- | --- | --- |
+| 2026-10-11 | v4.0.0 → v4.0.8 | 147 | 479 | 10 个文件 / 15 处 |
+| 2026-10-12 | v4.0.8 → v4.0.9 | 41 | 109 | 4 个文件 / 4 处 |
 
-**只有 10 个文件冲突、合计 15 处**，其余 469 个文件自动合并。
+第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
+`src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
+各 1 处 `.github/workflows/ci.yml`、`package.json`、`src-tauri/src/lib.rs`、
+`src-tauri/src/commands/import_export.rs`、
+`src-tauri/src/services/provider/codex_official_models.rs`、`src/App.tsx`。
 
-| 冲突处数 | 文件 |
+第二次（v4.0.9）只有 4 处，都很好判：
+
+| 文件 | 怎么解 |
 | --- | --- |
-| 3 | `.github/workflows/release.yml` |
-| 2 | `src-tauri/src/proxy/forwarder.rs` |
-| 2 | `src-tauri/Cargo.toml` |
-| 2 | `README.md` |
-| 1 | `.github/workflows/ci.yml` |
-| 1 | `package.json` |
-| 1 | `src-tauri/src/lib.rs` |
-| 1 | `src-tauri/src/commands/import_export.rs` |
-| 1 | `src-tauri/src/services/provider/codex_official_models.rs` |
-| 1 | `src/App.tsx` |
+| `package.json`、`src-tauri/Cargo.toml` | 取上游的**版本号**，留 fork 的 `description` |
+| `README.md` | 整块取 fork 的——上游同一处加了一大段赞助商表格和桌面版安装说明，fork 的 README 是给无头服务端重写的 |
+| `src-tauri/src/commands/settings.rs` | 取 fork 的：fork 把 `merge_settings_for_save` 挪进了 `crate::settings`（web 层也要用）；**但要把上游新加的 `incoming.proxy_client_host = existing...` 搬进 `crate::settings` 那份副本**，否则上游新增的测试会红 |
 
-都是「两边都改了同一处」的机械冲突（fork 的 `#[cfg]` 门 / workflow 触发条件 / 文档与版本号），
-没有需要重新设计的。**想看当前会冲突什么，自己干跑一次即可**：
+两次都是「两边都改了同一处」的机械冲突，没有需要重新设计的。**想看当前会冲突什么，
+自己干跑一次即可**：
 
 ```bash
 git fetch upstream
@@ -130,10 +131,10 @@ bash scripts/e2e/run-all.sh
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.8.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.9.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.8.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.9.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

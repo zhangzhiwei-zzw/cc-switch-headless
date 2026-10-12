@@ -260,7 +260,7 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           name: cc-switch-headless ${{ inputs.tag || github.ref_name }}
           body: |
-            CC Switch 的无头 Web 服务端，基于上游 [cc-switch](https://github.com/farion1231/cc-switch) **v4.0.8**。
+            CC Switch 的无头 Web 服务端，基于上游 [cc-switch](https://github.com/farion1231/cc-switch) **v4.0.9**。
 
             在浏览器里管理 Claude Code / Codex / Gemini CLI 等 AI CLI 的供应商、本地路由与会话——
             界面与桌面版一致，只是走 HTTP。
