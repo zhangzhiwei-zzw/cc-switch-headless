@@ -87,6 +87,15 @@ git merge --abort                             # 看完撤销
 唯一要动脑的情况：**上游改了 `web/` 用到的 service 函数签名**。这时改 `web/routes.rs` 那层
 参数解析即可——业务逻辑在 `services/` 里只有一份，不用重复实现。
 
+## 上游有、本 fork 删掉的文件
+
+我们删掉的文件在合并时会**自己保持删除**；只有**上游同时也改了它**才会变成 modify/delete
+冲突——那时按这张表决定要不要再删一次：
+
+| 文件 | 为什么删 |
+| --- | --- |
+| `.github/workflows/wsl2-nightly.yml` | 上游每晚在 Windows runner 上把 `HOME`/`TEMP` 指到 WSL 的 9P 共享（`\\wsl.localhost`），验的是「**桌面版 + 家目录在 WSL 里**」的 SQLite 锁与原子写。fork 只发无头服务端（Windows 用普通 home），没有产品覆盖，每天白占一台 Windows runner。想看这个场景可以手动跑上游那份（`workflow_dispatch`）。 |
+
 ## 合并后必须验证
 
 **两边都跑，一条都别省**——2026-10-11 那次合并就是因为只跑了 `cargo check` 和前端的部分命令，
