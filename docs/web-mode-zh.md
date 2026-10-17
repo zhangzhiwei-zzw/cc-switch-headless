@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.9**（已合并至上游 `99277921`），见
-> [`upstream-v4.0.9.lock`](upstream-v4.0.9.lock)。
+> 当前对标基线 **v4.0.14**（已合并至上游 `eb09fbb1`），见
+> [`upstream-v4.0.14.lock`](upstream-v4.0.14.lock)。
 
 ## 它是怎么做到的
 
@@ -255,9 +255,11 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 
 - 启动链路：设置读取、数据库初始化与迁移、供应商列表/当前项、环境冲突检查；
 - 供应商：新增 / 编辑 / 删除 / 切换 / 排序 / 从 live 导入 / 编辑器预览；
-- 设置保存、配置目录查询；
+  **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库；
+- 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；
 - **本地路由（代理）**：启动/停止代理、全局与应用级代理配置、进入/退出路由模式、
-  指定路由目标、故障转移队列与自动故障转移开关；
+  指定路由目标、故障转移队列与自动故障转移开关；Claude Desktop 和 Claude Code /
+  Codex / Gemini CLI / Grok Build 共用直连 / 路由模式面板（Desktop 没有故障转移）；
 - **导入导出与备份**：导出 SQL 备份（浏览器直接下载）、上传 SQL 恢复配置、
   备份的创建 / 列表 / 重命名 / 删除 / 恢复；
 - **会话浏览**：列出 / 读取 / 删除各 CLI 工具在**服务器上**留下的会话，
@@ -295,11 +297,12 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
   也不可用（额度要问 OAuth 管理器），余额 / Coding Plan / 官方订阅额度 /
   JS 脚本四条路径不受影响；
 - Stack（聚合）模式、熔断器配置面板；
-- CLI 工具（Apps 页）的版本检测与安装；
+- CLI 工具（Apps 页）的版本检测、安装与卸载；
+- 「打开终端」——服务端没有可拉起的终端，入口按 `pickDirectory` 能力隐藏；
 - 「在文件管理器里打开」这类动作（`open_config_folder` 等）——服务端没法替
   **用户**弹窗口；入口由 `openInFileManager` 隐藏。
-- 深链导入、通用供应商（Universal Provider）、OpenClaw / Hermes / OMO 等
-  仍在迁移中的页面。
+- 深链导入——服务端收不到 `ccswitch://`，确认框按 `isTauriRuntime()` 不挂载；
+- 通用供应商（Universal Provider）、OpenClaw / Hermes / OMO 等仍在迁移中的页面。
 
 ## 与桌面版的行为差异
 

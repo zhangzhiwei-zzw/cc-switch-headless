@@ -350,6 +350,10 @@ fn spawn_background_tasks(state: &AppState) {
             )
             .ok();
             crate::codex_history_migration::maybe_migrate_codex_provider_template_bucket(&db).ok();
+            // 旧版官方路由桶（cc-switch-official）迁回 openai，须在统一迁移之前：
+            // 开关开着时，紧接着的统一迁移会把它们按正常流程带进 custom。
+            crate::codex_history_migration::maybe_migrate_codex_legacy_official_history_to_openai_bucket()
+                .ok();
             crate::codex_history_migration::maybe_migrate_codex_official_history_to_unified_bucket(
             )
             .ok();
@@ -399,11 +403,12 @@ fn spawn_background_tasks(state: &AppState) {
         });
     }
 
-    // 会话日志用量同步：启动一次（含费用回填），之后每 60 秒
+    // 会话日志用量同步：启动一次（含费用回填），之后每 10 分钟兜底一次
+    // （和桌面版一致；用量页打开时由前端按所选间隔加扫）
     {
         let db = state.db.clone();
         crate::host::spawn(async move {
-            const SESSION_SYNC_INTERVAL_SECS: u64 = 60;
+            const SESSION_SYNC_INTERVAL_SECS: u64 = 10 * 60;
             let mut interval =
                 tokio::time::interval(std::time::Duration::from_secs(SESSION_SYNC_INTERVAL_SECS));
 

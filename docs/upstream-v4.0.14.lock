@@ -1,0 +1,20 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.14"
+upstream_commit = "5de6feb4e5adda61f4ad824ce0df2c449245f447"
+resolved_at = "2026-10-17"
+
+# v4.0.14 是 annotated tag：refs/tags/v4.0.14 指向 tag 对象
+# c1caee80d7f047e0d671292a0cc0502cc07ea1e5，peel 之后才是上面的 commit。
+# 记录的是 commit 而不是 tag 对象，避免日后审计时拿移动的 tag 做对比。
+#
+# 本 fork 的 main 已 `git merge upstream/main` 到 upstream/main 的 tip
+# eb09fbb1，它比 v4.0.14 的 tag 多 15 个提交（v4.0.15 开发期的修 bug），
+# 一并跟上了。本次同步范围是 v4.0.9 → v4.0.14，共 175 个提交。
+last_merged_commit = "eb09fbb1b7d204095bedf0a8f7241cf69a441f43"
+last_merged_tag = "v4.0.14"
+
+# 复核方式（改这里的值之前先跑一遍）：
+#   git ls-remote upstream 'refs/tags/v4.0.14*'
+# GitHub 页面：https://github.com/farion1231/cc-switch/tree/v4.0.14
+#
+# 同步流程见 syncing-upstream-zh.md。

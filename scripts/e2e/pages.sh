@@ -61,6 +61,21 @@ check "openInFileManager 关闭" "False" \
   "$(printf '%s' "$CAPS" | python3 -c "import json,sys;print(json.load(sys.stdin)['features']['openInFileManager'])")"
 
 echo
+echo "== 自定义图标库"
+# 合法的最小 PNG（1x1 RGBA）；service 会完整解码，长度和宽高都在上限内。
+ICON_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+check "初始为空" "0" "$(jget '{"cmd":"get_custom_icons"}' 'len(d["data"])')"
+check "上传一张 1x1 PNG" "False" \
+  "$(jget "{\"cmd\":\"add_custom_icon\",\"args\":{\"name\":\"E2E icon\",\"data\":\"$ICON_DATA\"}}" 'd["data"]["existed"]')"
+check "读回 1 个" "1" "$(jget '{"cmd":"get_custom_icons"}' 'len(d["data"])')"
+check "名字正确" "E2E icon" "$(jget '{"cmd":"get_custom_icons"}' 'd["data"][0]["name"]')"
+check "重命名" "E2E renamed" \
+  "$(jget "{\"cmd\":\"rename_custom_icon\",\"args\":{\"id\":\"$(jget '{"cmd":"get_custom_icons"}' 'd["data"][0]["id"]')\",\"name\":\"E2E renamed\"}}" 'd["data"]["name"]')"
+check "删除" "None" \
+  "$(jget "{\"cmd\":\"delete_custom_icon\",\"args\":{\"id\":\"$(jget '{"cmd":"get_custom_icons"}' 'd["data"][0]["id"]')\"}}" 'd["data"]')"
+check "已清空" "0" "$(jget '{"cmd":"get_custom_icons"}' 'len(d["data"])')"
+
+echo
 echo "== MCP"
 check "初始没有服务器" "0" "$(jget '{"cmd":"get_mcp_servers"}' 'len(d["data"])')"
 check "写入一个服务器" "None" \

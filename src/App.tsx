@@ -55,6 +55,7 @@ import {
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { deepClone } from "@/utils/deepClone";
 import { isLinux, isMac, isTauriRuntime, isWindows } from "@/lib/platform";
+import { supports } from "@/lib/capabilities";
 import {
   APP_STORAGE_KEY,
   appPageBelongsTo,
@@ -1252,7 +1253,11 @@ function App() {
     onDuplicate: handleDuplicateProvider,
     onConfigureUsage: setUsageProvider,
     onOpenWebsite: handleOpenWebsite,
-    onOpenTerminal: activeApp === "claude" ? setTerminalProvider : undefined,
+    // 浏览器没有服务端文件系统，也没有可拉起的终端：和 pickDirectory 同一道能力闸
+    onOpenTerminal:
+      activeApp === "claude" && supports("pickDirectory")
+        ? setTerminalProvider
+        : undefined,
     onCreate: () => openAddProvider(currentModeView),
     searchOpen: providerSearchOpen,
     onSearchOpenChange: setProviderSearchOpen,
@@ -1667,7 +1672,7 @@ function App() {
         onCancel={() => setLaunchDashboardOpen(false)}
       />
 
-      <DeepLinkImportDialog />
+      {isTauriRuntime() && <DeepLinkImportDialog />}
       <FirstRunNoticeDialog />
       <NewLayoutDialog />
       <WhatsNewNotice />

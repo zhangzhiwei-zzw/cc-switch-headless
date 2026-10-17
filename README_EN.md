@@ -6,7 +6,7 @@
 
 **Manage providers, local routing and sessions for Claude Code / Codex / Gemini CLI and 7 more AI CLIs — from a browser. Same UI as the desktop app, served over HTTP.**
 
-[![Based on cc-switch v4.0.0](https://img.shields.io/badge/based%20on-cc--switch%20v4.0.0-blue)](https://github.com/farion1231/cc-switch)
+[![Based on cc-switch v4.0.14](https://img.shields.io/badge/based%20on-cc--switch%20v4.0.14-blue)](https://github.com/farion1231/cc-switch)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 [中文](README.md) | English | [Upstream docs (zh)](README_ZH.md) | [Web mode details (zh)](docs/web-mode-zh.md)

@@ -195,6 +195,24 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             "ensure_grokbuild_official_provider",
             ensure_grokbuild_official_provider as Handler,
         );
+        table.insert(
+            "ensure_claude_desktop_official_provider",
+            ensure_claude_desktop_official_provider as Handler,
+        );
+        table.insert(
+            "get_claude_desktop_status",
+            get_claude_desktop_status as Handler,
+        );
+        table.insert(
+            "get_claude_desktop_default_routes",
+            get_claude_desktop_default_routes as Handler,
+        );
+
+        // ---- 自定义图标库 ----
+        table.insert("get_custom_icons", get_custom_icons as Handler);
+        table.insert("add_custom_icon", add_custom_icon as Handler);
+        table.insert("rename_custom_icon", rename_custom_icon as Handler);
+        table.insert("delete_custom_icon", delete_custom_icon as Handler);
 
         // ---- 代理状态 / 本地路由 ----
         table.insert("get_proxy_status", get_proxy_status as Handler);
@@ -404,26 +422,55 @@ fn save_settings(context: Arc<Context>, args: Value) -> HandlerFuture {
         let Args { settings } = parse(args)?;
         let state = context.require_state()?;
 
-        blocking(move || {
+        // 保存本身是同步的文件写入，放阻塞线程池；聚合设置若要重写 Codex 配置，
+        // 得等落盘之后再回异步上下文里做（失败时回滚，和桌面版一致）。
+        let save_state = state.clone();
+        let (existing, stack_changed, unify_changed) = blocking(move || {
             let existing = crate::settings::get_settings();
             let merged = crate::settings::merge_settings_for_save(settings, &existing);
             let unify_changed =
                 merged.unify_codex_session_history != existing.unify_codex_session_history;
+            let stack_changed = merged.codex_stack_classic_tools
+                != existing.codex_stack_classic_tools
+                || merged.codex_stack_subagent_model != existing.codex_stack_subagent_model
+                || merged.codex_stack_subagent_reasoning_effort
+                    != existing.codex_stack_subagent_reasoning_effort
+                || merged.codex_stack_auto_review_model != existing.codex_stack_auto_review_model;
 
             crate::settings::update_settings(merged).map_err(|error| error.to_string())?;
-
-            // 统一 Codex 会话开关变更时立刻重写当前官方供应商的 live 配置
-            if unify_changed {
-                if let Err(error) =
-                    crate::services::provider::reapply_current_codex_official_live(&state)
-                {
-                    log::warn!("统一 Codex 会话历史开关变更后重写 live 配置失败: {error}");
-                }
-            }
-
-            Ok(Value::Bool(true))
+            Ok((existing, stack_changed, unify_changed))
         })
-        .await
+        .await?;
+
+        if stack_changed {
+            if let Err(error) =
+                crate::mode::controller::resync_codex_stack_catalog(&save_state).await
+            {
+                log::warn!("Codex 聚合设置变更后重写客户端配置失败，回滚设置: {error}");
+                let mut rollback = crate::settings::get_settings();
+                rollback.codex_stack_classic_tools = existing.codex_stack_classic_tools;
+                rollback.codex_stack_subagent_model = existing.codex_stack_subagent_model.clone();
+                rollback.codex_stack_subagent_reasoning_effort =
+                    existing.codex_stack_subagent_reasoning_effort.clone();
+                rollback.codex_stack_auto_review_model =
+                    existing.codex_stack_auto_review_model.clone();
+                if let Err(rollback_error) = crate::settings::update_settings(rollback) {
+                    log::error!("回滚 Codex 聚合设置失败: {rollback_error}");
+                }
+                return Err(format!("聚合设置未生效（Codex 配置重写失败）: {error}"));
+            }
+        }
+
+        // 统一 Codex 会话开关变更时立刻重写当前官方供应商的 live 配置
+        if unify_changed {
+            if let Err(error) =
+                crate::services::provider::reapply_current_codex_official_live(&save_state)
+            {
+                log::warn!("统一 Codex 会话历史开关变更后重写 live 配置失败: {error}");
+            }
+        }
+
+        Ok(Value::Bool(true))
     })
 }
 
@@ -783,6 +830,106 @@ fn ensure_grokbuild_official_provider(context: Arc<Context>, _args: Value) -> Ha
     })
 }
 
+fn ensure_claude_desktop_official_provider(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        blocking(move || {
+            let ensured = state
+                .db
+                .ensure_official_seed_by_id(
+                    crate::database::CLAUDE_DESKTOP_OFFICIAL_PROVIDER_ID,
+                    AppType::ClaudeDesktop,
+                )
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Bool(ensured))
+        })
+        .await
+    })
+}
+
+fn get_claude_desktop_status(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        let proxy_running = state.proxy_service.is_running().await;
+        let status = crate::claude_desktop_config::get_status(state.db.as_ref(), proxy_running)
+            .map_err(|e| e.to_string())?;
+        serializable(status)
+    })
+}
+
+fn get_claude_desktop_default_routes(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move { serializable(crate::claude_desktop_config::default_proxy_routes()) })
+}
+
+// ============================================================================
+// 自定义图标库（「我的图标」）
+// ============================================================================
+
+fn get_custom_icons(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        blocking(move || {
+            let icons = crate::services::provider::icon::list_library_icons(&state.db)
+                .map_err(|e| e.to_string())?;
+            serializable(icons)
+        })
+        .await
+    })
+}
+
+fn add_custom_icon(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            name: String,
+            data: String,
+        }
+        let Args { name, data } = parse(args)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            let result = crate::services::provider::icon::add_library_icon(&state.db, &name, &data)
+                .map_err(|e| e.to_string())?;
+            serializable(result)
+        })
+        .await
+    })
+}
+
+fn rename_custom_icon(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            id: String,
+            name: String,
+        }
+        let Args { id, name } = parse(args)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            let icon = crate::services::provider::icon::rename_library_icon(&state.db, &id, &name)
+                .map_err(|e| e.to_string())?;
+            serializable(icon)
+        })
+        .await
+    })
+}
+
+fn delete_custom_icon(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            id: String,
+        }
+        let Args { id } = parse(args)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            crate::services::provider::icon::delete_library_icon(&state.db, &id)
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        })
+        .await
+    })
+}
+
 // ============================================================================
 // 代理状态（服务端不跑本地代理，但界面需要能渲染）
 // ============================================================================
@@ -807,10 +954,20 @@ fn get_proxy_takeover_status(context: Arc<Context>, _args: Value) -> HandlerFutu
 // 本地路由（代理）
 // ============================================================================
 
-/// 只有支持本地路由的应用才有代理配置与模式。
+/// 只有支持本地路由的应用才有代理配置、故障转移和熔断设置。
 fn require_proxy_app(app_type: &str) -> Result<AppType, String> {
     let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
     if !app.supports_local_proxy() {
+        return Err(format!("{} 不支持本地路由", app.as_str()));
+    }
+    Ok(app)
+}
+
+/// 有直连 / 路由模式的应用（含 Claude Desktop）：进出路由、换路由、看模式。
+/// 和桌面版 `commands::proxy::require_mode_app` 保持一致。
+fn require_mode_app(app_type: &str) -> Result<AppType, String> {
+    let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
+    if !app.has_route_mode() {
         return Err(format!("{} 不支持本地路由", app.as_str()));
     }
     Ok(app)
@@ -833,6 +990,7 @@ fn stop_proxy_server(context: Arc<Context>, _args: Value) -> HandlerFuture {
             || takeover.codex
             || takeover.gemini
             || takeover.grokbuild
+            || takeover.claude_desktop
             || takeover.opencode
             || takeover.openclaw
         {
@@ -948,7 +1106,7 @@ fn get_app_mode(context: Arc<Context>, args: Value) -> HandlerFuture {
             app_type: String,
         }
         let Args { app_type } = parse(args)?;
-        let app = require_proxy_app(&app_type)?;
+        let app = require_mode_app(&app_type)?;
         let state = context.require_state()?;
         blocking(move || {
             let view =
@@ -975,7 +1133,7 @@ fn set_proxy_takeover_for_app(context: Arc<Context>, args: Value) -> HandlerFutu
             stack,
             route,
         } = parse(args)?;
-        let app = require_proxy_app(&app_type)?;
+        let app = require_mode_app(&app_type)?;
         let state = context.require_state()?;
 
         if enabled {
@@ -1005,7 +1163,7 @@ fn set_proxy_route(context: Arc<Context>, args: Value) -> HandlerFuture {
             app_type,
             provider_id,
         } = parse(args)?;
-        let app = require_proxy_app(&app_type)?;
+        let app = require_mode_app(&app_type)?;
         let state = context.require_state()?;
 
         crate::mode::controller::set_route(&state, &app, &provider_id).await?;
@@ -1021,7 +1179,7 @@ fn get_direct_provider(context: Arc<Context>, args: Value) -> HandlerFuture {
             app_type: String,
         }
         let Args { app_type } = parse(args)?;
-        let app = require_proxy_app(&app_type)?;
+        let app = require_mode_app(&app_type)?;
         let state = context.require_state()?;
         blocking(move || {
             let provider_id = crate::mode::controller::direct_provider_id(&state, &app)

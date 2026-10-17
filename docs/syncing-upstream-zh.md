@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.9.lock`](upstream-v4.0.9.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.14.lock`](upstream-v4.0.14.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -51,6 +51,7 @@ git merge upstream/main
 | --- | --- | --- | --- | --- |
 | 2026-10-11 | v4.0.0 → v4.0.8 | 147 | 479 | 10 个文件 / 15 处 |
 | 2026-10-12 | v4.0.8 → v4.0.9 | 41 | 109 | 4 个文件 / 4 处 |
+| 2026-10-17 | v4.0.9 → v4.0.14 | 175 | 335 | 5 个文件 / 6 处 |
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -66,7 +67,18 @@ git merge upstream/main
 | `README.md` | 整块取 fork 的——上游同一处加了一大段赞助商表格和桌面版安装说明，fork 的 README 是给无头服务端重写的 |
 | `src-tauri/src/commands/settings.rs` | 取 fork 的：fork 把 `merge_settings_for_save` 挪进了 `crate::settings`（web 层也要用）；**但要把上游新加的 `incoming.proxy_client_host = existing...` 搬进 `crate::settings` 那份副本**，否则上游新增的测试会红 |
 
-两次都是「两边都改了同一处」的机械冲突，没有需要重新设计的。**想看当前会冲突什么，
+第三次（v4.0.14）5 个文件 6 处，也都是机械冲突：
+
+| 文件 | 怎么解 |
+| --- | --- |
+| `package.json`、`src-tauri/Cargo.toml` | 取上游版本 `4.0.14`，留 fork 的 `description`；上游新增的 `tokio/net`、`png` 依赖自动合入 |
+| `README.md`（2 处） | 整块取 fork 的，上游只在里面加赞助商和桌面版安装说明 |
+| `src-tauri/src/lib.rs` | 取上游的深链接注释与新逻辑，保留 fork 的 `#[cfg(feature = "desktop")]` 门 |
+| `src/components/shell/Sidebar.tsx` | 取上游的 `todayTrailing` / `trailingLabel`，再补回 fork 的 `feature: "pageUsage"` |
+
+这次虽然冲突少，但**上游改了 `AppType::has_route_mode`（Claude Desktop 并入直连/路由模式）**，web 层要跟着改，见下一节。
+
+三次都是「两边都改了同一处」的机械冲突，没有需要重新设计的。**想看当前会冲突什么，
 自己干跑一次即可**：
 
 ```bash
@@ -85,8 +97,25 @@ git merge --abort                             # 看完撤销
 | 文档与流水线 | `README*`、`.github/workflows/*` | fork 的发布面（`release-server.yml` 等） |
 | **基本不会冲突** | `src-tauri/src/web/**`、`src/web-shims/**`、`scripts/e2e/**`、`docs/web-mode-zh.md` | fork 自己的新文件，上游不会碰 |
 
-唯一要动脑的情况：**上游改了 `web/` 用到的 service 函数签名**。这时改 `web/routes.rs` 那层
-参数解析即可——业务逻辑在 `services/` 里只有一份，不用重复实现。
+唯一要动脑的情况：**上游改了 `web/` 用到的 service 函数签名或命令语义**。这时改 `web/routes.rs`
+那层参数解析即可——业务逻辑在 `services/` 里只有一份，不用重复实现。
+
+### 已固化的适配点（每次同步都要复查）
+
+- `require_proxy_app`（有 `proxy_config` 的四个应用）与 `require_mode_app`
+  （`AppType::has_route_mode()`，含 Claude Desktop）在 `web/routes.rs` 里是分开的，
+  和 `commands/proxy.rs` 保持一致；
+- `stop_proxy_server` 的「仍有应用接管」判断要包含 `takeover.claude_desktop`；
+- 桌面新增的命令如果 web 页面会调用，要么在 `web/routes.rs` 里接一层，要么加
+  `capabilities` 开关把入口隐藏。v4.0.14 新增的 `get_custom_icons` / `add_custom_icon` /
+  `rename_custom_icon` / `delete_custom_icon` 已接入；深链接（`peek_pending_deeplink` 等）
+  和「打开终端」在 web 下没有意义，前端已按 `isTauriRuntime()` / `pickDirectory` 能力隐藏；
+- 设置保存的副作用要和 `commands/settings.rs` 对齐。v4.0.14 新增的 Codex 聚合设置
+  （`codex_stack_classic_tools` 等）在 web 的 `save_settings` 里也会调
+  `resync_codex_stack_catalog`，失败时回滚。
+- 启动期任务也要跟 `lib.rs` 的 `setup` 对齐。`web/state.rs` 已补上
+  `maybe_migrate_codex_legacy_official_history_to_openai_bucket`（排在统一迁移之前），
+  会话日志兜底扫描也从 60 秒改成 10 分钟，和桌面版一致。
 
 ## 上游有、本 fork 删掉的文件
 
@@ -131,10 +160,10 @@ bash scripts/e2e/run-all.sh
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.9.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.14.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.9.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.14.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
