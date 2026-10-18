@@ -51,6 +51,24 @@ jget() {
   call "$1" | python3 -c "import json,sys;d=json.load(sys.stdin);print($2)"
 }
 
+echo "== Pi 状态命令"
+check "Pi 原生供应商可读取" "True" \
+  "$(jget '{"cmd":"get_pi_current_state"}' '"pi-e2e" in d["data"]["enabledProviderIds"]')"
+check "Pi 默认供应商未设置" "None" \
+  "$(jget '{"cmd":"get_pi_current_state"}' 'd["data"]["defaultProviderId"]')"
+check "Pi 会话目录可发现" "available" \
+  "$(jget '{"cmd":"get_pi_session_discovery"}' 'd["data"]["status"]')"
+check "Pi 用量脚本可保存" "True" \
+  "$(jget '{"cmd":"update_pi_provider_usage_script","args":{"id":"pi-e2e","usageScript":{"enabled":false,"language":"javascript","code":"return []"}}}' 'd["data"]')"
+check "Pi 用量脚本读回一致" "return []" \
+  "$(jget '{"cmd":"get_providers","args":{"app":"pi"}}' 'd["data"]["pi-e2e"]["meta"]["usage_script"]["code"]')"
+# 损坏原生配置时必须返回读取错误，不得伪装为空供应商列表。
+printf '{invalid' > "$CC_TEST_HOME/.pi/agent/models.json"
+check "Pi 配置损坏时报告失败" "False" \
+  "$(jget '{"cmd":"get_pi_current_state"}' 'd["ok"]')"
+printf '{"providers":{"pi-e2e":{"baseUrl":"https://pi.example.invalid/v1","apiKey":"sk-e2e"}}}' > "$CC_TEST_HOME/.pi/agent/models.json"
+
+echo
 echo "== 能力表"
 CAPS="$(curl -s "$CC_BASE/api/capabilities" -H "$CC_COOKIE")"
 for feature in pageMcp pageSkills pagePrompts pageUsage; do
@@ -127,6 +145,21 @@ check "删除仓库" "True" \
   "$(jget '{"cmd":"remove_skill_repo","args":{"owner":"anthropics","name":"skills"}}' 'd["data"]')"
 check "已移除" "False" \
   "$(jget '{"cmd":"get_skill_repos"}' 'any(r["owner"]=="anthropics" and r["name"]=="skills" for r in d["data"])')"
+
+echo
+echo "== 用量图表设置在服务端持久化"
+call '{"cmd":"get_settings"}' | python3 -c '
+import json,sys
+settings=json.load(sys.stdin)["data"]
+settings.setdefault("usageDisplay", {})["trendChartType"]="area"
+print(json.dumps({"cmd":"save_settings","args":{"settings":settings}}))
+' > "$CC_TEST_HOME/chart-settings-request.json"
+check "保存面积图偏好" "True" \
+  "$(jget "$(cat "$CC_TEST_HOME/chart-settings-request.json")" 'd["ok"]')"
+check "再次读取面积图偏好" "area" \
+  "$(jget '{"cmd":"get_settings"}' 'd["data"]["usageDisplay"]["trendChartType"]')"
+check "面积图偏好实际写入磁盘" "area" \
+  "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["usageDisplay"]["trendChartType"])' "$CC_TEST_HOME/.cc-switch/settings.json")"
 
 echo
 echo "== 用量"

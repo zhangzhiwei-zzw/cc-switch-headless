@@ -27,12 +27,24 @@ check "当前供应商" "fake-upstream" \
   "$(call '{"cmd":"get_current_provider","args":{"app":"claude"}}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"])')"
 
 echo
+echo "== 直连模式记住路由目标，返回实际切换结果"
+check "直连时只记住目标" "remembered False" \
+  "$(call '{"cmd":"set_proxy_route","args":{"appType":"claude","providerId":"fake-upstream"}}' | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];print(d["kind"],d["clientConfigChanged"])')"
+
+echo
 echo "== 启动代理并进入路由模式"
 check "start_proxy_server" "True" \
   "$(call '{"cmd":"start_proxy_server","args":{}}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["ok"])')"
 call '{"cmd":"set_proxy_takeover_for_app","args":{"appType":"claude","enabled":true}}' >/dev/null
 check "get_app_mode = route" "route" \
   "$(call '{"cmd":"get_app_mode","args":{"appType":"claude"}}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["mode"])')"
+
+echo
+echo "== 路由模式切换结果可供前端显示"
+check "相同路由契约不要求重启" "route False" \
+  "$(call '{"cmd":"set_proxy_route","args":{"appType":"claude","providerId":"fake-upstream"}}' | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];print(d["kind"],d["clientConfigChanged"])')"
+check "供应商切换同样返回路由结果" "route False" \
+  "$(call '{"cmd":"switch_provider","args":{"app":"claude","id":"fake-upstream"}}' | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"]["route"];print(d["kind"],d["clientConfigChanged"])')"
 
 echo
 echo "== CLI 配置被改写到本地代理"

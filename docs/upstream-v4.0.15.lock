@@ -1,0 +1,13 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.15"
+upstream_commit = "79e754ab1b6ed50da57dae1d0faecab4b3b52f1c"
+resolved_at = "2026-10-18"
+
+# v4.0.15 为 annotated tag；记录 peel 后的 commit。
+# 本次从 eb09fbb1 同步到 77c6dc79，共 20 个上游提交、93 个文件。
+# main 比 v4.0.15 多 2 个提交：土耳其语文案与桌面托盘面板。
+last_merged_commit = "77c6dc793d4fbc13bc96163d55d747b02f887a8b"
+last_merged_tag = "v4.0.15"
+
+# 复核：git ls-remote upstream HEAD 'refs/tags/v4.0.15*'
+# 同步流程见 syncing-upstream-zh.md。

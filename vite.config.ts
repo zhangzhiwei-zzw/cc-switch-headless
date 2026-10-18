@@ -13,11 +13,23 @@ const webBuild = process.env.CC_SWITCH_WEB === "1";
 
 const webAliases: Record<string, string> = webBuild
   ? {
-      "@tauri-apps/api/core": path.resolve(__dirname, "./src/web-shims/core.ts"),
-      "@tauri-apps/api/event": path.resolve(__dirname, "./src/web-shims/event.ts"),
-      "@tauri-apps/api/window": path.resolve(__dirname, "./src/web-shims/window.ts"),
+      "@tauri-apps/api/core": path.resolve(
+        __dirname,
+        "./src/web-shims/core.ts",
+      ),
+      "@tauri-apps/api/event": path.resolve(
+        __dirname,
+        "./src/web-shims/event.ts",
+      ),
+      "@tauri-apps/api/window": path.resolve(
+        __dirname,
+        "./src/web-shims/window.ts",
+      ),
       "@tauri-apps/api/app": path.resolve(__dirname, "./src/web-shims/app.ts"),
-      "@tauri-apps/api/path": path.resolve(__dirname, "./src/web-shims/path.ts"),
+      "@tauri-apps/api/path": path.resolve(
+        __dirname,
+        "./src/web-shims/path.ts",
+      ),
       "@tauri-apps/plugin-dialog": path.resolve(
         __dirname,
         "./src/web-shims/dialog.ts",
@@ -30,7 +42,10 @@ const webAliases: Record<string, string> = webBuild
         __dirname,
         "./src/web-shims/updater.ts",
       ),
-      "@tauri-apps/plugin-log": path.resolve(__dirname, "./src/web-shims/log.ts"),
+      "@tauri-apps/plugin-log": path.resolve(
+        __dirname,
+        "./src/web-shims/log.ts",
+      ),
     }
   : {};
 
@@ -47,6 +62,15 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: "../dist",
     emptyOutDir: true,
+    rollupOptions: {
+      // 托盘面板是单独的入口，不加载主界面
+      input: {
+        main: path.resolve(__dirname, "src/index.html"),
+        ...(!webBuild
+          ? { "tray-panel": path.resolve(__dirname, "src/tray-panel.html") }
+          : {}),
+      },
+    },
   },
   server: {
     port: 3000,

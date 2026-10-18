@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.14**（已合并至上游 `eb09fbb1`），见
-> [`upstream-v4.0.14.lock`](upstream-v4.0.14.lock)。
+> 当前对标基线 **v4.0.15**（已合并至上游 `77c6dc79`），见
+> [`upstream-v4.0.15.lock`](upstream-v4.0.15.lock)。
 >
 > **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
 > 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。
@@ -25,7 +25,7 @@
 | `server` | `cc-switch-server`（本次新增） | 无 Tauri / 无 webkit |
 
 业务层（数据库、供应商切换、配置写入、会话扫描……）两种构建共用；命令层
-（`src-tauri/src/commands/` 等，共 322 个 `#[tauri::command]`）只在桌面版编译，服务端在
+（`src-tauri/src/commands/`、`tray_panel.rs` 等）只在桌面版编译，服务端在
 `src-tauri/src/web/routes.rs` 里用同一套 `services/` 接口重新实现了一部分命令
 （当前 150+ 个命令名，`GET /api/commands` 可实时核对）。
 
@@ -264,6 +264,7 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；用量页的显示设置
   （货币与汇率、侧栏 Today 显示项、请求日志列）存在服务端 `settings.json`，**所有浏览器
   共享**；「记住上次 Tab / 时间范围」用浏览器 localStorage，按浏览器各自独立；
+- **Pi 供应商状态**：读取原生启用列表、默认供应商与会话目录发现状态，支持保存用量脚本；
 - **本地路由（代理）**：启动/停止代理、全局与应用级代理配置、进入/退出路由模式、
   指定路由目标、故障转移队列与自动故障转移开关；Claude Desktop 和 Claude Code /
   Codex / Gemini CLI / Grok Build 共用直连 / 路由模式面板（Desktop 没有故障转移，

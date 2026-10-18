@@ -1202,8 +1202,8 @@ fn set_proxy_route(context: Arc<Context>, args: Value) -> HandlerFuture {
         let app = require_mode_app(&app_type)?;
         let state = context.require_state()?;
 
-        crate::mode::controller::set_route(&state, &app, &provider_id).await?;
-        Ok(Value::Bool(true))
+        let result = crate::mode::controller::set_route(&state, &app, &provider_id).await?;
+        serializable(result)
     })
 }
 

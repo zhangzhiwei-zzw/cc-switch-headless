@@ -97,16 +97,10 @@ impl FailoverSwitchManager {
             return Ok(false);
         }
 
-        // 托盘菜单只存在于桌面版；服务端没有可刷新的托盘。
+        // Linux 重建原生菜单，其它桌面平台通知托盘面板。
         #[cfg(feature = "desktop")]
         if let Some(handle) = crate::host::handle() {
-            if let Ok(new_menu) = crate::tray::create_tray_menu(&handle, &app_state) {
-                if let Some(tray) = handle.tray_by_id(crate::tray::TRAY_ID) {
-                    if let Err(error) = tray.set_menu(Some(new_menu)) {
-                        log::error!("[Failover] 更新托盘菜单失败: {error}");
-                    }
-                }
-            }
+            crate::tray::refresh_tray_menu(&handle);
         }
 
         // 发射事件到前端（两种构建同名同 payload）

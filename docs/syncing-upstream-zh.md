@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.14.lock`](upstream-v4.0.14.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.15.lock`](upstream-v4.0.15.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -71,6 +71,7 @@ Host github.com
 | 2026-10-11 | v4.0.0 → v4.0.8 | 147 | 479 | 10 个文件 / 15 处 |
 | 2026-10-12 | v4.0.8 → v4.0.9 | 41 | 109 | 4 个文件 / 4 处 |
 | 2026-10-17 | v4.0.9 → v4.0.14 | 175 | 335 | 5 个文件 / 6 处 |
+| 2026-10-18 | v4.0.14 → v4.0.15 + 2 commits | 20 | 93 | 4 个文件 / 5 处 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -119,6 +120,13 @@ git diff --name-only --diff-filter=U          # 冲突文件
 git merge --abort                             # 看完撤销
 ```
 
+本次（2026-10-18，v4.0.15）在本地 `main` 上按用户要求直接合并，未推送。
+冲突为 `package.json`（版本与描述）、`Cargo.toml`（版本与 Tauri 可选依赖）、
+`commands/failover.rs` 和 `proxy/failover_switch.rs`（托盘刷新）。保留 fork 的共享
+故障转移服务与 `desktop` 门，托盘刷新改用上游接口；新增的 `tray_panel` 模块及
+Vite 面板入口只在桌面构建启用。Web 的 `set_proxy_route` 改为返回上游的切换结果。
+端到端覆盖补充 Pi 状态、脚本保存、路由结果和趋势图样式持久化。
+
 ## 冲突高发区
 
 | 类别 | 文件 | 说明 |
@@ -132,6 +140,14 @@ git merge --abort                             # 看完撤销
 那层参数解析即可——业务逻辑在 `services/` 里只有一份，不用重复实现。
 
 ### 已固化的适配点（每次同步都要复查）
+
+- v4.0.15 的 `set_proxy_route` 返回 `RouteSwitchResult`（`kind` / `clientConfigChanged`），
+  Web 必须序列化真实结果，不能继续返回 `true`，否则路由切换提示会丢失；
+- Pi 的 `get_pi_current_state` / `get_pi_session_discovery` /
+  `update_pi_provider_usage_script` 必须在 Web 注册；只合并上游业务实现不会自动接通 HTTP；
+- 新增 `tray_panel` Rust 模块只在 `desktop` feature 下编译；Vite 的托盘面板入口也只在
+  桌面构建加入，Web 仅构建主页面，避免引入桌面窗口 API；
+- 故障转移托盘刷新采用上游 `refresh_tray_menu`，共享代理模块保留 `desktop` 门。
 
 - `require_proxy_app`（有 `proxy_config` 的四个应用）与 `require_mode_app`
   （`AppType::has_route_mode()`，含 Claude Desktop）在 `web/routes.rs` 里是分开的，
@@ -234,6 +250,10 @@ cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --featur
 bash scripts/e2e/run-all.sh
 ```
 
+内存有限的本地环境（例如 8–12 GiB 的 WSL2）请用 `cargo test -j 1`，并让
+server / desktop 构建串行执行。多个大型测试二进制同时链接会耗尽内存和交换空间，
+连前端测试也会被拖慢；这次同步实际遇到了这个问题，停止并发构建后恢复。
+
 三点经验：
 
 - `cargo clippy` / `cargo check` **不编译 `#[cfg(test)]` 代码**。移植改动破坏了测试断言时，
@@ -269,10 +289,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.14.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.15.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.14.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.15.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
