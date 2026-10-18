@@ -254,6 +254,24 @@ bash scripts/e2e/run-all.sh
 server / desktop 构建串行执行。多个大型测试二进制同时链接会耗尽内存和交换空间，
 连前端测试也会被拖慢；这次同步实际遇到了这个问题，停止并发构建后恢复。
 
+Linux / WSL2 上如果剩余配置读写集成测试被磁盘同步拖慢，可单独把它们的临时目录放到
+内存文件系统（先确认 `/dev/shm` 空间够用）：
+
+```bash
+mkdir -p /dev/shm/cc-switch-test-tmp
+TMPDIR=/dev/shm/cc-switch-test-tmp cargo test --manifest-path src-tauri/Cargo.toml -j 1 \
+  --test provider_service --test proxy_commands --test skill_sync
+```
+
+2026-10-18 本次同步的验证结果：
+
+- 类型检查、前端格式、Rust 格式、桌面 / Web 前端构建、桌面 / server Clippy 与 server 构建均通过；
+- Web 完整端到端 7 组、140 项通过。首次安全用例遇到 60 秒启动超时，后续整套重跑全部通过；
+- 前端整套 3034 项通过、1 项因自身的 10 秒限制超时；对应 `App.test.tsx` 单独重跑 22 项全部通过；
+- Rust 的 17 个测试目标全部覆盖，合计 3967 项通过、9 项忽略、0 项失败。
+  单元测试和前面的集成目标（包括 golden）使用默认磁盘临时目录，最后的
+  `provider_service` / `proxy_commands` / `skill_sync` 改用上述内存临时目录完成。
+
 三点经验：
 
 - `cargo clippy` / `cargo check` **不编译 `#[cfg(test)]` 代码**。移植改动破坏了测试断言时，
