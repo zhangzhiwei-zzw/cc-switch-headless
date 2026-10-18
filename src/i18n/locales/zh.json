@@ -4865,5 +4865,27 @@
       "refresh": "刷新额度",
       "refreshAria": "刷新 {{login}} 的额度"
     }
+  },
+  "webConnection": {
+    "token": "访问令牌",
+    "login": "登录",
+    "retry": "重新连接",
+    "invalidToken": "访问令牌不正确，请重新输入。",
+    "checking": {
+      "title": "正在连接服务端",
+      "description": "正在检查登录状态和可用功能…"
+    },
+    "unauthorized": {
+      "title": "登录 CC Switch",
+      "description": "尚未登录或登录已失效，请输入服务端启动日志或 web-token 文件中的访问令牌。"
+    },
+    "offline": {
+      "title": "无法连接服务端",
+      "description": "请确认服务端正在运行，网络或 SSH 隧道已连接，然后重试。"
+    },
+    "incompatible": {
+      "title": "无法读取服务端功能",
+      "description": "服务端返回了异常响应，请检查反向代理配置及前后端版本是否匹配，然后重试。"
+    }
   }
 }

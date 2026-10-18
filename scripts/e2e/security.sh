@@ -48,13 +48,13 @@ check "旧令牌立即失效 → 401" "401" \
     -H "$CC_COOKIE" -H 'Content-Type: application/json' -d '{"cmd":"get_settings","args":{}}')"
 check "新令牌可用 → 200" "200" \
   "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$CC_BASE/api/invoke" \
-    -H "Cookie: ccswitch_web_token=$NEW_TOKEN" -H 'Content-Type: application/json' \
+    -H "Cookie: $CC_COOKIE_NAME=$NEW_TOKEN" -H 'Content-Type: application/json' \
     -d '{"cmd":"get_settings","args":{}}')"
 # 轮换响应会顺手给当前浏览器换上新 cookie——新 cookie 必须与响应体里的新令牌一致
 ROTATED_BODY="$(curl -sS -D /tmp/rotate-headers.$$ -X POST "$CC_BASE/api/rotate-token" \
-  -H "Cookie: ccswitch_web_token=$NEW_TOKEN" -H 'Content-Type: application/json' -d '{}')"
+  -H "Cookie: $CC_COOKIE_NAME=$NEW_TOKEN" -H 'Content-Type: application/json' -d '{}')"
 check "轮换响应顺手换了 cookie" \
-  "ccswitch_web_token=$(printf '%s' "$ROTATED_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')" \
+  "$CC_COOKIE_NAME=$(printf '%s' "$ROTATED_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')" \
   "$(tr -d '\r' < /tmp/rotate-headers.$$ | grep -i '^set-cookie:' | sed 's/^[Ss]et-[Cc]ookie: *//; s/;.*//')"
 check "cookie 带 HttpOnly 与 SameSite" "True" \
   "$(tr -d '\r' < /tmp/rotate-headers.$$ | grep -i '^set-cookie:' | grep -qi 'httponly' \
@@ -64,16 +64,16 @@ rm -f /tmp/rotate-headers.$$
 
 CUSTOM="e2e-custom-token-0123456789"
 check "可以指定令牌" "True" \
-  "$(curl -sS -X POST "$CC_BASE/api/rotate-token" -H "Cookie: ccswitch_web_token=$(cat "$CC_TEST_HOME/.cc-switch/web-token")" \
+  "$(curl -sS -X POST "$CC_BASE/api/rotate-token" -H "Cookie: $CC_COOKIE_NAME=$(cat "$CC_TEST_HOME/.cc-switch/web-token")" \
     -H 'Content-Type: application/json' -d "{\"token\":\"$CUSTOM\"}" \
     | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"]=="'"$CUSTOM"'")')"
 check "指定令牌已生效" "200" \
-  "$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: ccswitch_web_token=$CUSTOM" "$CC_BASE/api/env")"
+  "$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: $CC_COOKIE_NAME=$CUSTOM" "$CC_BASE/api/env")"
 check "太短的令牌被拒 → 400" "400" \
   "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$CC_BASE/api/rotate-token" \
-    -H "Cookie: ccswitch_web_token=$CUSTOM" -H 'Content-Type: application/json' -d '{"token":"short"}')"
+    -H "Cookie: $CC_COOKIE_NAME=$CUSTOM" -H 'Content-Type: application/json' -d '{"token":"short"}')"
 check "空令牌视为「随机生成」" "64" \
-  "$(curl -sS -X POST "$CC_BASE/api/rotate-token" -H "Cookie: ccswitch_web_token=$CUSTOM" \
+  "$(curl -sS -X POST "$CC_BASE/api/rotate-token" -H "Cookie: $CC_COOKIE_NAME=$CUSTOM" \
     -H 'Content-Type: application/json' -d '{"token":"   "}' \
     | python3 -c 'import json,sys;print(len(json.load(sys.stdin)["token"]))')"
 

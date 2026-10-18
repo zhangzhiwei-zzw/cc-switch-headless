@@ -29,6 +29,11 @@ import {
 import { initializeWindowActivity } from "@/lib/windowActivity";
 import { initializeCapabilities } from "@/lib/capabilities";
 import { initializeInputModality } from "@/lib/inputModality";
+import { isTauriRuntime } from "@/lib/platform";
+import { setWebConnectionStatus } from "@/lib/webConnection";
+import { WebConnectionGate } from "@/components/web/WebConnectionGate";
+
+const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 installGlobalErrorHandlers();
 
@@ -91,6 +96,29 @@ try {
 }
 
 async function bootstrap() {
+  // Authenticate before any business queries, initialization errors or cached data are shown.
+  if (!isTauriRuntime()) {
+    root.render(
+      <React.StrictMode>
+        <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
+          <WebConnectionGate onReady={() => void bootstrap()} />
+        </ThemeProvider>
+      </React.StrictMode>,
+    );
+    try {
+      await initializeCapabilities();
+      setWebConnectionStatus("ready");
+    } catch {
+      root.render(
+        <React.StrictMode>
+          <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
+            <WebConnectionGate onReady={() => void bootstrap()} />
+          </ThemeProvider>
+        </React.StrictMode>,
+      );
+      return;
+    }
+  }
   // 启动早期主动查询后端初始化错误，避免事件竞态
   try {
     const initError = (await invoke(
@@ -98,14 +126,16 @@ async function bootstrap() {
     )) as ConfigLoadErrorPayload | null;
     if (initError && initError.kind === "db_version_too_new") {
       // 数据库版本过新：渲染应用内「升级应用」恢复界面，不进入正常 App
-      ReactDOM.createRoot(document.getElementById("root")!).render(
+      root.render(
         <React.StrictMode>
-          <FrontendErrorBoundary>
-            <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
-              <DatabaseUpgrade payload={initError} />
-              <Toaster />
-            </ThemeProvider>
-          </FrontendErrorBoundary>
+          <WebConnectionGate>
+            <FrontendErrorBoundary>
+              <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
+                <DatabaseUpgrade payload={initError} />
+                <Toaster />
+              </ThemeProvider>
+            </FrontendErrorBoundary>
+          </WebConnectionGate>
         </React.StrictMode>,
       );
       return;
@@ -122,8 +152,6 @@ async function bootstrap() {
 
   initializeWindowActivity();
   initializeInputModality();
-  // web 模式下先问服务端有哪些能力，界面据此隐藏没接入的入口（桌面模式是空操作）
-  await initializeCapabilities();
 
   // 首屏语言来自 localStorage 缓存；拿到后端保存的语言后再校正一次。
   // 与 useSettingsQuery 共用 ["settings"] 缓存，进设置页不会重复拉取。
@@ -132,24 +160,26 @@ async function bootstrap() {
     .then((settings) => syncLanguageFromSettings(settings.language))
     .catch((error) => reportFrontendError("startup_language_sync", error));
 
-  ReactDOM.createRoot(document.getElementById("root")!).render(
+  root.render(
     <React.StrictMode>
-      <FrontendErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
-            <UpdateProvider>
-              {/* 系统开了「减少动态效果」时，framer-motion 的位移动画一律跳过 */}
-              <MotionConfig reducedMotion="user">
-                {/* 全局悬停提示：移上去立即出现（HoverTip） */}
-                <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-                  <App />
-                </TooltipProvider>
-              </MotionConfig>
-              <Toaster />
-            </UpdateProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-      </FrontendErrorBoundary>
+      <WebConnectionGate>
+        <FrontendErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider defaultTheme="system" storageKey="cc-switch-theme">
+              <UpdateProvider>
+                {/* 系统开了「减少动态效果」时，framer-motion 的位移动画一律跳过 */}
+                <MotionConfig reducedMotion="user">
+                  {/* 全局悬停提示：移上去立即出现（HoverTip） */}
+                  <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                    <App />
+                  </TooltipProvider>
+                </MotionConfig>
+                <Toaster />
+              </UpdateProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </FrontendErrorBoundary>
+      </WebConnectionGate>
     </React.StrictMode>,
   );
 

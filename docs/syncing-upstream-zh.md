@@ -141,6 +141,12 @@ Vite 面板入口只在桌面构建启用。Web 的 `set_proxy_route` 改为返�
 
 ### 已固化的适配点（每次同步都要复查）
 
+- 先运行 `pnpm check:web`：新增前端命令不能静默漏过 Web；更新
+  `src/web-shims/command-contract.json` 时，未实现命令必须保留明确原因；
+- Web 的登录、能力异常、断连和多实例行为由 `pnpm test:web` 的真实浏览器回归覆盖，
+  修改入口或桥接层后也要运行。运行准备见 `web-mode-zh.md`。
+
+
 - v4.0.15 的 `set_proxy_route` 返回 `RouteSwitchResult`（`kind` / `clientConfigChanged`），
   Web 必须序列化真实结果，不能继续返回 `true`，否则路由切换提示会丢失；
 - Pi 的 `get_pi_current_state` / `get_pi_session_discovery` /

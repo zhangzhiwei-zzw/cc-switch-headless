@@ -6,6 +6,8 @@
 //
 // 服务端分发表见 `src-tauri/src/web/routes.rs`。
 
+import { webFetch } from "@/lib/webConnection";
+
 export type InvokeArgs = Record<string, unknown> | undefined;
 
 interface InvokeResponse<T> {
@@ -24,7 +26,7 @@ let envPromise: Promise<ServerEnv> | null = null;
 
 /** 宿主信息（版本、home、配置目录），由服务端 `/api/env` 提供。 */
 export function serverEnv(): Promise<ServerEnv> {
-  envPromise ??= fetch("/api/env", { credentials: "same-origin" })
+  envPromise ??= webFetch("/api/env")
     .then(async (response) => {
       if (!response.ok) throw new Error(String(response.status));
       const raw = (await response.json()) as Record<string, unknown>;
@@ -40,12 +42,16 @@ export function serverEnv(): Promise<ServerEnv> {
 
 /** 直接调服务端的命令（不经过浏览器干预分支）。 */
 async function callServer<T>(cmd: string, args: InvokeArgs): Promise<T> {
-  const response = await fetch("/api/invoke", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cmd, args: args ?? {} }),
-  });
+  const response = await webFetch(
+    "/api/invoke",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd, args: args ?? {} }),
+    },
+    0,
+  );
 
   if (!response.ok) {
     throw `调用 ${cmd} 失败: HTTP ${response.status}`;
@@ -86,9 +92,10 @@ function pickAndUploadFile(): Promise<string | null> {
         return;
       }
       try {
-        const response = await fetch(
+        const response = await webFetch(
           `/api/upload?name=${encodeURIComponent(file.name)}`,
           { method: "POST", credentials: "same-origin", body: file },
+          0,
         );
         if (!response.ok) {
           throw `上传失败: HTTP ${response.status}`;

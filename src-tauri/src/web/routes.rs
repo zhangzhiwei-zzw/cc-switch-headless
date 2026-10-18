@@ -83,32 +83,41 @@ pub async fn list_commands() -> Response {
 /// （页面级 / 页面内动作），布尔值直接对应"能不能用"。
 pub async fn capabilities() -> Response {
     let table = dispatch_table();
-    let has = |cmd: &str| table.contains_key(cmd);
-
-    let features = json!({
-        // —— 页面级 ——
-        "pageProviders": has("get_providers"),
-        "pageRouting": has("start_proxy_server"),
-        "pageSessions": has("list_sessions"),
-        "pageImportExport": has("export_config_to_file"),
-        "pageUsage": has("get_usage_summary"),
-        "pageMcp": has("get_mcp_servers"),
-        "pageSkills": has("get_installed_skills"),
-        "pagePrompts": has("get_prompts"),
-        "pageAuth": false,    // 托管账号（Copilot / Codex / xAI）登录流程未接入
-        "pageApps": false,    // CLI 工具版本检测与安装未接入
-
-        // —— 页面内动作 ——
-        "sessionStream": has("web_session_transcript"),
-        "sessionReveal": false,   // 服务端没有文件管理器
-        "sessionTerminal": false, // 服务端没有桌面终端
-        "pickDirectory": false,   // 浏览器无法为服务端选目录
-        "openInFileManager": false, // 「在文件管理器里打开」类按钮
-
-        // —— 桌面专属 ——
-        "tray": false,
-        "updater": false,
-    });
+    // One contract drives the advertised features and the CI coverage check.
+    let contract: Value =
+        serde_json::from_str(include_str!("../../../src/web-shims/command-contract.json"))
+            .expect("validated Web command contract");
+    let app_specs = contract["apps"].as_object().expect("Web app contract");
+    let has_all = |spec: &Value| {
+        spec["commands"]
+            .as_array()
+            .expect("Web command list")
+            .iter()
+            .all(|cmd| table.contains_key(cmd.as_str().expect("Web command name")))
+    };
+    let features: serde_json::Map<String, Value> = contract["features"]
+        .as_object()
+        .expect("Web feature contract")
+        .iter()
+        .map(|(name, spec)| {
+            let available = spec.get("enabled").and_then(Value::as_bool) != Some(false)
+                && has_all(spec)
+                && app_specs
+                    .values()
+                    .filter(|app| app["feature"].as_str() == Some(name.as_str()))
+                    .all(has_all);
+            (name.clone(), Value::Bool(available))
+        })
+        .collect();
+    let apps: serde_json::Map<String, Value> = app_specs
+        .iter()
+        .map(|(name, spec)| {
+            let available = features.get(spec["feature"].as_str().expect("Web app feature"))
+                == Some(&Value::Bool(true))
+                && has_all(spec);
+            (name.clone(), Value::Bool(available))
+        })
+        .collect();
 
     let mut commands: Vec<&str> = table.keys().copied().collect();
     commands.sort_unstable();
@@ -118,6 +127,7 @@ pub async fn capabilities() -> Response {
         "version": env!("CARGO_PKG_VERSION"),
         "platform": std::env::consts::OS,
         "features": features,
+        "apps": apps,
         "commands": commands,
     }))
     .into_response()

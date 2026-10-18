@@ -4865,5 +4865,27 @@
       "refresh": "Refresh quota",
       "refreshAria": "Refresh quota for {{login}}"
     }
+  },
+  "webConnection": {
+    "token": "Access token",
+    "login": "Sign in",
+    "retry": "Retry connection",
+    "invalidToken": "The access token is incorrect. Try again.",
+    "checking": {
+      "title": "Connecting to server",
+      "description": "Checking your session and available features…"
+    },
+    "unauthorized": {
+      "title": "Sign in to CC Switch",
+      "description": "Your session is missing or has expired. Enter the access token from the server startup log or web-token file."
+    },
+    "offline": {
+      "title": "Cannot connect to server",
+      "description": "Check that the server is running and your network or SSH tunnel is connected, then retry."
+    },
+    "incompatible": {
+      "title": "Cannot load server capabilities",
+      "description": "The server returned an unexpected response. Check your reverse proxy configuration and that the frontend and server versions match, then retry."
+    }
   }
 }

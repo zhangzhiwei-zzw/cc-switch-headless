@@ -31,3 +31,7 @@ copilot-api
 .history
 CODEBUDDY.md
 mainWindow.js
+
+# Browser regression artifacts
+playwright-report/
+test-results/

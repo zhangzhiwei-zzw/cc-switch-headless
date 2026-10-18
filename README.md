@@ -147,7 +147,7 @@ CLI 工具版本管理，以及目录选择、终端拉起、「在文件管理�
 
   ```bash
   curl -X POST http://127.0.0.1:15800/api/rotate-token \
-    -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+    -H "Authorization: Bearer $(cat ~/.cc-switch/web-token)" \
     -H 'Content-Type: application/json' -d '{}'
   ```
 

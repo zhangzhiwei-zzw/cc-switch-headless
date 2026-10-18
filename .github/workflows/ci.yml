@@ -60,10 +60,15 @@ jobs:
               - "rust-toolchain.toml"
               - ".github/workflows/**"
             # 服务端（headless）单独一路：scripts/** 只被 e2e 用到，不该顺带触发
-            # 三平台矩阵和 WSL2 那两个 job。前端构建由 frontend job 的 build:web 覆盖，
-            # 这里不重复。
+            # 三平台矩阵和 WSL2 那两个 job。server 同时覆盖 Web 构建与浏览器回归。
             server:
               - "src-tauri/**"
+              - "src/**"
+              - "tests/browser/**"
+              - "playwright.config.ts"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "vite.config.ts"
               - "scripts/**"
               - "rust-toolchain.toml"
               - ".github/workflows/**"
@@ -204,6 +209,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install web dependencies and verify command coverage
+        run: |
+          corepack enable
+          corepack install
+          pnpm install --frozen-lockfile
+          pnpm check:web
+          pnpm build:web
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -223,8 +241,7 @@ jobs:
             ${{ runner.os }}-cargo-server-
             ${{ runner.os }}-cargo-
 
-      # 不需要 GTK/WebKit：server feature 不带 Tauri。dist-web/ 缺失时 build.rs 会写占位页，
-      # 所以也不用先构建前端。
+      # 不需要 GTK/WebKit：server feature 不带 Tauri。此处使用实际 Web 产物，供浏览器回归。
       # 刻意用 --bin 而不是 --all-targets：lib 的 #[cfg(test)] 模块（services/provider、
       # services/speedtest）与几个集成测试直接用桌面专属 API，server feature 下还编译不过，
       # 别为了消 warning 改成 --all-targets。
@@ -245,9 +262,24 @@ jobs:
               -u CC_SWITCH_WEB_BIND \
               -u CC_SWITCH_WEB_DIST \
               -u CC_SWITCH_WEB_TOKEN \
+              -u CC_SWITCH_WEB_COOKIE_NAME \
               -u CC_SWITCH_WEB_HSTS \
               -u CC_SWITCH_ALLOW_HOSTS \
               bash scripts/e2e/run-all.sh
+
+      - name: Install browser
+        run: pnpm exec playwright install --with-deps chromium --only-shell
+
+      - name: Run web browser regressions
+        run: pnpm test:web
+
+      - name: Upload browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-browser-failures
+          path: test-results/
+          if-no-files-found: ignore
 
   backend-windows-wsl2:
     name: Backend Checks (Windows + WSL2 home)

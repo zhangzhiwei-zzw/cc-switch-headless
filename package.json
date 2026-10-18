@@ -14,13 +14,16 @@
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
     "test:unit": "vitest run",
-    "test:unit:watch": "vitest watch"
+    "test:unit:watch": "vitest watch",
+    "check:web": "node scripts/web/check-command-coverage.mjs && node --test scripts/web/check-command-coverage.test.mjs",
+    "test:web": "playwright test"
   },
   "keywords": [],
   "author": "Jason Young",
   "license": "MIT",
   "packageManager": "pnpm@10.12.3",
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tauri-apps/cli": "^2.10.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",

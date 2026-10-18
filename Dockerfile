@@ -38,6 +38,8 @@ ENV PATH=/root/.cargo/bin:$PATH
 WORKDIR /app
 COPY rust-toolchain.toml ./
 COPY src-tauri ./src-tauri
+# Web 能力契约同时被 Rust include_str! 与前端读取
+COPY src/web-shims/command-contract.json ./src/web-shims/command-contract.json
 # 前端产物要在这里就位：rust-embed 在编译期把 dist-web 读进二进制
 COPY --from=web-builder /app/dist-web ./dist-web
 

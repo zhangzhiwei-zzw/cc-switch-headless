@@ -21,6 +21,9 @@ function ensureSource(): EventSource {
   if (!source) {
     // EventSource 默认同源带 cookie；断线由浏览器自动重连。
     source = new EventSource("/api/events");
+    source.addEventListener("error", () => {
+      window.dispatchEvent(new Event("cc-switch-web-connection-check"));
+    });
   }
   return source;
 }

@@ -180,6 +180,6 @@ cat <<EOF
 换令牌（不用重启，旧令牌当场失效）：
 
     curl -X POST http://127.0.0.1:${PORT}/api/rotate-token \\
-      -H "Cookie: ccswitch_web_token=\$(cat ${TOKEN_FILE})" \\
+      -H "Authorization: Bearer \$(cat ${TOKEN_FILE})" \\
       -H 'Content-Type: application/json' -d '{}'
 EOF

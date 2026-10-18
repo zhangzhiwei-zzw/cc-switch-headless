@@ -46,7 +46,7 @@ struct EmbeddedWeb;
 /// 默认监听端口（本地回环）。
 const DEFAULT_PORT: u16 = 15800;
 /// 访问令牌的 cookie 名。
-const TOKEN_COOKIE: &str = "ccswitch_web_token";
+const TOKEN_COOKIE_PREFIX: &str = "ccswitch_web_token";
 
 /// 一条要推给浏览器的事件。
 #[derive(Clone)]
@@ -57,6 +57,8 @@ pub struct ServerEvent {
 
 /// 请求处理共享上下文。
 pub struct Context {
+    /// Stable per data directory and listener, so browser sessions on one host do not collide.
+    pub cookie_name: String,
     /// 数据库不可用（版本过新/初始化失败）时为 `None`，此时只有 `get_init_error` 可用，
     /// 前端会渲染「升级应用」恢复界面。
     pub state: Option<Arc<AppState>>,
@@ -156,6 +158,7 @@ struct Options {
     allow_hosts: Vec<String>,
     /// 下发 HSTS；只在 TLS 反代后面有意义
     hsts: bool,
+    cookie_name: Option<String>,
 }
 
 fn parse_options() -> Result<Options, String> {
@@ -177,6 +180,7 @@ fn parse_options() -> Result<Options, String> {
             .filter(|value| !value.is_empty())
             .map(PathBuf::from),
         token: None,
+        cookie_name: std::env::var("CC_SWITCH_WEB_COOKIE_NAME").ok(),
         token_from_flag: false,
         no_token: false,
         allow_hosts: Vec::new(),
@@ -210,6 +214,9 @@ fn parse_options() -> Result<Options, String> {
                 options.token_from_flag = true;
             }
             "--no-token" => options.no_token = true,
+            "--cookie-name" => {
+                options.cookie_name = Some(args.next().ok_or("--cookie-name 需要一个名称")?);
+            }
             "--hsts" => options.hsts = true,
             "--allow-host" => {
                 let value = args.next().ok_or("--allow-host 需要一个主机名")?;
@@ -225,14 +232,15 @@ fn parse_options() -> Result<Options, String> {
                                                 目录里没有 index.html 会拒绝启动）\n\
                        --token <令牌>           访问令牌（默认自动生成并写入 <配置目录>/web-token）\n\
                        --no-token               关闭令牌校验（只允许与回环地址同用）\n\
+                       --cookie-name <名称>     覆盖实例 Cookie 名称（默认按数据目录和端口区分）\n\
                        --hsts                   下发 HSTS 头（放在 TLS 反向代理后面时用）\n\
                        --allow-host <主机名>    除回环外额外允许的 Host，可多次（用域名/局域网访问时）\n\n\
                      运行期换令牌（需要先持有效令牌）：\n\
                        curl -X POST http://127.0.0.1:{DEFAULT_PORT}/api/rotate-token \\\n\
-                            -H \"Cookie: ccswitch_web_token=<当前令牌>\" \\\n\
+                            -H \"Authorization: Bearer <当前令牌>\" \\\n\
                             -H 'Content-Type: application/json' -d '{{}}'\n\n\
                      环境变量：CC_SWITCH_WEB_PORT / CC_SWITCH_WEB_BIND / CC_SWITCH_WEB_DIST /\n\
-                     CC_SWITCH_WEB_TOKEN / CC_SWITCH_WEB_HSTS / CC_SWITCH_ALLOW_HOSTS（逗号分隔）/\n\
+                     CC_SWITCH_WEB_TOKEN / CC_SWITCH_WEB_COOKIE_NAME / CC_SWITCH_WEB_HSTS / CC_SWITCH_ALLOW_HOSTS（逗号分隔）/\n\
                      CC_SWITCH_CONFIG_DIR"
                 );
                 std::process::exit(0);
@@ -258,6 +266,33 @@ fn parse_options() -> Result<Options, String> {
     }
 
     Ok(options)
+}
+
+fn resolve_cookie_name(explicit: Option<String>, port: u16) -> Result<String, String> {
+    if let Some(name) = explicit {
+        if name.is_empty()
+            || name.len() > 128
+            || !name
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
+        {
+            return Err("Cookie 名称须为 1–128 个英文字母、数字、下划线或连字符".to_string());
+        }
+        return Ok(name);
+    }
+    let path = crate::config::get_app_config_dir().join("web-instance-id");
+    let id = match std::fs::read_to_string(&path) {
+        Ok(value) => uuid::Uuid::parse_str(value.trim())
+            .map_err(|_| "web-instance-id 格式异常".to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let id = uuid::Uuid::new_v4();
+            crate::config::atomic_write(&path, id.simple().to_string().as_bytes())
+                .map_err(|error| error.to_string())?;
+            id
+        }
+        Err(error) => return Err(format!("无法读取 web-instance-id: {error}")),
+    };
+    Ok(format!("{TOKEN_COOKIE_PREFIX}_{}_{port}", id.simple()))
 }
 
 async fn serve(mut options: Options) -> Result<(), String> {
@@ -305,6 +340,7 @@ async fn serve(mut options: Options) -> Result<(), String> {
     };
 
     let context = Arc::new(Context {
+        cookie_name: resolve_cookie_name(options.cookie_name, options.port)?,
         state: app_state,
         token: Arc::new(RwLock::new(token.clone())),
         token_from_flag: options.token_from_flag,
@@ -428,7 +464,12 @@ fn build_router(context: Arc<Context>) -> Router {
         .route_layer(middleware::from_fn_with_state(context.clone(), guard_token));
 
     Router::new()
-        .route("/auth", get(auth))
+        .route(
+            "/auth",
+            get(auth)
+                .post(login)
+                .layer(axum::extract::DefaultBodyLimit::max(4096)),
+        )
         .nest("/api", api)
         .fallback(static_files)
         .layer(middleware::from_fn_with_state(context.clone(), guard_host))
@@ -565,7 +606,7 @@ async fn guard_token(
     next: Next,
 ) -> Response {
     if let Some(expected) = context.token() {
-        match token_from_headers(request.headers()) {
+        match token_from_headers(request.headers(), &context.cookie_name) {
             Some(token) if token == expected => {}
             _ => {
                 return (StatusCode::UNAUTHORIZED, "缺少或无效的访问令牌").into_response();
@@ -585,7 +626,7 @@ async fn auth(
     match context.token() {
         Some(expected) if provided == expected => {
             let mut response = Redirect::to("/").into_response();
-            match token_cookie(&expected) {
+            match token_cookie(&context.cookie_name, &expected) {
                 Ok(value) => {
                     response.headers_mut().insert(header::SET_COOKIE, value);
                     response
@@ -598,9 +639,33 @@ async fn auth(
     }
 }
 
-fn token_cookie(token: &str) -> Result<HeaderValue, axum::http::header::InvalidHeaderValue> {
+/// Browser login keeps the submitted token out of the URL and browser history.
+async fn login(
+    AxumState(context): AxumState<Arc<Context>>,
+    Json(body): Json<RotateTokenRequest>,
+) -> Response {
+    match context.token() {
+        Some(expected) if body.token.as_deref().map(str::trim) == Some(expected.as_str()) => {
+            let mut response = Json(serde_json::json!({ "ok": true })).into_response();
+            match token_cookie(&context.cookie_name, &expected) {
+                Ok(cookie) => {
+                    response.headers_mut().insert(header::SET_COOKIE, cookie);
+                    response
+                }
+                Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "令牌格式异常").into_response(),
+            }
+        }
+        Some(_) => (StatusCode::UNAUTHORIZED, "访问令牌不正确").into_response(),
+        None => Json(serde_json::json!({ "ok": true })).into_response(),
+    }
+}
+
+fn token_cookie(
+    name: &str,
+    token: &str,
+) -> Result<HeaderValue, axum::http::header::InvalidHeaderValue> {
     HeaderValue::from_str(&format!(
-        "{TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict"
+        "{name}={token}; Path=/; HttpOnly; SameSite=Strict"
     ))
 }
 
@@ -662,7 +727,7 @@ async fn rotate_token(
     }))
     .into_response();
     // 顺手给当前浏览器换上新 cookie，省掉一次重新登录
-    if let Ok(value) = token_cookie(&token) {
+    if let Ok(value) = token_cookie(&context.cookie_name, &token) {
         response.headers_mut().insert(header::SET_COOKIE, value);
     }
     response
@@ -844,7 +909,7 @@ fn host_matches(host: &str, extra: &[String]) -> bool {
         })
 }
 
-fn token_from_headers(headers: &HeaderMap) -> Option<String> {
+fn token_from_headers(headers: &HeaderMap, cookie_name: &str) -> Option<String> {
     if let Some(value) = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -854,10 +919,12 @@ fn token_from_headers(headers: &HeaderMap) -> Option<String> {
         }
     }
 
-    let cookies = headers.get(header::COOKIE).and_then(|v| v.to_str().ok())?;
-    for part in cookies.split(';') {
-        if let Some(token) = part.trim().strip_prefix(&format!("{TOKEN_COOKIE}=")) {
-            return Some(token.to_string());
+    let prefix = format!("{cookie_name}=");
+    for cookies in headers.get_all(header::COOKIE) {
+        for part in cookies.to_str().ok()?.split(';') {
+            if let Some(token) = part.trim().strip_prefix(&prefix) {
+                return Some(token.to_string());
+            }
         }
     }
     None

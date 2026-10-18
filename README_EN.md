@@ -154,7 +154,7 @@ external commands. Therefore:
 
   ```bash
   curl -X POST http://127.0.0.1:15800/api/rotate-token \
-    -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+    -H "Authorization: Bearer $(cat ~/.cc-switch/web-token)" \
     -H 'Content-Type: application/json' -d '{}'
   ```
 

@@ -1,0 +1,414 @@
+{
+  "features": {
+    "pageProviders": {
+      "commands": [
+        "get_providers",
+        "get_current_provider",
+        "add_provider",
+        "update_provider",
+        "delete_provider",
+        "switch_provider",
+        "remove_provider_from_live_config",
+        "get_provider_editor_view",
+        "update_providers_sort_order",
+        "get_custom_icons",
+        "add_custom_icon",
+        "rename_custom_icon",
+        "delete_custom_icon"
+      ]
+    },
+    "pageRouting": {
+      "commands": [
+        "get_app_mode",
+        "set_proxy_route",
+        "get_direct_provider",
+        "get_proxy_status",
+        "get_proxy_takeover_status",
+        "start_proxy_server",
+        "stop_proxy_server",
+        "set_proxy_takeover_for_app",
+        "get_failover_queue",
+        "get_auto_failover_enabled",
+        "set_auto_failover_enabled"
+      ]
+    },
+    "pageSessions": {
+      "commands": [
+        "list_sessions",
+        "get_session_messages",
+        "web_session_transcript",
+        "delete_session",
+        "delete_sessions",
+        "get_session_block_content"
+      ]
+    },
+    "pageImportExport": {
+      "commands": [
+        "export_config_to_file",
+        "import_config_from_file",
+        "create_db_backup",
+        "list_db_backups",
+        "restore_db_backup"
+      ]
+    },
+    "pageMcp": {
+      "commands": [
+        "get_claude_mcp_status",
+        "read_claude_mcp_config",
+        "upsert_claude_mcp_server",
+        "delete_claude_mcp_server",
+        "validate_mcp_command",
+        "get_mcp_config",
+        "upsert_mcp_server_in_config",
+        "delete_mcp_server_in_config",
+        "set_mcp_enabled",
+        "get_mcp_servers",
+        "upsert_mcp_server",
+        "delete_mcp_server",
+        "toggle_mcp_app",
+        "import_mcp_from_apps",
+        "resync_mcp_to_apps"
+      ]
+    },
+    "pageSkills": {
+      "commands": [
+        "get_installed_skills",
+        "get_skill_backups",
+        "delete_skill_backup",
+        "install_skill_unified",
+        "uninstall_skill_unified",
+        "restore_skill_backup",
+        "toggle_skill_app",
+        "scan_unmanaged_skills",
+        "import_skills_from_apps",
+        "discover_available_skills",
+        "check_skill_updates",
+        "resync_skills_to_apps",
+        "update_skill",
+        "migrate_skill_storage",
+        "get_cc_switch_skills_dir",
+        "open_cc_switch_skills_dir",
+        "search_skills_sh",
+        "get_skills",
+        "get_skills_for_app",
+        "install_skill",
+        "install_skill_for_app",
+        "uninstall_skill",
+        "uninstall_skill_for_app",
+        "get_skill_repos",
+        "add_skill_repo",
+        "remove_skill_repo",
+        "install_skills_from_zip"
+      ]
+    },
+    "pagePrompts": {
+      "commands": [
+        "get_prompts",
+        "upsert_prompt",
+        "delete_prompt",
+        "enable_prompt",
+        "import_prompt_from_file",
+        "get_current_prompt_file_content",
+        "get_prompt_file_location",
+        "get_pi_prompt_file",
+        "replace_pi_prompt_file",
+        "delete_pi_prompt_file",
+        "list_pi_prompt_templates",
+        "upsert_pi_prompt_template",
+        "delete_pi_prompt_template"
+      ]
+    },
+    "pageUsage": {
+      "commands": [
+        "get_usage_summary",
+        "get_session_usage_summary",
+        "get_usage_summary_by_app",
+        "get_usage_trends",
+        "get_provider_stats",
+        "get_model_stats",
+        "get_request_logs",
+        "get_request_detail",
+        "get_model_pricing",
+        "update_model_pricing",
+        "update_model_pricing_batch",
+        "delete_model_pricing",
+        "get_models_dev_sync_config",
+        "save_models_dev_sync_config",
+        "record_models_dev_sync_result",
+        "check_provider_limits",
+        "sync_session_usage",
+        "get_session_usage_last_sync",
+        "rebuild_codex_usage",
+        "get_usage_data_sources",
+        "queryProviderUsage",
+        "testUsageScript",
+        "get_pricing_model_source",
+        "set_pricing_model_source"
+      ]
+    },
+    "sessionStream": {
+      "commands": ["web_session_transcript"]
+    },
+    "pageAuth": {
+      "enabled": false,
+      "commands": []
+    },
+    "pageApps": {
+      "enabled": false,
+      "commands": []
+    },
+    "sessionReveal": {
+      "enabled": false,
+      "commands": []
+    },
+    "sessionTerminal": {
+      "enabled": false,
+      "commands": []
+    },
+    "pickDirectory": {
+      "enabled": false,
+      "commands": []
+    },
+    "openInFileManager": {
+      "enabled": false,
+      "commands": []
+    },
+    "tray": {
+      "enabled": false,
+      "commands": []
+    },
+    "updater": {
+      "enabled": false,
+      "commands": []
+    }
+  },
+  "apps": {
+    "claude": {
+      "feature": "pageProviders",
+      "commands": []
+    },
+    "claude-desktop": {
+      "feature": "pageProviders",
+      "commands": [
+        "ensure_claude_desktop_official_provider",
+        "get_claude_desktop_status",
+        "get_claude_desktop_default_routes"
+      ]
+    },
+    "codex": {
+      "feature": "pageProviders",
+      "commands": ["ensure_codex_official_provider"]
+    },
+    "gemini": {
+      "feature": "pageProviders",
+      "commands": []
+    },
+    "grokbuild": {
+      "feature": "pageProviders",
+      "commands": ["ensure_grokbuild_official_provider"]
+    },
+    "opencode": {
+      "feature": "pageProviders",
+      "commands": [
+        "get_opencode_live_provider_ids",
+        "import_opencode_providers_from_live"
+      ]
+    },
+    "openclaw": {
+      "feature": "pageProviders",
+      "commands": []
+    },
+    "hermes": {
+      "feature": "pageProviders",
+      "commands": []
+    },
+    "pi": {
+      "feature": "pageProviders",
+      "commands": [
+        "get_pi_current_state",
+        "get_pi_session_discovery",
+        "update_pi_provider_usage_script"
+      ]
+    },
+    "mcode": {
+      "feature": "pageProviders",
+      "commands": []
+    }
+  },
+  "browserCommands": [
+    "open_external",
+    "copy_text_to_clipboard",
+    "save_file_dialog",
+    "open_file_dialog",
+    "open_zip_file_dialog",
+    "export_config_to_file",
+    "stream_session_messages"
+  ],
+  "unsupported": {
+    "ack_pending_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "acknowledge_codex_stale_clients": "路由辅助设置或桌面客户端控制尚未接入 Web。",
+    "add_custom_endpoint": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "adopt_codex_stack_catalog": "聚合与熔断器专用控制尚未接入 Web。",
+    "apply_claude_onboarding_skip": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "apply_claude_plugin_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "apply_profile": "profiles 的专用管理界面尚未接入 Web。",
+    "auth_cancel_login": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_get_status": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_list_accounts": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_logout": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_poll_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_remove_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_set_default_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "auth_start_login": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "check_app_update_available": "桌面恢复窗口或原生窗口主题操作，由桌面运行时处理。",
+    "check_for_updates": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "clear_claude_onboarding_skip": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "clear_current_profile": "profiles 的专用管理界面尚未接入 Web。",
+    "codex_forces_multi_agent_v2": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "copilot_get_auth_status": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_models": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_models_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_token": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_token_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_usage": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_get_usage_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_is_authenticated": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_list_accounts": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_logout": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_poll_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_poll_for_auth": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_remove_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_set_default_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "copilot_start_device_flow": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "create_profile": "profiles 的专用管理界面尚未接入 Web。",
+    "delete_backup_location": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "delete_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
+    "delete_env_vars": "直接修改宿主机环境变量的操作未接入 Web。",
+    "delete_profile": "profiles 的专用管理界面尚未接入 Web。",
+    "delete_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "disable_current_omo": "omo 的专用管理界面尚未接入 Web。",
+    "disable_current_omo_slim": "omo 的专用管理界面尚未接入 Web。",
+    "exit_proxy_apps_in_mode": "路由辅助设置或桌面客户端控制尚未接入 Web。",
+    "fetch_deeplink_icon": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "fetch_models_for_config": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_app_config_dir_override": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_app_config_path": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_auto_launch_status": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_balance": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "get_circuit_breaker_config": "聚合与熔断器专用控制尚未接入 Web。",
+    "get_circuit_breaker_stats": "聚合与熔断器专用控制尚未接入 Web。",
+    "get_claude_code_config_path": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_codex_oauth_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_codex_oauth_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "get_codex_session_compression": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_codex_sessions_disk_usage": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_coding_plan_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "get_current_omo_provider_id": "omo 的专用管理界面尚未接入 Web。",
+    "get_current_omo_slim_provider_id": "omo 的专用管理界面尚未接入 Web。",
+    "get_custom_endpoints": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_global_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_hermes_live_provider_ids": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "get_hermes_memory": "hermes 的专用管理界面尚未接入 Web。",
+    "get_hermes_memory_limits": "hermes 的专用管理界面尚未接入 Web。",
+    "get_hermes_model_config": "hermes 的专用管理界面尚未接入 Web。",
+    "get_log_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_openclaw_agents_defaults": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_openclaw_default_model": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_openclaw_env": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_openclaw_live_provider": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_openclaw_live_provider_ids": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "get_openclaw_model_catalog": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_openclaw_tools": "openclaw 的专用管理界面尚未接入 Web。",
+    "get_opencode_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_optimizer_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_provider_health": "聚合与熔断器专用控制尚未接入 Web。",
+    "get_proxy_client_host": "路由辅助设置或桌面客户端控制尚未接入 Web。",
+    "get_proxy_stack": "聚合与熔断器专用控制尚未接入 Web。",
+    "get_rectifier_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_session_image": "会话图片资源解析尚未接入 Web。",
+    "get_subscription_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "get_tool_versions": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "get_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "get_universal_providers": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "get_upstream_proxy_status": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_usage_first_date": "最早使用日期辅助查询未接入 Web；用量页使用 get_usage_summary。",
+    "get_xai_oauth_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "get_xai_oauth_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
+    "has_codex_unify_history_backup": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "import_claude_desktop_providers_from_claude": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "import_from_deeplink_unified": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "install_update_and_restart": "桌面恢复窗口或原生窗口主题操作，由桌面运行时处理。",
+    "is_portable_mode": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "launch_hermes_dashboard": "hermes 的专用管理界面尚未接入 Web。",
+    "list_backup_locations": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "list_daily_memory_files": "workspace 的专用管理界面尚未接入 Web。",
+    "list_profiles": "profiles 的专用管理界面尚未接入 Web。",
+    "list_tool_installations": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "merge_deeplink_config": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "open_app_config_folder": "桌面恢复窗口或原生窗口主题操作，由桌面运行时处理。",
+    "open_hermes_web_ui": "hermes 的专用管理界面尚未接入 Web。",
+    "open_portable_update_download": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "open_provider_terminal": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "open_workspace_directory": "workspace 的专用管理界面尚未接入 Web。",
+    "parse_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "peek_pending_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
+    "pick_directory": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "prepare_tool_uninstall": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "probe_tool_installations": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "read_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
+    "read_live_provider_settings": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "read_omo_local_file": "omo 的专用管理界面尚未接入 Web。",
+    "read_omo_slim_local_file": "omo 的专用管理界面尚未接入 Web。",
+    "read_workspace_file": "workspace 的专用管理界面尚未接入 Web。",
+    "remove_custom_endpoint": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "reset_circuit_breaker": "聚合与熔断器专用控制尚未接入 Web。",
+    "restart_app": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "restart_codex_app_server_daemon": "路由辅助设置或桌面客户端控制尚未接入 Web。",
+    "restore_codex_unified_history": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "restore_env_backup": "直接修改宿主机环境变量的操作未接入 Web。",
+    "reveal_app_log_file": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "reveal_backup_location": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "run_tool_lifecycle_action": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "s3_sync_download": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "s3_sync_fetch_remote_info": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "s3_sync_save_settings": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "s3_sync_upload": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "s3_test_connection": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "scan_local_proxies": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "scan_openclaw_config_health": "openclaw 的专用管理界面尚未接入 Web。",
+    "search_daily_memory_files": "workspace 的专用管理界面尚未接入 Web。",
+    "set_app_config_dir_override": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_auto_launch": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_codex_session_compression": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_global_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "set_hermes_memory": "hermes 的专用管理界面尚未接入 Web。",
+    "set_hermes_memory_enabled": "hermes 的专用管理界面尚未接入 Web。",
+    "set_log_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_openclaw_agents_defaults": "openclaw 的专用管理界面尚未接入 Web。",
+    "set_openclaw_default_model": "openclaw 的专用管理界面尚未接入 Web。",
+    "set_openclaw_env": "openclaw 的专用管理界面尚未接入 Web。",
+    "set_openclaw_model_catalog": "openclaw 的专用管理界面尚未接入 Web。",
+    "set_openclaw_tools": "openclaw 的专用管理界面尚未接入 Web。",
+    "set_optimizer_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_proxy_client_host": "路由辅助设置或桌面客户端控制尚未接入 Web。",
+    "set_proxy_stack_member": "聚合与熔断器专用控制尚未接入 Web。",
+    "set_rectifier_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "set_window_theme": "桌面恢复窗口或原生窗口主题操作，由桌面运行时处理。",
+    "stream_check_provider": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "sync_current_providers_live": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "sync_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "test_api_endpoints": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "test_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "update_circuit_breaker_config": "聚合与熔断器专用控制尚未接入 Web。",
+    "update_endpoint_last_used": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
+    "update_profile": "profiles 的专用管理界面尚未接入 Web。",
+    "upsert_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
+    "webdav_sync_download": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "webdav_sync_fetch_remote_info": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "webdav_sync_save_settings": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "webdav_sync_upload": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "webdav_test_connection": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
+    "write_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
+    "write_workspace_file": "workspace 的专用管理界面尚未接入 Web。"
+  }
+}

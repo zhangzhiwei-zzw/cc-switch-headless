@@ -89,7 +89,10 @@ start_server() {
   done
 
   CC_TOKEN=$(cat "$CC_TEST_HOME/.cc-switch/web-token")
-  CC_COOKIE="Cookie: ccswitch_web_token=$CC_TOKEN"
+  CC_COOKIE="Authorization: Bearer $CC_TOKEN"
+  CC_COOKIE_NAME=$(curl -sS -D - -o /dev/null -X POST "$CC_BASE/auth" \
+    -H 'Content-Type: application/json' -d '{"token":"'"$CC_TOKEN"'"}' \
+    | tr -d '\r' | sed -n 's/^[Ss]et-[Cc]ookie: \([^=]*\)=.*/\1/p')
 }
 
 # call '<json>' —— 走 /api/invoke

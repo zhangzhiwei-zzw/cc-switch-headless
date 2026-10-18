@@ -6,6 +6,14 @@
 //
 // 取值必须是同步的（渲染期要用），所以在挂载前 [`initializeCapabilities`] 拉一次。
 
+import contract from "@/web-shims/command-contract.json";
+import { isTauriRuntime } from "./platform";
+import {
+  getWebConnectionStatus,
+  setWebConnectionStatus,
+  webFetch,
+} from "./webConnection";
+
 export type CapabilityMap = Record<string, boolean>;
 
 let features: CapabilityMap | null = null;
@@ -13,38 +21,74 @@ let features: CapabilityMap | null = null;
 /**
  * 拉取服务端能力表。桌面模式直接跳过（全部可用）。
  *
- * 拉取失败时同样保持"全部可用"：这是最保守的降级——真调不通时命令层还会报错。
+ * Web 拉取失败时阻止进入应用，由连接页面提供登录或重试。
  */
 export async function initializeCapabilities(): Promise<void> {
-  const isDesktop =
-    typeof window !== "undefined" &&
-    Boolean((globalThis as { isTauri?: boolean }).isTauri);
-  if (isDesktop) {
+  if (isTauriRuntime()) {
     return;
   }
 
   try {
-    const response = await fetch("/api/capabilities", {
-      credentials: "same-origin",
-    });
+    const response = await webFetch("/api/capabilities");
     if (!response.ok) {
-      return;
+      if (response.status !== 401) setWebConnectionStatus("incompatible");
+      throw new Error("Web capability request failed");
     }
-    const payload = (await response.json()) as { features?: CapabilityMap };
-    if (payload?.features && typeof payload.features === "object") {
-      features = payload.features;
+    const payload = (await response.json()) as {
+      mode?: string;
+      features?: CapabilityMap;
+      commands?: unknown;
+    };
+    if (
+      payload?.mode !== "web" ||
+      !Array.isArray(payload.commands) ||
+      !payload.commands.every((cmd) => typeof cmd === "string") ||
+      !payload?.features ||
+      typeof payload.features !== "object" ||
+      Array.isArray(payload.features) ||
+      !Object.values(payload.features).every(
+        (value) => typeof value === "boolean",
+      )
+    ) {
+      setWebConnectionStatus("incompatible");
+      throw new Error("Invalid Web capability response");
     }
+    const commands = new Set(payload.commands);
+    for (const [name, spec] of Object.entries(contract.features)) {
+      if (typeof payload.features[name] !== "boolean") {
+        setWebConnectionStatus("incompatible");
+        throw new Error("Missing Web feature");
+      }
+      if (!payload.features[name]) continue;
+      const required = [
+        ...spec.commands,
+        ...Object.values(contract.apps)
+          .filter((app) => app.feature === name)
+          .flatMap((app) => app.commands),
+      ];
+      if (!required.every((cmd) => commands.has(cmd))) {
+        setWebConnectionStatus("incompatible");
+        throw new Error("Missing Web commands");
+      }
+    }
+    features = payload.features;
   } catch {
-    // 保持 null：不隐藏任何东西
+    features = {};
+    if (
+      getWebConnectionStatus() === "checking" ||
+      getWebConnectionStatus() === "ready"
+    )
+      setWebConnectionStatus("incompatible");
+    throw new Error("Web capabilities unavailable");
   }
 }
 
-/** 某个能力是否可用；未初始化（桌面模式/拉取失败）时为 `true`。 */
+/** 桌面模式保持全部可用；Web 只启用服务端明确提供的能力。 */
 export function supports(feature: string): boolean {
   if (!features) {
     return true;
   }
-  return features[feature] !== false;
+  return features[feature] === true;
 }
 
 /** 测试用：重置内部状态。 */

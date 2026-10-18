@@ -241,7 +241,7 @@ CLI 命令。因此：
 
 ```bash
 curl -X POST http://127.0.0.1:15800/api/rotate-token \
-  -H "Cookie: ccswitch_web_token=$(cat ~/.cc-switch/web-token)" \
+  -H "Authorization: Bearer $(cat ~/.cc-switch/web-token)" \
   -H 'Content-Type: application/json' -d '{}'
 ```
 
@@ -326,17 +326,15 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 
 ## 常见问题
 
-### 打开页面显示「还没有供应商」
+### 登录与连接状态
 
-`/api/*` 全部 401 时前端会渲染空状态（不会弹出错误提示），最常见的原因是浏览器没有
-当前服务端的令牌 cookie。在服务端执行下面这条，然后**用浏览器打开一次**即可：
+直接访问首页会先检查登录与功能能力。未登录或令牌失效时显示登录页，可输入服务端
+启动日志或 `<配置目录>/web-token` 中的令牌；登录通过 `POST /auth` 提交，令牌不会
+加入浏览器地址或历史记录。启动日志中的 `/auth?token=...` 链接仍然可用。
 
-```bash
-echo "http://127.0.0.1:15800/auth?token=$(cat ~/.cc-switch/web-token)"
-```
-
-轮换过令牌或换过服务端实例后也要重新打开 `/auth`：同一个 `127.0.0.1:15800` 只能存
-一个实例的 cookie。
+服务不可达时显示重新连接入口；能力表异常或缺少已声明功能所需的命令时阻止进入应用，
+提示检查代理和前后端版本。运行中遇到 401、网络断连或 SSE 断开也会检查连接状态。
+重连成功后重新加载页面，避免沿用旧缓存；失败的写操作不会自动重放。
 
 ### Windows + WSL 两个实例，怎么判断打开的是哪个？
 
@@ -348,7 +346,7 @@ echo "http://127.0.0.1:15800/auth?token=$(cat ~/.cc-switch/web-token)"
 - 两个实例的数据库互相独立（`%USERPROFILE%\.cc-switch` vs `~/.cc-switch`）；
 - 页面里显示的供应商 / 会话是哪一份数据，就是哪边。
 
-同一个 origin 只能存一个令牌 cookie，切换实例后必须重新 `/auth`。
+同一个监听地址和端口无法同时提供两个实例；不同数据目录的实例应使用不同端口。
 
 ### 想同时跑多个实例
 
@@ -358,7 +356,17 @@ echo "http://127.0.0.1:15800/auth?token=$(cat ~/.cc-switch/web-token)"
 CC_SWITCH_CONFIG_DIR=~/.cc-switch-work cc-switch-server --port 15801
 ```
 
-cookie 按 origin 区分（端口不同就是不同 origin），互不干扰。
+Cookie **不按端口隔离**。服务端会在数据目录保存 `web-instance-id`，使用包含该标识和
+监听端口的独立 Cookie 名称，避免同一浏览器访问多个实例时互相覆盖登录。
+Docker 使用不同数据卷时，即使容器内部端口相同也会生成不同的标识。
+
+复制已有数据目录（包括 `web-instance-id`）后，若实例监听端口也相同，可通过
+`--cookie-name cc_switch_work` 或 `CC_SWITCH_WEB_COOKIE_NAME=cc_switch_work` 显式指定
+不同名称。名称支持 1–128 个字母、数字、下划线或连字符，重启后保持一致。
+Cookie 名称区分用于避免会话冲突；有不同信任级别的实例应使用不同主机名部署。
+
+从固定 Cookie 名称的旧版本升级后需要重新登录一次。脚本调用建议使用
+`Authorization: Bearer <令牌>`，无需知道实例 Cookie 名称。
 
 ### 升级后界面没变化
 
@@ -370,3 +378,24 @@ cookie 按 origin 区分（端口不同就是不同 origin），互不干扰。
 目前没有 `/health` 端点，systemd / Docker 只能用端口探测。日志写到 stderr 和
 `<配置目录>/logs/cc-switch.log`；用 Nginx 反代时注意别把 `/auth?token=...` 的 query
 写进访问日志。
+
+## Web 命令覆盖与浏览器回归
+
+`src/web-shims/command-contract.json` 记录功能依赖、各应用所需命令、浏览器适配及
+尚未支持的命令说明。`pnpm check:web` 使用 TypeScript AST 检查前端的 `invoke` 字面量，
+与真实 Rust 分发表及浏览器适配对照；新增调用必须实现或显式说明不支持的原因。
+服务端能力表也读取这份清单，前端再次核验能力依赖，避免表面可用却返回 `E_NOT_IMPLEMENTED`。
+
+本地运行真实浏览器回归：
+
+```bash
+pnpm build:web
+cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -j 1
+pnpm exec playwright install chromium --only-shell
+pnpm check:web
+pnpm test:web
+```
+
+浏览器测试仅使用临时 HOME 和数据目录，覆盖登录、Pi 页面、功能契约、令牌轮换、
+断连重试，以及两个实例的 Cookie 共存和重启。默认使用 15870 / 15871 端口；可用
+`CC_SWITCH_SERVER_BIN` 指定服务端二进制。CI 的 server job 同时运行 HTTP 和浏览器回归。
