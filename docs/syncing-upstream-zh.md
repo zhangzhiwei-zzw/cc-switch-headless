@@ -24,18 +24,37 @@ git checkout main
 git pull                                          # 先把自己 fork 的 main 更新到最新
 
 git checkout -b sync/upstream-2026-11             # 开同步分支，别直接在 main 上解冲突
-git fetch upstream
+git fetch upstream --tags
 git log --oneline HEAD..upstream/main | head -50  # 先看上游都改了什么
 git diff --stat HEAD...upstream/main -- src-tauri src   # 看看改动规模
 
 git merge upstream/main
-# 解冲突 → git commit → git push -u origin sync/upstream-2026-11
-# 然后开 PR，等 CI 全绿，再合回 main
+# 解冲突、本地验证（见下面「合并后必须验证」）
+git checkout main
+git merge --ff-only sync/upstream-2026-11
+git push origin main
 ```
 
-**走 PR，不要直接推 main。** 合并后最容易出问题的地方是编译（见下面「合并后必须验证」），
-而 CI 里的 `Server Checks (headless)` 正是为这件事存在的——它会在 PR 上把 server feature
-编一遍并跑完整 e2e。
+**这个 fork 是自己用的，直接合 `main` 即可，不需要 PR。** 注意 `ci.yml` 只在
+**push `main`** 或 **PR → `main`** 时触发：推送同步分支本身不会跑 CI，合并到 `main`
+之后的 push 才会。CI 里的 `Server Checks (headless)` 会把 server feature 编一遍并跑
+完整 e2e，合并后看它的结果即可。
+
+**本机 22 端口不通时**（`kex_exchange_identification: Connection closed`），
+把推送地址换成 443：
+
+```bash
+git push ssh://git@ssh.github.com:443/zhangzhiwei-zzw/cc-switch-headless.git main
+```
+
+也可以写进 `~/.ssh/config`，之后照常 `git push origin`：
+
+```sshconfig
+Host github.com
+  HostName ssh.github.com
+  Port 443
+  User git
+```
 
 ## 为什么用 merge，不用 rebase
 
@@ -52,6 +71,18 @@ git merge upstream/main
 | 2026-10-11 | v4.0.0 → v4.0.8 | 147 | 479 | 10 个文件 / 15 处 |
 | 2026-10-12 | v4.0.8 → v4.0.9 | 41 | 109 | 4 个文件 / 4 处 |
 | 2026-10-17 | v4.0.9 → v4.0.14 | 175 | 335 | 5 个文件 / 6 处 |
+
+统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
+diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
+
+```bash
+BASE=<上次合并进来的上游 commit>
+git rev-list --count "$BASE"..upstream/main          # 上游提交数
+git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
+```
+
+基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
+`5de6feb4..eb09fbb1 = 15`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -117,6 +148,60 @@ git merge --abort                             # 看完撤销
   `maybe_migrate_codex_legacy_official_history_to_openai_bucket`（排在统一迁移之前），
   会话日志兜底扫描也从 60 秒改成 10 分钟，和桌面版一致。
 
+## 上游新增命令：接不接、怎么接
+
+每次同步先量一下命令面变了多少。下面两个脚本都是只读的，复制即用（把 `<BASE>` 换成
+上次合并进来的上游 commit）。
+
+**1. 上游注册了哪些新命令**（对比 `generate_handler!`）：
+
+```bash
+python3 - <<'PY'
+import re, subprocess
+def cmds(rev):
+    src = subprocess.run(['git','show',f'{rev}:src-tauri/src/lib.rs'],
+                         capture_output=True, text=True).stdout
+    block = re.search(r'generate_handler!\s*\[(.*?)\n\s*\]', src, re.S).group(1)
+    return {x.strip().rstrip(',').split('::')[-1] for x in block.split(',') if x.strip()}
+old, new = cmds('<BASE>'), cmds('upstream/main')
+print('新增:', sorted(new - old))
+PY
+```
+
+**2. 前端新调用了哪些命令**（对比 `src/**` 里的 `invoke("...")` 字面量）：
+
+```bash
+python3 - <<'PY'
+import re, subprocess
+def cmds(rev):
+    files = subprocess.run(['git','ls-tree','-r','--name-only',rev,'src'],
+                           capture_output=True, text=True).stdout.splitlines()
+    out = set()
+    for f in files:
+        if f.endswith(('.ts','.tsx')):
+            src = subprocess.run(['git','show',f'{rev}:{f}'],
+                                 capture_output=True, text=True).stdout
+            out |= set(re.findall(
+                r'invoke(?:<[^>]*>)?\(\s*["\']([a-zA-Z0-9_]+)["\']', src))
+    return out
+print('新增:', sorted(cmds('upstream/main') - cmds('<BASE>')))
+PY
+```
+
+**注意**：第 1 个脚本只能发现**新增**命令。上游新页面开始调用一个**旧命令**时（v4.0.14 的
+Claude Desktop 三个命令就是这种情况），只能靠第 2 个脚本发现。
+
+判定规则：
+
+| 情况 | 做法 |
+| --- | --- |
+| 命令属于 web 已支持的页面（`pageProviders` / `pageUsage` / `pageMcp` …） | 在 `web/routes.rs` 接一层，补 e2e |
+| 命令属于 `pageApps: false`、`updater: false` 的页面（工具安装/卸载、自动更新） | 不接，靠能力表隐藏入口 |
+| 桌面专属（深链、终端、文件对话框、目录选择） | 不接，前端用 `isTauriRuntime()` / `pickDirectory` / `openInFileManager` 隐藏 |
+| 新的业务语义（模式、设置保存副作用、启动迁移） | 对齐 `commands/*.rs` 的实现，见上一节 |
+
+接入时**不要**复制业务逻辑：`web/routes.rs` 只做参数解析与 `services/` 调用。
+
 ## 上游有、本 fork 删掉的文件
 
 我们删掉的文件在合并时会**自己保持删除**；只有**上游同时也改了它**才会变成 modify/delete
@@ -149,14 +234,38 @@ cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --featur
 bash scripts/e2e/run-all.sh
 ```
 
-两点经验：
+三点经验：
 
 - `cargo clippy` / `cargo check` **不编译 `#[cfg(test)]` 代码**。移植改动破坏了测试断言时，
-  只有 `cargo test` 会告诉你（还可能连锁：`--lib` 挂了后面 15 个集成测试目标根本不会跑，
+  只有 `cargo test` 会告诉你（还可能连锁：`--lib` 挂了后面的集成测试目标根本不会跑，
   所以看到 "test failed" 要确认每个 target 都出过 `test result:` 行）。
 - 手写的 import / 多行表达式过一遍 `pnpm format:check`，别等 CI。
+- 本机是 WSL2：完整 `cargo test` 约 25 分钟（`tests/golden` 一个目标就 6 分钟，fsync 慢），
+  放后台跑；`pnpm test:unit` 整套会因负载出现大面积 5 秒超时（不是断言失败），复核时
+  按文件串行跑 `pnpm exec vitest run --no-file-parallelism <files>`，个别慢文件加
+  `--testTimeout=30000`。最终以 CI（原生 runner）的结果为准。
 
 （`CONTRIBUTING.md` 里也列了这些。）
+
+## 合并后的收尾清单
+
+版本号不止 `package.json` / `Cargo.toml` 两处，合并完统一搜一遍旧版本号（把 `v4.0.9`
+换成这次的旧基线）：
+
+```bash
+git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.md .github scripts
+```
+
+必须跟着改的：
+
+| 位置 | 改什么 |
+| --- | --- |
+| `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json` | 版本号（`tauri.conf.json` 通常随上游一起变） |
+| `README.md`、`README_EN.md` | 徽章里的基线版本 |
+| `docs/web-mode-zh.md` | 开头「当前对标基线」与 lock 链接 |
+| `docs/syncing-upstream-zh.md` | 本文的基线链接、冲突实测表新增一行、已固化适配点 |
+| `.github/workflows/release-server.yml` | 发版正文里的上游版本号（**v4.0.14 这次就漏过，发布前才发现要补**） |
+| `docs/upstream-*.lock` | 改名为新基线并更新内容（见下一节） |
 
 ## 合并完更新基线
 
@@ -168,10 +277,38 @@ git mv docs/upstream-v4.0.14.lock docs/upstream-v4.1.0.lock
 ```
 
 `upstream_commit` 取 **tag peel 后的 commit**（`git ls-remote upstream 'refs/tags/v4.1.0*'`
-能看到 tag 对象和它指向的 commit），`last_merged_commit` 填这次 merge 进来的上游最新提交。
+能看到 tag 对象和它指向的 commit；本地可用 `git rev-parse 'v4.1.0^{}'`），
+`last_merged_commit` 填这次 merge 进来的上游最新提交（通常是 `upstream/main` 的 tip）。
+
+`last_merged_commit` 往往比 tag 多几个提交（上游 tag 之后还在继续修 bug），多几个用
+`git rev-list --count <tag-peel>..<last_merged_commit>` 算，并写进 lock 的注释里。
 
 ## 发版
 
-同步上游**不会**自动发版。要让新特性进到下载的产物里，还得打一个新 tag（`v*`），
-`release-server.yml` 会重新构建三平台二进制、在各自的 runner 上跑一遍 smoke test，
-再挂到 Release。
+同步上游**不会**自动发版。要让新特性进到下载的产物里，还得打一个新 tag（以 v4.0.14
+这次为例，`e55a4d20` 是当天的 `main`）：
+
+```bash
+git tag -a v4.0.14-headless e55a4d20 \
+  -m "cc-switch-headless v4.0.14: headless server on the upstream v4.0.14 baseline"
+git push ssh://git@ssh.github.com:443/zhangzhiwei-zzw/cc-switch-headless.git v4.0.14-headless
+```
+
+注意：
+
+- tag 必须用 **`vX.Y.Z-headless`**，不要用上游的 `vX.Y.Z`（会撞名）；
+- `release-server.yml` 由 tag push 触发，构建三条腿（Linux x86_64 / aarch64 / Windows），
+  各自跑 smoke test、断言 glibc ≤ 2.31 且不链 OpenSSL，再把 6 个资产挂到 Release；
+- 发版正文的版本号在合并时就要改（见收尾清单），否则 Release 页面会写着旧版本；
+- 发布后核对 `releases/latest` 与 6 个资产；`workflow_dispatch` 也能跑，但它是在工作流
+  所在分支的提交上创建 / 附加 Release，指向不如手动 tag 可控。
+
+## 合并错了怎么回滚
+
+已经合进 `main` 的改动出问题时，用 revert 保留历史，不要 force-push：
+
+```bash
+git revert -m 1 <merge-commit>   # 撤销这次 merge 引入的改动
+```
+
+还没合并的同步分支直接删掉即可；`git merge --abort` 只能在解冲突过程中用。

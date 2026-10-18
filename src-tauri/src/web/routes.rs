@@ -183,6 +183,15 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             "get_opencode_live_provider_ids",
             get_opencode_live_provider_ids as Handler,
         );
+        table.insert("get_pi_current_state", get_pi_current_state as Handler);
+        table.insert(
+            "get_pi_session_discovery",
+            get_pi_session_discovery as Handler,
+        );
+        table.insert(
+            "update_pi_provider_usage_script",
+            update_pi_provider_usage_script as Handler,
+        );
         table.insert(
             "update_providers_sort_order",
             update_providers_sort_order as Handler,
@@ -773,6 +782,33 @@ fn get_opencode_live_provider_ids(_context: Arc<Context>, _args: Value) -> Handl
     deferred(|| {
         crate::opencode_config::get_providers()
             .map(|providers| providers.keys().cloned().collect::<Vec<String>>())
+            .map_err(|error| error.to_string())
+    })
+}
+
+fn get_pi_current_state(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(move || {
+        let state = context.require_state()?;
+        crate::services::pi_state::PiStateService::current(&state)
+            .map_err(|error| error.to_string())
+    })
+}
+
+fn get_pi_session_discovery(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| Ok(crate::session_manager::providers::pi::session_discovery()))
+}
+
+fn update_pi_provider_usage_script(context: Arc<Context>, args: Value) -> HandlerFuture {
+    deferred(move || {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            id: String,
+            usage_script: crate::provider::UsageScript,
+        }
+        let args: Args = parse(args)?;
+        let state = context.require_state()?;
+        ProviderService::update_pi_usage_script(&state, &args.id, args.usage_script)
             .map_err(|error| error.to_string())
     })
 }

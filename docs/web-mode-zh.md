@@ -7,6 +7,9 @@
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
 > 当前对标基线 **v4.0.14**（已合并至上游 `eb09fbb1`），见
 > [`upstream-v4.0.14.lock`](upstream-v4.0.14.lock)。
+>
+> **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
+> 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。
 
 ## 它是怎么做到的
 
@@ -22,8 +25,9 @@
 | `server` | `cc-switch-server`（本次新增） | 无 Tauri / 无 webkit |
 
 业务层（数据库、供应商切换、配置写入、会话扫描……）两种构建共用；命令层
-（`src-tauri/src/commands/`，302 个 `#[tauri::command]`）只在桌面版编译，服务端在
-`src-tauri/src/web/routes.rs` 里用同一套 `services/` 接口重新实现了一部分命令。
+（`src-tauri/src/commands/` 等，共 322 个 `#[tauri::command]`）只在桌面版编译，服务端在
+`src-tauri/src/web/routes.rs` 里用同一套 `services/` 接口重新实现了一部分命令
+（当前 150+ 个命令名，`GET /api/commands` 可实时核对）。
 
 ## 安装
 
@@ -255,15 +259,22 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 
 - 启动链路：设置读取、数据库初始化与迁移、供应商列表/当前项、环境冲突检查；
 - 供应商：新增 / 编辑 / 删除 / 切换 / 排序 / 从 live 导入 / 编辑器预览；
-  **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库；
-- 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；
+  **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库：单张 PNG
+  ≤ 256×256、data URI ≤ 64 KiB，整个图标库最多 100 个，名称 ≤ 64 字符；
+- 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；用量页的显示设置
+  （货币与汇率、侧栏 Today 显示项、请求日志列）存在服务端 `settings.json`，**所有浏览器
+  共享**；「记住上次 Tab / 时间范围」用浏览器 localStorage，按浏览器各自独立；
 - **本地路由（代理）**：启动/停止代理、全局与应用级代理配置、进入/退出路由模式、
   指定路由目标、故障转移队列与自动故障转移开关；Claude Desktop 和 Claude Code /
-  Codex / Gemini CLI / Grok Build 共用直连 / 路由模式面板（Desktop 没有故障转移）；
+  Codex / Gemini CLI / Grok Build 共用直连 / 路由模式面板（Desktop 没有故障转移，
+  也不支持聚合）。Desktop 写的是**服务端本机**的 `~/.config/Claude`（Linux）/
+  `Application Support/Claude`（macOS）/ `%LOCALAPPDATA%\Claude`（Windows），
+  远程浏览器操作不到你自己电脑上的 Desktop；
 - **导入导出与备份**：导出 SQL 备份（浏览器直接下载）、上传 SQL 恢复配置、
   备份的创建 / 列表 / 重命名 / 删除 / 恢复；
 - **会话浏览**：列出 / 读取 / 删除各 CLI 工具在**服务器上**留下的会话，
-  搜索与分块渲染照常（浏览器里用一次性拉取模拟 Channel）；
+  搜索与分块渲染照常（浏览器里用一次性拉取模拟 Channel）；后台兜底扫描每 10 分钟
+  一次，打开用量页时按所选间隔加扫；
 - **MCP**：统一结构的增删改、按应用开关、从各应用导入、重新同步回各应用，
   以及旧接口（直接读写 `~/.claude.json` 的 `mcpServers`）的兼容命令；
 - **Skills**：已安装列表、仓库管理与发现、安装 / 更新 / 卸载、按应用开关、
@@ -290,18 +301,20 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 
 未实现（会返回 `E_NOT_IMPLEMENTED`，界面会提示而不是白屏）：
 
-- 托盘、自动更新、`ccswitch://` 深链、开机自启、窗口控制；
+- 托盘、自动更新（含便携版更新下载）、`ccswitch://` 深链、开机自启、窗口控制；
 - 目录选择对话框（`pick_directory`）——浏览器无法为服务端选路径；
 - 托管账号（Copilot / Codex / xAI）的**登录流程**（转发链路已支持托管账号，
   但 OAuth 登录命令尚未接入）；连带 Copilot 与 xAI 供应商的**用量查询**
   也不可用（额度要问 OAuth 管理器），余额 / Coding Plan / 官方订阅额度 /
   JS 脚本四条路径不受影响；
-- Stack（聚合）模式、熔断器配置面板；
-- CLI 工具（Apps 页）的版本检测、安装与卸载；
+- Stack（聚合）模式、熔断器配置与健康状态；
+- CLI 工具（Apps 页）：版本检测、安装、升级、卸载与安装冲突诊断（`pageApps: false`）；
 - 「打开终端」——服务端没有可拉起的终端，入口按 `pickDirectory` 能力隐藏；
 - 「在文件管理器里打开」这类动作（`open_config_folder` 等）——服务端没法替
-  **用户**弹窗口；入口由 `openInFileManager` 隐藏。
+  **用户**弹窗口；入口由 `openInFileManager` 隐藏；
 - 深链导入——服务端收不到 `ccswitch://`，确认框按 `isTauriRuntime()` 不挂载；
+- 配置档案（Profiles）、WebDAV / S3 云同步与自动同步、每日记忆 / 工作区文件编辑；
+- 端点测试、流检查、测速等供应商连通性诊断；
 - 通用供应商（Universal Provider）、OpenClaw / Hermes / OMO 等仍在迁移中的页面。
 
 ## 与桌面版的行为差异
@@ -309,3 +322,50 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 数据库版本过新或初始化失败时，服务端**不退出**：前端会显示「升级应用」恢复界面；
 - 日志写到 stderr 与 `<配置目录>/logs/cc-switch.log`（桌面版还会输出到托盘/窗口）；
 - `open_external`（打开链接）与复制到剪贴板由浏览器直接完成，不走服务端。
+
+## 常见问题
+
+### 打开页面显示「还没有供应商」
+
+`/api/*` 全部 401 时前端会渲染空状态（不会弹出错误提示），最常见的原因是浏览器没有
+当前服务端的令牌 cookie。在服务端执行下面这条，然后**用浏览器打开一次**即可：
+
+```bash
+echo "http://127.0.0.1:15800/auth?token=$(cat ~/.cc-switch/web-token)"
+```
+
+轮换过令牌或换过服务端实例后也要重新打开 `/auth`：同一个 `127.0.0.1:15800` 只能存
+一个实例的 cookie。
+
+### Windows + WSL 两个实例，怎么判断打开的是哪个？
+
+两边都监听 `127.0.0.1:15800` 时，WSL2 的 localhost 转发只在 Windows 侧没有进程占用
+该端口时生效：Windows 版 `cc-switch-server.exe` 先启动，浏览器连到的就是 Windows 实例；
+反之才是 WSL 里的实例。判断方法：
+
+- 看启动日志里打印的配置目录与令牌；
+- 两个实例的数据库互相独立（`%USERPROFILE%\.cc-switch` vs `~/.cc-switch`）；
+- 页面里显示的供应商 / 会话是哪一份数据，就是哪边。
+
+同一个 origin 只能存一个令牌 cookie，切换实例后必须重新 `/auth`。
+
+### 想同时跑多个实例
+
+用 `--port` 和 `CC_SWITCH_CONFIG_DIR` 隔离，例如：
+
+```bash
+CC_SWITCH_CONFIG_DIR=~/.cc-switch-work cc-switch-server --port 15801
+```
+
+cookie 按 origin 区分（端口不同就是不同 origin），互不干扰。
+
+### 升级后界面没变化
+
+前端产物编译在二进制里，替换二进制后**必须重启服务端进程**。`--dist` 只在本地开发时
+临时指向 `dist-web/`，生产环境不要依赖它。
+
+### 健康检查与日志
+
+目前没有 `/health` 端点，systemd / Docker 只能用端口探测。日志写到 stderr 和
+`<配置目录>/logs/cc-switch.log`；用 Nginx 反代时注意别把 `/auth?token=...` 的 query
+写进访问日志。
