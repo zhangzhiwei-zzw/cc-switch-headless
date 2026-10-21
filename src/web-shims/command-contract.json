@@ -211,7 +211,9 @@
       "feature": "pageProviders",
       "commands": [
         "get_opencode_live_provider_ids",
-        "import_opencode_providers_from_live"
+        "import_opencode_providers_from_live",
+        "get_opencode_default_model",
+        "set_opencode_default_model"
       ]
     },
     "openclaw": {
@@ -233,6 +235,10 @@
     "mcode": {
       "feature": "pageProviders",
       "commands": []
+    },
+    "agy": {
+      "feature": "pageProviders",
+      "commands": ["get_agy_models"]
     }
   },
   "browserCommands": [
@@ -245,6 +251,8 @@
     "stream_session_messages"
   ],
   "unsupported": {
+    "agy_account_is_running": "检测服务端本地 agy 进程仅用于桌面账号切换提醒；Web 不提供托管账号中心。",
+    "agy_account_quota": "Antigravity 托管账号额度依赖桌面授权中心；Web 尚未接入托管登录。",
     "ack_pending_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
     "acknowledge_codex_stale_clients": "路由辅助设置或桌面客户端控制尚未接入 Web。",
     "add_custom_endpoint": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",

@@ -193,6 +193,15 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             "get_opencode_live_provider_ids",
             get_opencode_live_provider_ids as Handler,
         );
+        table.insert(
+            "get_opencode_default_model",
+            get_opencode_default_model as Handler,
+        );
+        table.insert(
+            "set_opencode_default_model",
+            set_opencode_default_model as Handler,
+        );
+        table.insert("get_agy_models", get_agy_models as Handler);
         table.insert("get_pi_current_state", get_pi_current_state as Handler);
         table.insert(
             "get_pi_session_discovery",
@@ -515,6 +524,7 @@ fn get_config_dir(_context: Arc<Context>, args: Value) -> HandlerFuture {
                 .parent()
                 .map(|path| path.to_path_buf())
                 .ok_or_else(|| "无法解析 MiniMax Code 配置目录".to_string())?,
+            AppType::Agy => crate::agy_config::agy_dir(),
         };
         Ok(Value::String(dir.to_string_lossy().to_string()))
     })
@@ -793,6 +803,39 @@ fn get_opencode_live_provider_ids(_context: Arc<Context>, _args: Value) -> Handl
         crate::opencode_config::get_providers()
             .map(|providers| providers.keys().cloned().collect::<Vec<String>>())
             .map_err(|error| error.to_string())
+    })
+}
+
+fn get_opencode_default_model(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| crate::opencode_config::get_default_model().map_err(|error| error.to_string()))
+}
+
+fn set_opencode_default_model(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    #[derive(serde::Deserialize)]
+    struct Args {
+        model: String,
+    }
+    match parse::<Args>(args) {
+        Ok(args) => deferred(move || {
+            crate::opencode_config::set_default_model(&args.model)
+                .map_err(|error| error.to_string())
+        }),
+        Err(error) => Box::pin(async move { Err(error) }),
+    }
+}
+
+fn get_agy_models(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Args {
+        api_key: Option<String>,
+        base_url: Option<String>,
+    }
+    Box::pin(async move {
+        let args: Args = parse(args)?;
+        serializable(
+            crate::services::agy_model_fetch::get_agy_models(args.api_key, args.base_url).await?,
+        )
     })
 }
 

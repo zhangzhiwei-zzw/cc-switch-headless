@@ -85,6 +85,34 @@ test("Pi provider page can read native state", async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test("OpenCode default model can be read and updated through Web", async ({
+  page,
+}) => {
+  await login(page);
+  const invoke = async (cmd: string, args: Record<string, string> = {}) =>
+    page.evaluate(
+      async ({ cmd, args }) => {
+        const response = await fetch("/api/invoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd, args }),
+        });
+        return response.json();
+      },
+      { cmd, args },
+    );
+
+  const initial = await invoke("get_opencode_default_model");
+  expect(initial.ok).toBe(true);
+  const changed = await invoke("set_opencode_default_model", {
+    model: "provider/model",
+  });
+  expect(changed.ok).toBe(true);
+  expect((await invoke("get_opencode_default_model")).data).toBe(
+    "provider/model",
+  );
+});
+
 test("capability errors block application and retry recovers", async ({
   page,
 }) => {

@@ -13,6 +13,20 @@ pub struct OpenCodeModelRef {
     pub model_id: String,
 }
 
+/// Read the current runtime's model list. No shell and no credential values in errors.
+///
+/// Without a key this asks the signed-in agy. With a key it runs agy in API-key mode from a
+/// throwaway `--gemini_dir`: that mode only accepts agy's built-in Gemini models (by display
+/// name), which the Gemini API's own model list does not match.
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_agy_models(
+    apiKey: Option<String>,
+    baseUrl: Option<String>,
+) -> Result<Vec<FetchedModel>, String> {
+    crate::services::agy_model_fetch::get_agy_models(apiKey, baseUrl).await
+}
+
 const OPENCODE_MODELS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
 /// 获取 OpenCode 当前运行时可用的模型。

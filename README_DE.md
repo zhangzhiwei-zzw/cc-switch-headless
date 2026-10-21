@@ -2,7 +2,7 @@
 
 # CC Switch
 
-### Der All-in-One-Manager für Claude Code, Claude Desktop, Codex, Gemini CLI, Grok Build, OpenCode, OpenClaw, Hermes Agent, Pi & MiniMax Code
+### Der All-in-One-Manager für Claude Code, Claude Desktop, Codex, Gemini CLI, Grok Build, OpenCode, OpenClaw, Hermes Agent, Pi, MiniMax Code & Antigravity CLI
 
 **API-Anbieter mit einem Klick wechseln und MCP, Skills und Prompts zentral verwalten — ohne JSON-, TOML- oder YAML-Konfigurationsdateien von Hand zu bearbeiten.**
 
@@ -46,11 +46,6 @@ Arbeiten Sie hauptsächlich mit Programmierung? Probieren Sie einen **Kimi Code 
 </tr>
 
 <tr>
-<td width="180"><a href="https://zetaapi.ai/go/u117"><img src="assets/partners/logos/zetaapi-banner.png" alt="ZetaAPI" width="150"></a></td>
-<td>Danke an ZetaAPI für die Unterstützung dieses Projekts! ZetaAPI legt den Fokus auf echte Modelltreue — keine verwässerten Antworten, keine Qualitätsminderung — und Preise von nur 35 % der offiziellen Tarife. Die Plattform mischt keinen Traffic, ersetzt Modelle nicht heimlich durch minderwertige Alternativen und nutzt kein gefälschtes Modell-Routing. Sie unterstützt Claude Code, Codex, Gemini, ChatGPT und weitere gängige KI-Modelle und hilft Nutzern, die API-Kosten deutlich zu senken und gleichzeitig eine zuverlässige Modellqualität zu gewährleisten. Gleichzeitig bietet ZetaAPI eine SLA-gestützte Stabilität auf Unternehmensniveau, Standard-API-Kompatibilität, einen API-Key für mehrere Modelle, schnelle Integration und nutzungsbasierte Abrechnung — geeignet für KI-Produkte, Coding-Agents, interne Unternehmenstools, Kundenservice-Systeme, Content-Erstellung und Automatisierungs-Workflows. Falls bei einem Modell nachgewiesen wird, dass es nicht der angegebenen Qualität entspricht, sichert ZetaAPI dies mit einer 10-fachen Entschädigungsgarantie ab und bietet Nutzern ein stabileres, transparenteres und vertrauenswürdigeres Erlebnis. Registrieren Sie sich über <a href="https://zetaapi.ai/go/u117">diesen Link</a> und verwenden Sie bei Ihrer ersten Aufladung den Promo-Code CC-SWITCH, um als CC-Switch-Nutzer einen exklusiven Rabatt von 10 % auf Ihre erste Aufladung zu erhalten!</td>
-</tr>
-
-<tr>
 <td width="180"><a href="https://apinebula.ai/VjM74M"><img src="assets/partners/logos/apinebula_banner.png" alt="APINebula" width="150"></a></td>
 <td>Danke an APINEBULA für die Unterstützung dieses Projekts! APINEBULA ist eine Enterprise-KI-Aggregationsplattform unter Galaxy Video Bureau und nutzt umfangreiche Plattformressourcen, um Entwicklern, Teams und Unternehmen stabilen und kosteneffizienten Zugang zu APIs großer Sprachmodelle zu bieten. Die Plattform bündelt führende vollwertige Modelle wie Claude, GPT und Gemini. Über eine einzige API erhalten Sie Zugriff auf weltweit führende KI-Modelle, mit Preisen ab 10 % des Originalpreises. APINEBULA ist für KI-Programmierung, Agent-Entwicklung und Integration in Geschäftssysteme ausgelegt und unterstützt enterprise-grade hohe Parallelität, formale Verträge, Firmenüberweisungen und Rechnungsstellung. APINEBULA bietet Nutzern dieser Software besondere Rabatte: Registrieren Sie sich über <a href="https://apinebula.ai/VjM74M">diesen Link</a> und geben Sie beim ersten Aufladen den Aktionscode <strong>"ccswitch"</strong> ein, um <strong>10 % Rabatt</strong> zu erhalten.</td>
 </tr>
@@ -84,8 +79,18 @@ Registrieren Sie sich jetzt über <a href="https://pateway.ai/?ch=etzpm8&aff=WB6
 </tr>
 
 <tr>
+<td width="180"><a href="https://app.everyapi.ai/signin?aff=FqlMa2eVVY&utm_source=ccswitch&utm_medium=invite"><img src="assets/partners/logos/everyapi-banner.jpg" alt="EveryAPI" width="150"></a></td>
+<td>Danke an EveryAPI für die Unterstützung dieses Projekts! EveryAPI hat sich zum Ziel gesetzt, Entwicklern einen stabilen, effizienten und preiswerten API-Relay-Dienst zu bieten, und unterstützt gängige AI-Coding-Tools wie Claude, Codex und Gemini sowie eine Vielzahl moderner Modelle. Ohne aufwendige Konfiguration ist die Anbindung schnell erledigt — so programmieren Sie effizienter und bauen AI-Anwendungen schneller. Ob alltägliche Entwicklung, Projekt-Debugging oder AI-gestütztes Programmieren: EveryAPI sorgt für ein bequemes, reibungsloses Nutzungserlebnis. EveryAPI macht AI-Entwicklung einfacher und jeden Aufruf wertvoller! Exklusiver Vorteil für CC-Switch-Nutzer: Registrieren Sie sich über <a href="https://app.everyapi.ai/signin?aff=FqlMa2eVVY&utm_source=ccswitch&utm_medium=invite">diesen Link</a> und erhalten Sie 14 ¥ Startguthaben, mit dem Code <strong>ccswitch</strong> 20 % Rabatt auf die erste Aufladung und GPT-Modelle ab 15 % des offiziellen Preises!</td>
+</tr>
+
+<tr>
 <td width="180"><a href="https://grooroute.pro/sign-up?aff=qqm9"><img src="assets/partners/logos/grooroute-banner.jpg" alt="GrooRoute Pro" width="150"></a></td>
 <td>Danke an GrooRoute Pro für die Unterstützung dieses Projekts! GrooRoute Pro ist eine zuverlässige und reibungslose AI-API-Relay-Plattform mit Zugang zu OpenAI, Claude, DeepSeek und weiteren gängigen Modellen. Die Plattform läuft auf Servern im Ausland, lässt Sie die Preismultiplikator-Stufe selbst wählen und bietet sowohl nutzungsbasierte Abrechnung als auch Abo-Pakete — flexibel nutzbar, mit stabilen Verbindungen und schnellen Antwortzeiten, damit Sie KI-Funktionen aller Art bequem nutzen können. Exklusiver Vorteil für CC-Switch-Nutzer: Registrieren Sie sich über <a href="https://grooroute.pro/sign-up?aff=qqm9">diesen Link</a> und erhalten Sie ein kostenloses Testguthaben von 5 ¥!</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://dit.ai/register"><img src="assets/partners/logos/dit-banner.png" alt="DIT.ai" width="150"></a></td>
+<td>Danke an DIT.ai für die Unterstützung dieses Projekts! DIT.ai ist eine AI-Token-Börse und ein Marktplatz für kostengünstiges Multi-Provider-Routing. Über eine einzige OpenAI-kompatible API erhalten Entwickler Zugriff auf mehr als 50 führende AI-Modelle — darunter GPT, Claude, Gemini, DeepSeek, Grok, Llama und weitere für Text, Bild, Video und Audio. Geprüfte Anbieter konkurrieren über mehr als 160 Routen um jede Anfrage, und DIT wählt in Echtzeit die beste verfügbare Preis-Leistungs-Option, typischerweise 30–70 % unter den offiziellen Listenpreisen. Gebaut für Entwickler, Startups und Teams, die Agenten oder AI-Produkte im großen Maßstab betreiben: Base-URL und API-Schlüssel austauschen, den bestehenden Stack behalten und Modelle mit automatischem Routing und Failover aufrufen. CC-Switch-Nutzer können sich über <a href="https://dit.ai/register">diesen Link</a> registrieren und mit dem Promo-Code <strong>ccswitch</strong> einen Willkommensgutschein über 5 $ erhalten!</td>
 </tr>
 
 <tr>

@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.15.lock`](upstream-v4.0.15.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.17.lock`](upstream-v4.0.17.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -72,6 +72,7 @@ Host github.com
 | 2026-10-12 | v4.0.8 → v4.0.9 | 41 | 109 | 4 个文件 / 4 处 |
 | 2026-10-17 | v4.0.9 → v4.0.14 | 175 | 335 | 5 个文件 / 6 处 |
 | 2026-10-18 | v4.0.14 → v4.0.15 + 2 commits | 20 | 93 | 4 个文件 / 5 处 |
+| 2026-10-21 | v4.0.15 → v4.0.17 + 上游后续提交 | 89 | 298 | 7 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -126,6 +127,13 @@ git merge --abort                             # 看完撤销
 故障转移服务与 `desktop` 门，托盘刷新改用上游接口；新增的 `tray_panel` 模块及
 Vite 面板入口只在桌面构建启用。Web 的 `set_proxy_route` 改为返回上游的切换结果。
 端到端覆盖补充 Pi 状态、脚本保存、路由结果和趋势图样式持久化。
+
+本次（2026-10-21，v4.0.17）从 `sync/upstream-2026-10` 合并上游 `main`。
+上游新增 Antigravity CLI 与账号管理、OpenCode 默认模型、托盘面板及多项 Codex/代理修复。
+保留 fork 的 headless README、server feature 门与 Web 登录能力；Web 增加 Antigravity
+本机模型发现和 OpenCode 默认模型读写，托管账号中心仍由 `pageAuth: false` 明确隐藏。
+冲突涉及 `README.md`、`package.json`、`Cargo.toml`、Provider 命令、`lib.rs`、MCP 服务和
+`App.tsx`。命令覆盖契约补入 11 个应用及新命令，Antigravity 托管账号查询列为 Web 未支持。
 
 ## 冲突高发区
 
@@ -313,10 +321,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.15.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.17.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.15.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.17.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

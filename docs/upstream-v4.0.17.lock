@@ -1,0 +1,12 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.17"
+upstream_commit = "19798e2f92a4ff949a7647e07c33351bf597fa10"
+resolved_at = "2026-10-21"
+
+# v4.0.17 为 annotated tag；记录 peel 后的 commit。
+# 本次将上游 main 合并到 0a41250d，共 89 个上游提交、298 个文件。
+last_merged_commit = "0a41250dc03a01dd6418ed815023fd46db9b7840"
+last_merged_tag = "v4.0.17"
+
+# 复核：git ls-remote upstream HEAD 'refs/tags/v4.0.17*'
+# 同步流程见 syncing-upstream-zh.md。

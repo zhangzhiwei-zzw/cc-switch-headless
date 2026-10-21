@@ -2,7 +2,7 @@
 
 # cc-switch-headless
 
-### CC Switch 的无头 Web 服务端 —— 在浏览器里管理 Claude Code、Codex、Gemini CLI 等 10 个 AI CLI
+### CC Switch 的无头 Web 服务端 —— 在浏览器里管理 Claude Code、Codex、Gemini CLI 等 11 个 AI CLI
 
 **界面和桌面版一模一样，只是走 HTTP。为服务器、容器和装不了 WebKitGTK 的系统而做。**
 
@@ -16,7 +16,7 @@
 > 📄 **本文是上游应用的完整中文文档**（桌面版的全部功能、FAQ、赞助商等）。
 > 想直接用 Web 服务端模式，请看 **[README.md](README.md)** 的快速开始。
 
-[![基于](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.0-blue)](https://github.com/farion1231/cc-switch)
+[![基于](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.17-blue)](https://github.com/farion1231/cc-switch)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange.svg)](https://tauri.app/)
 
@@ -89,11 +89,6 @@ Kimi K3 是 Moonshot AI 迄今能力最强的模型，也是全球首个开源 3
 </tr>
 
 <tr>
-<td width="180"><a href="https://zetaapi.ai/go/u117"><img src="assets/partners/logos/zetaapi-banner.png" alt="ZetaAPI" width="150"></a></td>
-<td>感谢 ZetaAPI 赞助本项目！ZetaAPI 主打模型不掺水、保真不降智、价格低至官方价 35 折，平台不混量、不暗中替换低质量模型、不做虚假路由，支持 Claude Code、Codex、Gemini、ChatGPT 等主流模型接入，帮助用户在保证模型质量的同时大幅降低 API 使用成本。同时，ZetaAPI 提供企业级 SLA 稳定性保障、标准接口兼容、一个 Key 接入多模型、快速集成、按量计费等能力，适用于 AI 产品、代码生成、企业内部工具、客服系统、内容生产和自动化流程等场景。若经验证发现模型质量与标称不符，ZetaAPI 承诺假一赔十，让用户用得更稳定、更透明、更放心。通过<a href="https://zetaapi.ai/go/u117">此链接</a>注册，并在首次充值时使用优惠码 CC-SWITCH，即可享受 CC Switch 用户专属的首次充值九折优惠！</td>
-</tr>
-
-<tr>
 <td width="180"><a href="https://apinebula.ai/VjM74M"><img src="assets/partners/logos/apinebula_banner.png" alt="APINebula" width="150"></a></td>
 <td>感谢 APINEBULA 赞助本项目！APINEBULA 是银河录像局旗下的企业级 AI 聚合平台，背靠大平台资源，面向开发者、团队与企业用户提供稳定、高性价比的大模型 API 接入服务。平台聚合 Claude、GPT、Gemini 等主流满血模型，一个接口，接入全球顶尖 AI 大模型，各大模型价格低至 1 折起，支持企业级高并发、正式合同、对公打款与开票服务，适合 AI 编程、Agent 开发、业务系统集成等多种场景！使用<a href="https://apinebula.ai/VjM74M">此链接</a>注册并在充值时填写 <strong>"ccswitch"</strong> 优惠码可享<strong>九折优惠</strong>！</td>
 </tr>
@@ -127,8 +122,18 @@ Claude Code / Codex / Gemini 官方渠道低至 3.8 / 0.2 / 0.9 折，充值更�
 </tr>
 
 <tr>
+<td width="180"><a href="https://app.everyapi.ai/signin?aff=FqlMa2eVVY&utm_source=ccswitch&utm_medium=invite"><img src="assets/partners/logos/everyapi-banner.jpg" alt="EveryAPI" width="150"></a></td>
+<td>感谢 EveryAPI 赞助了本项目！EveryAPI 致力于为开发者提供稳定、高效、高性价比的 API 中转服务，支持 Claude、Codex、Gemini 等主流 AI 编程工具及多种先进模型。无需复杂配置，轻松接入，助力开发者高效编程、快速构建 AI 应用。无论是日常开发、项目调试还是 AI 辅助编程，EveryAPI 都能为你提供便捷、流畅的使用体验。EveryAPI，让 AI 开发更简单，让每一次调用都更有价值！EveryAPI 为 CC Switch 的用户提供了特别福利，通过<a href="https://app.everyapi.ai/signin?aff=FqlMa2eVVY&utm_source=ccswitch&utm_medium=invite">此链接</a>注册即送 14 元，首充使用折扣码 <strong>ccswitch</strong> 享 20% 优惠，GPT 低至 1.5 折！</td>
+</tr>
+
+<tr>
 <td width="180"><a href="https://grooroute.pro/sign-up?aff=qqm9"><img src="assets/partners/logos/grooroute-banner.jpg" alt="GrooRoute Pro" width="150"></a></td>
 <td>感谢 GrooRoute Pro 赞助了本项目！GrooRoute Pro 是可靠流畅的 AI API 中转服务平台，接入 OpenAI、Claude、DeepSeek 等多款主流大模型。平台采用海外服务器部署，支持倍率档位自选，兼具按量计费与订阅套餐两种方案，多种使用方式灵活可选，线路稳定、响应迅速，让使用者可以更轻松便捷地调用各类 AI 能力。GrooRoute Pro 为 CC Switch 用户准备了专属福利，点击<a href="https://grooroute.pro/sign-up?aff=qqm9">此链接</a>注册即可获得免费 5 元体验额度！</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://dit.ai/register"><img src="assets/partners/logos/dit-banner.png" alt="DIT.ai" width="150"></a></td>
+<td>感谢 DIT.ai 赞助了本项目！DIT.ai 是一个 AI Token 交易市场，通过多供应商路由降低调用成本。开发者只需一个 OpenAI 兼容 API，即可调用 GPT、Claude、Gemini、DeepSeek、Grok、Llama 等 50 多个主流 AI 模型，覆盖文本、图像、视频和音频。合格供应商在 160 多条线路上为每个请求竞价，DIT 实时选出性价比最优的线路，价格通常比官方定价低 30–70%。DIT.ai 面向开发者、初创公司以及规模化运行 Agent 或 AI 产品的团队：只需更换 Base URL 和 API Key，保留现有技术栈，即可享受自动路由与故障转移。CC Switch 用户通过<a href="https://dit.ai/register">此链接</a>注册并使用优惠码 <strong>ccswitch</strong>，即可领取 5 美元新人券！</td>
 </tr>
 
 <tr>
@@ -264,7 +269,7 @@ Claude Code、Codex、Gemini CLI 等 AI 编程工具各有各的配置格式。�
 
 **CC Switch** 把这些工作集中到一个桌面应用里：选一个预设、填入 Key，一键即可切换。切换时只替换地址、Key、模型这几项连接信息，你自己加的插件、Hook、MCP 和注释都原样保留。
 
-- **一个应用，十个工具** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code
+- **一个应用，十一个工具** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code、Antigravity（agy）
 - **告别手动编辑** — 90+ 供应商预设，包括 AWS Bedrock、NVIDIA NIM 和社区中转服务
 - **直连、路由、聚合，按需选择** — 直连是工具直接连供应商；路由经本机转发，能转换接口格式、自动故障转移，让 Claude Code 用 GPT、Codex 用 Claude；聚合把多家供应商的模型放进 Claude Code 或 Codex 的同一个模型列表，选哪个模型，请求就发给哪一家
 - **MCP、Skills 与提示词集中管理** — MCP 和 Skills 添加一次，按工具勾选同步；提示词按工具分别维护

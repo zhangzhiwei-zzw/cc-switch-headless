@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.15**（已合并至上游 `77c6dc79`），见
-> [`upstream-v4.0.15.lock`](upstream-v4.0.15.lock)。
+> 当前对标基线 **v4.0.17**（已合并至上游 `0a41250d`），见
+> [`upstream-v4.0.17.lock`](upstream-v4.0.17.lock)。
 >
 > **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
 > 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。
@@ -261,6 +261,8 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 供应商：新增 / 编辑 / 删除 / 切换 / 排序 / 从 live 导入 / 编辑器预览；
   **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库：单张 PNG
   ≤ 256×256、data URI ≤ 64 KiB，整个图标库最多 100 个，名称 ≤ 64 字符；
+- **Antigravity（agy）供应商**：可配置 API Key、地址和模型；模型发现由服务器上安装的
+  `agy` CLI 执行。OpenCode 供应商卡也可读取 / 设置 `opencode.json` 顶层默认模型；
 - 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；用量页的显示设置
   （货币与汇率、侧栏 Today 显示项、请求日志列）存在服务端 `settings.json`，**所有浏览器
   共享**；「记住上次 Tab / 时间范围」用浏览器 localStorage，按浏览器各自独立；
@@ -304,8 +306,8 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 
 - 托盘、自动更新（含便携版更新下载）、`ccswitch://` 深链、开机自启、窗口控制；
 - 目录选择对话框（`pick_directory`）——浏览器无法为服务端选路径；
-- 托管账号（Copilot / Codex / xAI）的**登录流程**（转发链路已支持托管账号，
-  但 OAuth 登录命令尚未接入）；连带 Copilot 与 xAI 供应商的**用量查询**
+- 托管账号中心（Copilot / Codex / xAI / Antigravity）的**登录、切换与账号管理**
+  （转发链路已支持已有托管账号，OAuth 管理命令尚未接入）；连带 Copilot 与 xAI 供应商的**用量查询**
   也不可用（额度要问 OAuth 管理器），余额 / Coding Plan / 官方订阅额度 /
   JS 脚本四条路径不受影响；
 - Stack（聚合）模式、熔断器配置与健康状态；

@@ -626,6 +626,13 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: ["openclaw", "lobster", "claw"],
     defaultColor: "#ff4f40",
   },
+  antigravity: {
+    name: "antigravity",
+    displayName: "Antigravity",
+    category: "ai-provider",
+    keywords: ["antigravity", "agy", "google"],
+    defaultColor: "#3186FF",
+  },
   hermes: {
     name: "hermes",
     displayName: "Hermes",
@@ -1108,6 +1115,13 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: ["modelflare", "model flare", "aggregator", "gateway", "relay"],
     defaultColor: "currentColor",
   },
+  dit: {
+    name: "dit",
+    displayName: "DIT.ai",
+    category: "ai-provider",
+    keywords: ["dit", "dit.ai", "aggregator", "marketplace", "exchange"],
+    defaultColor: "currentColor",
+  },
   everyapi: {
     name: "everyapi",
     displayName: "EveryAPI",
@@ -1121,6 +1135,19 @@ export const iconMetadata: Record<string, IconMetadata> = {
     category: "ai-provider",
     shape: "tile",
     keywords: ["alltokens", "all tokens", "aggregator", "gateway", "relay"],
+    defaultColor: "currentColor",
+  },
+  "alltokens-si": {
+    name: "alltokens-si",
+    displayName: "AllTokens SI",
+    category: "ai-provider",
+    keywords: [
+      "alltokens",
+      "alltokens si",
+      "enterprise",
+      "aggregator",
+      "relay",
+    ],
     defaultColor: "currentColor",
   },
 };
