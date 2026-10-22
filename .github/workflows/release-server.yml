@@ -239,7 +239,12 @@ jobs:
           "$hash  $name.exe" | Out-File -Encoding ascii "$name.exe.sha256"
           Get-Content "$name.exe.sha256"
           Get-Item "$name.exe" | Select-Object Name, Length
-          "commit=$(git rev-parse HEAD)" | Out-File -Encoding ascii "$name.build.txt"
+          $lock = Get-ChildItem "docs/upstream-*.lock" | Sort-Object Name | Select-Object -Last 1
+          $lockText = Get-Content -Raw $lock.FullName
+          $upstream = [regex]::Match($lockText, '(?m)^last_merged_commit *= *"([^"]+)"').Groups[1].Value
+          $upstreamTag = [regex]::Match($lockText, '(?m)^upstream_tag *= *"([^"]+)"').Groups[1].Value
+          if (-not $upstream -or -not $upstreamTag) { throw "Missing upstream provenance" }
+          @("commit=$(git rev-parse HEAD)", "upstream=$upstream", "upstream_tag=$upstreamTag") | Out-File -Encoding ascii "$name.build.txt"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -277,9 +282,13 @@ jobs:
           from pathlib import Path
           records = [dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
                      for path in Path("assets").glob("*.build.txt")]
+          required = ("commit", "upstream", "upstream_tag")
+          if len(records) != 3 or any(not record.get(key) for record in records for key in required):
+              raise SystemExit("Missing artifact source provenance")
           commits = {record["commit"] for record in records}
-          tags = {record["upstream_tag"] for record in records if "upstream_tag" in record}
-          if len(records) != 3 or len(commits) != 1 or len(tags) != 1:
+          upstream_commits = {record["upstream"] for record in records}
+          tags = {record["upstream_tag"] for record in records}
+          if len(commits) != 1 or len(upstream_commits) != 1 or len(tags) != 1:
               raise SystemExit("Artifacts do not come from one source commit and upstream baseline")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write("upstream=" + tags.pop() + "\n")

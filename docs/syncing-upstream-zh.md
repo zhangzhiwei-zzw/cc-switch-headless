@@ -146,6 +146,18 @@ Unix 提升文件描述符软上限的修复同步应用到服务端入口。
 命令、12 个应用）、能力文档一致性、Rust 格式、server Clippy（`-D warnings`）及
 server 二进制构建通过。本次未运行单元测试、HTTP/浏览器回归或跨平台发布构建。
 
+### v4.0.18 发布前的 CI 修复
+
+上次提交 `c84be35` 的 [CI #23](https://github.com/zhangzhiwei-zzw/cc-switch-headless/actions/runs/39626013401)
+在 Linux、macOS、Windows 的桌面 Clippy 阶段失败，Web/server 检查通过。本地复现了
+`services/provider/usage.rs` 中 8 个 `dead_code` 错误：Web 专用的用量分发函数与常量
+被无条件编进桌面构建。对应接口改为 `server` feature 编译；凭据解析辅助函数保留
+`server` 或 `test` 编译，继续覆盖已有测试。没有放宽 `-D warnings`。
+
+修复后桌面/server Clippy 均通过，Kimi 和供应商相关 67 项单元测试、10 项浏览器回归
+以及 172 项 HTTP、安全和安装回归通过。Windows Release 的 `.build.txt` 同时补齐上游提交与标签；发布步骤要求三平台
+元数据完整且源码提交、上游提交和上游标签分别一致。
+
 ## 冲突高发区
 
 | 类别 | 文件 | 说明 |

@@ -4,7 +4,9 @@
 
 use crate::app_config::AppType;
 use crate::error::AppError;
-use crate::provider::{Provider, UsageData, UsageResult, UsageScript};
+#[cfg(any(feature = "server", test))]
+use crate::provider::Provider;
+use crate::provider::{UsageData, UsageResult, UsageScript};
 use crate::settings;
 use crate::store::AppState;
 use crate::usage_script;
@@ -188,13 +190,19 @@ pub async fn query_usage(
     .await
 }
 
+// Web 用量分发由 server feature 编译；桌面命令保留上游的托管账号实现。
 /// UsageScript 的模板类型标记。
+#[cfg(feature = "server")]
 pub const TEMPLATE_TYPE_GITHUB_COPILOT: &str = "github_copilot";
+#[cfg(feature = "server")]
 pub const TEMPLATE_TYPE_TOKEN_PLAN: &str = "token_plan";
+#[cfg(feature = "server")]
 pub const TEMPLATE_TYPE_BALANCE: &str = "balance";
+#[cfg(feature = "server")]
 pub const TEMPLATE_TYPE_OFFICIAL_SUBSCRIPTION: &str = "official_subscription";
 
 /// 配额百分比 → 前端用的用量结果（0..100，`extra` 放重置时间）。
+#[cfg(feature = "server")]
 pub fn subscription_quota_to_usage_result(
     quota: crate::services::subscription::SubscriptionQuota,
 ) -> UsageResult {
@@ -230,6 +238,7 @@ pub fn subscription_quota_to_usage_result(
 
 /// Resolve `(base_url, api_key)` for native usage queries, delegating to the
 /// per-app resolver on `Provider`. Missing provider → empty credentials.
+#[cfg(any(feature = "server", test))]
 pub fn resolve_native_credentials(
     app_type: &AppType,
     provider: Option<&Provider>,
@@ -240,6 +249,7 @@ pub fn resolve_native_credentials(
 }
 
 /// ZenMux 这类把额度信息放在脚本里的供应商，优先用脚本里的凭据。
+#[cfg(any(feature = "server", test))]
 fn resolve_coding_plan_credentials(
     app_type: &AppType,
     provider: Option<&Provider>,
@@ -284,6 +294,7 @@ fn resolve_coding_plan_credentials(
 /// 由调用方（`commands/provider.rs`）先行处理——服务端这两条路径直接报错。
 ///
 /// `provider` 由调用方查表后传入，避免在两条路径里重复查库。
+#[cfg(feature = "server")]
 pub async fn query_provider_usage(
     state: &AppState,
     app_type: AppType,
