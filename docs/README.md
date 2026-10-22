@@ -3,10 +3,14 @@
 本仓库在上游 CC Switch 业务层上提供无头 Web 服务。浏览器操作的是**运行服务端的机器**的配置和会话。
 
 - [安装、Docker、systemd、HTTPS、升级与回滚](web-mode-zh.md)
-- [逐功能和应用支持矩阵](web-capabilities.md)
+- [应用支持表：供应商、路由、MCP、Skills、会话与用量](web-app-support.md)
+- [排错指南：登录、反代、容器、数据库与恢复](web-troubleshooting.md)
+- [开发者能力与命令覆盖矩阵](web-capabilities.md)
+- [接口契约与新增命令示例](web-api-contract.md)
 - [上游同步流程与记录](syncing-upstream-zh.md)
 - [安全策略与漏洞报告](../SECURITY.md)
 - [参与开发](../CONTRIBUTING.md)
+- [桌面开发参考](contributing-desktop.md)
 - [上游用户手册](user-manual/README.md)：包含桌面版功能，请结合 Web 支持矩阵阅读。
 
 ## Web 开发

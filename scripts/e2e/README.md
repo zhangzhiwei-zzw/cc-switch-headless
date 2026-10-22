@@ -7,9 +7,10 @@
 ## 运行
 
 ```bash
-# 1. 构建服务端（前端产物会被编进二进制；想改前端不重编的话，也可用 --dist 指向新的 dist-web）
-cd src-tauri
-cargo build --no-default-features --features server --bin cc-switch-server
+# 在仓库根目录运行。先构建前端，再构建服务端。
+# 前端产物会被编进二进制，也可用 --dist 覆盖它。
+pnpm build:web
+cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
 
 # 2. 跑全部
 bash scripts/e2e/run-all.sh

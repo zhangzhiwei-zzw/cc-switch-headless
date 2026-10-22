@@ -15,7 +15,7 @@
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
-    "check:web": "node scripts/web/check-command-coverage.mjs && node --test scripts/web/check-command-coverage.test.mjs && node scripts/web/generate-capabilities.mjs --check",
+    "check:web": "node scripts/web/check-command-coverage.mjs && node scripts/web/check-rpc-contract.mjs && node --test scripts/web/check-command-coverage.test.mjs && node scripts/web/generate-capabilities.mjs --check",
     "test:web": "playwright test",
     "dev:web": "node scripts/web/build.mjs --dev"
   },

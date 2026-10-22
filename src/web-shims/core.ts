@@ -7,14 +7,13 @@
 // 服务端分发表见 `src-tauri/src/web/routes.rs`。
 
 import { webFetch } from "@/lib/webConnection";
+import {
+  parseInvokeResponse,
+  validateCommandArgs,
+  validateCommandResult,
+} from "@/lib/api/commandSchemas";
 
 export type InvokeArgs = Record<string, unknown> | undefined;
-
-interface InvokeResponse<T> {
-  ok: boolean;
-  data?: T;
-  error?: string;
-}
 
 export interface ServerEnv {
   version: string;
@@ -42,6 +41,7 @@ export function serverEnv(): Promise<ServerEnv> {
 
 /** 直接调服务端的命令（不经过浏览器干预分支）。 */
 async function callServer<T>(cmd: string, args: InvokeArgs): Promise<T> {
+  validateCommandArgs(cmd, args ?? {});
   const response = await webFetch(
     "/api/invoke",
     {
@@ -61,10 +61,11 @@ async function callServer<T>(cmd: string, args: InvokeArgs): Promise<T> {
     throw `调用 ${cmd} 失败: HTTP ${response.status}`;
   }
 
-  const payload = (await response.json()) as InvokeResponse<T>;
+  const payload = parseInvokeResponse(cmd, await response.json());
   if (!payload.ok) {
     throw payload.error ?? `调用 ${cmd} 失败`;
   }
+  validateCommandResult(cmd, payload.data);
   return payload.data as T;
 }
 
@@ -236,7 +237,7 @@ function interceptBrowserCommand(cmd: string, args: InvokeArgs): unknown {
     case "export_config_to_file": {
       return exportAndDownload(args);
     }
-    // 会话流式读取：浏览器里用一次性拉取模拟 Channel
+    // 会话流式读取：把 NDJSON 分块投递给 Channel 回调
     case "stream_session_messages": {
       return streamSessionMessages(args);
     }

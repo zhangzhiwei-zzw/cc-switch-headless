@@ -58,4 +58,23 @@ Antigravity 支持卡片编辑和服务器 agy CLI 模型发现；Web 不提供�
 
 OpenClaw/Hermes 支持供应商基础管理；工作区、专用配置、记忆及 Web UI 启动入口仍未接入。
 
+## 参数与返回值契约
+
+当前 12 个关键命令具有类型化调用和 Web 运行时校验；其他命令仍只有注册与覆盖检查。
+
+- `get_current_provider`
+- `switch_provider`
+- `get_pi_current_state`
+- `get_pi_session_discovery`
+- `get_app_mode`
+- `set_proxy_route`
+- `get_direct_provider`
+- `get_opencode_live_provider_ids`
+- `get_opencode_default_model`
+- `set_opencode_default_model`
+- `get_openclaw_live_provider_ids`
+- `get_hermes_live_provider_ids`
+
+新增命令与变更契约见 [Web 接口契约](web-api-contract.md)。面向使用者的逐应用能力见 [应用支持表](web-app-support.md)。
+
 完整使用、部署与限制见 [Web 模式](web-mode-zh.md)。

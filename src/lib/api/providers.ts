@@ -1,3 +1,4 @@
+import { invokeChecked } from "./checkedInvoke";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -78,7 +79,7 @@ export const providersApi = {
   },
 
   async getCurrent(appId: AppId): Promise<string> {
-    return await invoke("get_current_provider", { app: appId });
+    return await invokeChecked("get_current_provider", { app: appId });
   },
 
   async add(
@@ -142,7 +143,7 @@ export const providersApi = {
   },
 
   async switch(id: string, appId: AppId): Promise<SwitchResult> {
-    return await invoke("switch_provider", { id, app: appId });
+    return await invokeChecked("switch_provider", { id, app: appId });
   },
 
   async importDefault(appId: AppId): Promise<boolean> {
@@ -224,16 +225,16 @@ export const providersApi = {
    * 用于前端判断供应商是否已添加到 opencode.json
    */
   async getOpenCodeLiveProviderIds(): Promise<string[]> {
-    return await invoke("get_opencode_live_provider_ids");
+    return await invokeChecked("get_opencode_live_provider_ids");
   },
 
   /** OpenCode 顶层 model（`<provider>/<model>`），没写时为 null */
   async getOpenCodeDefaultModel(): Promise<string | null> {
-    return await invoke("get_opencode_default_model");
+    return await invokeChecked("get_opencode_default_model");
   },
 
   async setOpenCodeDefaultModel(model: string): Promise<void> {
-    await invoke("set_opencode_default_model", { model });
+    await invokeChecked("set_opencode_default_model", { model });
   },
 
   /**
@@ -241,7 +242,7 @@ export const providersApi = {
    * 用于前端判断供应商是否已添加到 openclaw.json
    */
   async getOpenClawLiveProviderIds(): Promise<string[]> {
-    return await invoke("get_openclaw_live_provider_ids");
+    return await invokeChecked("get_openclaw_live_provider_ids");
   },
 
   /**
@@ -249,7 +250,7 @@ export const providersApi = {
    * 用于前端判断供应商是否已添加到 Hermes 配置
    */
   async getHermesLiveProviderIds(): Promise<string[]> {
-    return await invoke("get_hermes_live_provider_ids");
+    return await invokeChecked("get_hermes_live_provider_ids");
   },
 
   /**

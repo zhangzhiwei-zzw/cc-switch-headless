@@ -23,17 +23,25 @@ export function collectInvokes(text, file) {
   const commands = [];
   const dynamic = [];
   for (const statement of source.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      statement.moduleSpecifier.text !== "@tauri-apps/api/core"
-    )
-      continue;
+    if (!ts.isImportDeclaration(statement)) continue;
+    const module = statement.moduleSpecifier.text;
+    const importedName =
+      module === "@tauri-apps/api/core"
+        ? "invoke"
+        : module === "./checkedInvoke" || module === "@/lib/api/checkedInvoke"
+          ? "invokeChecked"
+          : null;
+    if (!importedName) continue;
     const bindings = statement.importClause?.namedBindings;
-    if (bindings && ts.isNamespaceImport(bindings))
+    if (
+      module === "@tauri-apps/api/core" &&
+      bindings &&
+      ts.isNamespaceImport(bindings)
+    )
       namespaces.add(bindings.name.text);
     if (bindings && ts.isNamedImports(bindings)) {
       for (const entry of bindings.elements)
-        if ((entry.propertyName ?? entry.name).text === "invoke")
+        if ((entry.propertyName ?? entry.name).text === importedName)
           aliases.add(entry.name.text);
     }
   }
@@ -92,7 +100,9 @@ export function loadSurface(root = repoRoot) {
       /\.[jt]sx?$/.test(file) &&
       !/\.(test|spec)\.[jt]sx?$/.test(file) &&
       !file.includes(`${path.sep}tray-panel${path.sep}`) &&
-      !file.includes(`${path.sep}web-shims${path.sep}`),
+      !file.includes(`${path.sep}web-shims${path.sep}`) &&
+      // The typed gateway delegates a schema-constrained command dynamically.
+      file !== path.join(root, "src/lib/api/checkedInvoke.ts"),
   )) {
     const name = path.relative(root, file).replaceAll(path.sep, "/");
     const found = collectInvokes(fs.readFileSync(file, "utf8"), name);

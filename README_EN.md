@@ -133,7 +133,7 @@ The Web build reuses the desktop frontend and hides unsupported actions. From a 
   between direct and routed mode, configure the failover queue
 - **Data** — export an SQL backup (downloaded straight to the browser), restore by uploading one, and
   create / restore / rename / delete backups
-- **Sessions** — browse the session logs the CLIs on **that machine** left behind: search, read, and delete where supported. Delete Kimi sessions in Kimi Code
+- **Sessions** — browse the session logs the CLIs on **that machine** left behind: search, read, and delete where supported. Delete Kimi, MiniMax Code and Antigravity sessions in their respective CLIs
 - **MCP** — CRUD, per-app toggles, import from the apps' own configs, re-sync back to them
 - **Skills** — install / update / uninstall, repo management, import unmanaged ones, migrate storage,
   install from a ZIP (browser picks the file → upload → the server unpacks it), backups, skills.sh search
@@ -179,4 +179,4 @@ Fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) by Jason
 in [README_ZH.md](README_ZH.md).
 
 
-Web documentation: [deployment and development](docs/README.md), [capability matrix](docs/web-capabilities.md), [security](SECURITY.md). Antigravity currently supports card editing and model discovery; launching sessions from Web is not available.
+Web documentation: [deployment and development](docs/README.md), [application support](docs/web-app-support.md), [troubleshooting](docs/web-troubleshooting.md), [security](SECURITY.md). Antigravity currently supports card editing and model discovery; launching sessions from Web is not available.

@@ -1,3 +1,4 @@
+import { invokeChecked } from "./checkedInvoke";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   RouteSwitchResult,
@@ -65,12 +66,12 @@ export const proxyApi = {
     appType: string,
     providerId: string,
   ): Promise<RouteSwitchResult> {
-    return invoke("set_proxy_route", { appType, providerId });
+    return invokeChecked("set_proxy_route", { appType, providerId });
   },
 
   // 应用页模式行：生效的模式、路由目标（直连时是上次路由的那家）、直连那家
   async getAppMode(appType: string): Promise<AppModeView> {
-    return invoke("get_app_mode", { appType });
+    return invokeChecked("get_app_mode", { appType });
   },
 
   // 启动时没能接上代理、已退回直连的应用（取一次就清空）
@@ -86,7 +87,7 @@ export const proxyApi = {
 
   // 直连供应商：路由模式下退出路由时写回的那家（和路由到的那家互相独立）
   async getDirectProvider(appType: string): Promise<string | null> {
-    return invoke("get_direct_provider", { appType });
+    return invokeChecked("get_direct_provider", { appType });
   },
 
   // ========== Stack 模型 API ==========

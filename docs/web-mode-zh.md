@@ -414,7 +414,7 @@ pnpm test:web
 - “关于”页显示实例、构建提交和数据目录；`GET /api/env` 提供同样的诊断信息，需要令牌。
 - 静态资源支持 gzip；用量、会话和设置等页面按需加载。普通命令等待上限 60 秒，导入/安装/同步等长任务 5 分钟，会话流 2 分钟。底层会话解析目前仍一次加载会话文件；分批传输减少浏览器的整包等待，但尚未实现服务端的增量解析。超时不表示服务端已回滚，不会自动重试写操作。
 
-功能状态由 [Web 支持矩阵](web-capabilities.md) 与运行时能力表提供。开发时新增能力后运行 `node scripts/web/generate-capabilities.mjs`；CI 会检查该文档是否过期。
+逐应用限制见 [应用支持表](web-app-support.md)，部署故障见 [排错指南](web-troubleshooting.md)。开发者功能状态由 [Web 支持矩阵](web-capabilities.md) 与运行时能力表提供。开发时新增能力后运行 `node scripts/web/generate-capabilities.mjs`；CI 会检查该文档是否过期。
 
 ### 旧访问令牌的兼容性
 

@@ -63,6 +63,7 @@ jobs:
             # 三平台矩阵和 WSL2 那两个 job。server 同时覆盖 Web 构建与浏览器回归。
             server:
               - "docs/web-capabilities.md"
+              - "docs/web-app-support.md"
               - "src-tauri/**"
               - "src/**"
               - "tests/browser/**"

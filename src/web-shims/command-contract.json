@@ -474,5 +474,19 @@
     "webdav_test_connection": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "write_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
     "write_workspace_file": "workspace 的专用管理界面尚未接入 Web。"
-  }
+  },
+  "validatedCommands": [
+    "get_current_provider",
+    "switch_provider",
+    "get_pi_current_state",
+    "get_pi_session_discovery",
+    "get_app_mode",
+    "set_proxy_route",
+    "get_direct_provider",
+    "get_opencode_live_provider_ids",
+    "get_opencode_default_model",
+    "set_opencode_default_model",
+    "get_openclaw_live_provider_ids",
+    "get_hermes_live_provider_ids"
+  ]
 }

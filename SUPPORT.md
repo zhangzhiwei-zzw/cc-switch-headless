@@ -1,3 +1,5 @@
+> Web 部署与使用问题请先查 [应用支持表](docs/web-app-support.md) 和 [排错指南](docs/web-troubleshooting.md)；开发接入见 [接口契约](docs/web-api-contract.md)。
+
 # Support / 获取帮助
 
 > [中文版本](#获取帮助)

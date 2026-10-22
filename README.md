@@ -128,7 +128,7 @@ Web 复用桌面版前端，并按能力隐藏未接入入口。下面这些可�
 - **供应商**：新增 / 编辑 / 删除 / 切换 / 排序；编辑器会预览「切过去之后配置文件长什么样」
 - **本地路由**：启动代理（默认 `127.0.0.1:15721`）、把 CLI 配置指向它、在直连与路由之间切换、配置故障转移队列
 - **数据**：导出 SQL 备份（浏览器直接下载）、上传 SQL 恢复、备份的创建 / 恢复 / 重命名 / 删除
-- **会话**：浏览**服务端这台机器**上各 CLI 留下的会话，支持搜索、查看和受支持应用的会话删除；Kimi 会话需要在 Kimi Code 中删除
+- **会话**：浏览**服务端这台机器**上各 CLI 留下的会话，支持搜索、查看和受支持应用的会话删除；Kimi、MiniMax Code、Antigravity 会话需要在各自 CLI 中删除
 - **MCP**：增删改、按应用开关、从各应用导入、一键重新同步回各应用
 - **Skills**：安装 / 更新 / 卸载、仓库管理、从未托管目录导入、存储位置迁移、
   从 ZIP 安装（浏览器选文件 → 上传 → 服务端解压）、备份恢复、skills.sh 搜索
@@ -170,4 +170,4 @@ Fork 自 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)（作�
 **上游功能及其问题请反馈给上游仓库**；上游应用的完整中文文档见 [README_ZH.md](README_ZH.md)。
 
 
-Web 文档导航：[部署与开发](docs/README.md) · [功能支持矩阵](docs/web-capabilities.md) · [安全策略](SECURITY.md) · [问题反馈](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues)。Antigravity 当前支持卡片编辑与模型发现，Web 会话启动尚未提供。
+Web 文档导航：[部署与开发](docs/README.md) · [应用支持表](docs/web-app-support.md) · [排错指南](docs/web-troubleshooting.md) · [安全策略](SECURITY.md) · [问题反馈](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues)。Antigravity 当前支持卡片编辑与模型发现，Web 会话启动尚未提供。

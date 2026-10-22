@@ -1,3 +1,4 @@
+import { invokeChecked } from "./checkedInvoke";
 import { invoke } from "@tauri-apps/api/core";
 import type { UsageScript } from "@/types";
 
@@ -21,7 +22,7 @@ export type PiSessionDiscovery =
 
 export const piApi = {
   async getCurrentState(): Promise<PiCurrentState> {
-    return await invoke("get_pi_current_state");
+    return await invokeChecked("get_pi_current_state");
   },
 
   async updateProviderUsageScript(
@@ -35,6 +36,6 @@ export const piApi = {
   },
 
   async getSessionDiscovery(): Promise<PiSessionDiscovery> {
-    return await invoke("get_pi_session_discovery");
+    return await invokeChecked("get_pi_session_discovery");
   },
 };
