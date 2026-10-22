@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import {
   useCallback,
   useEffect,
@@ -434,15 +435,21 @@ export function SettingsPage({
                     body: t("settings.appConfigDirDescription"),
                   }}
                 >
-                  <DirectoryInput
-                    label=""
-                    value={appConfigDir}
-                    resolvedValue={resolvedDirs.appConfig}
-                    placeholder={t("settings.browsePlaceholderApp")}
-                    onChange={updateAppConfigDir}
-                    onBrowse={browseAppConfigDir}
-                    onReset={resetAppConfigDir}
-                  />
+                  {supports("pickDirectory") ? (
+                    <DirectoryInput
+                      label=""
+                      value={appConfigDir}
+                      resolvedValue={resolvedDirs.appConfig}
+                      placeholder={t("settings.browsePlaceholderApp")}
+                      onChange={updateAppConfigDir}
+                      onBrowse={browseAppConfigDir}
+                      onReset={resetAppConfigDir}
+                    />
+                  ) : (
+                    <code className="break-all text-sm">
+                      {resolvedDirs.appConfig}
+                    </code>
+                  )}
                 </SettingsRow>
               </SettingsCard>
             </SettingsBlock>
@@ -482,22 +489,24 @@ export function SettingsPage({
                 />
               </div>
             </SettingsBlock>
-            <SettingsBlock
-              title={t("settings.advanced.cloudSync.title")}
-              help={{
-                title: t("settings.advanced.cloudSync.title"),
-                body: t("settings.advanced.cloudSync.description"),
-              }}
-            >
-              <div className="rounded-panel border border-border bg-surface p-5">
-                <WebdavSyncSection
-                  config={settings.webdavSync}
-                  s3Config={settings.s3Sync}
-                  settings={settings}
-                  onAutoSave={handleAutoSave}
-                />
-              </div>
-            </SettingsBlock>
+            {supports("cloudSync") && (
+              <SettingsBlock
+                title={t("settings.advanced.cloudSync.title")}
+                help={{
+                  title: t("settings.advanced.cloudSync.title"),
+                  body: t("settings.advanced.cloudSync.description"),
+                }}
+              >
+                <div className="rounded-panel border border-border bg-surface p-5">
+                  <WebdavSyncSection
+                    config={settings.webdavSync}
+                    s3Config={settings.s3Sync}
+                    settings={settings}
+                    onAutoSave={handleAutoSave}
+                  />
+                </div>
+              </SettingsBlock>
+            )}
             <SettingsBlock
               title={t("settings.advanced.logConfig.title")}
               help={{
@@ -505,14 +514,16 @@ export function SettingsPage({
                 body: t("settings.advanced.logConfig.description"),
               }}
               actions={
-                <Button
-                  variant="neutral"
-                  size="compact"
-                  onClick={() => void handleRevealLogFile()}
-                >
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  {t("settings.advanced.logConfig.openLog")}
-                </Button>
+                supports("openInFileManager") && (
+                  <Button
+                    variant="neutral"
+                    size="compact"
+                    onClick={() => void handleRevealLogFile()}
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    {t("settings.advanced.logConfig.openLog")}
+                  </Button>
+                )
               }
             >
               <div className="rounded-panel border border-border bg-surface p-5">

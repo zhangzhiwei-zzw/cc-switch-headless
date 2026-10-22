@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
@@ -421,10 +422,12 @@ export function EditProviderDialog({
         />
       )}
       {conflictDialog}
-      <AuthSettingsPanel
-        target={authSettingsTarget}
-        onClose={() => setAuthSettingsTarget(null)}
-      />
+      {supports("pageAuth") && (
+        <AuthSettingsPanel
+          target={authSettingsTarget}
+          onClose={() => setAuthSettingsTarget(null)}
+        />
+      )}
     </FullScreenPanel>
   );
 }

@@ -10,11 +10,13 @@
 //!
 //! 启动与桌面版一致的部分见 [`state::bootstrap`]。
 
+mod files;
 pub mod mcp;
 pub mod prompts;
 pub mod routes;
 pub mod skills;
 pub mod state;
+mod transcript;
 pub mod usage;
 
 use std::collections::HashMap;
@@ -31,7 +33,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::Stream;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, watch};
 
 use crate::store::AppState;
 
@@ -59,6 +61,9 @@ pub struct ServerEvent {
 pub struct Context {
     /// Stable per data directory and listener, so browser sessions on one host do not collide.
     pub cookie_name: String,
+    pub auth_generation: watch::Sender<u64>,
+    pub token_rotation: tokio::sync::Mutex<()>,
+    pub shutdown: watch::Sender<bool>,
     /// 数据库不可用（版本过新/初始化失败）时为 `None`，此时只有 `get_init_error` 可用，
     /// 前端会渲染「升级应用」恢复界面。
     pub state: Option<Arc<AppState>>,
@@ -97,6 +102,8 @@ impl Context {
             .write()
             .unwrap_or_else(|error| error.into_inner());
         *guard = token;
+        self.auth_generation
+            .send_modify(|generation| *generation += 1);
     }
 
     /// 取应用状态；数据库不可用时返回给前端的错误文案。
@@ -341,6 +348,9 @@ async fn serve(mut options: Options) -> Result<(), String> {
 
     let context = Arc::new(Context {
         cookie_name: resolve_cookie_name(options.cookie_name, options.port)?,
+        auth_generation: watch::channel(0).0,
+        token_rotation: tokio::sync::Mutex::new(()),
+        shutdown: watch::channel(false).0,
         state: app_state,
         token: Arc::new(RwLock::new(token.clone())),
         token_from_flag: options.token_from_flag,
@@ -351,7 +361,7 @@ async fn serve(mut options: Options) -> Result<(), String> {
     });
 
     // 5. 路由
-    let router = build_router(context);
+    let router = build_router(context.clone());
 
     // 6. 监听
     let addr = SocketAddr::new(options.bind, options.port);
@@ -383,9 +393,21 @@ async fn serve(mut options: Options) -> Result<(), String> {
         None => println!("已通过 --no-token 关闭访问令牌校验（仅建议本机使用）"),
     }
 
+    let shutdown_context = context.clone();
     axum::serve(listener, router)
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            shutdown_context.shutdown.send_replace(true);
+            log::info!("服务端停止接收请求，等待进行中的写入完成");
+        })
         .await
-        .map_err(|error| format!("HTTP 服务异常退出: {error}"))
+        .map_err(|error| format!("HTTP 服务异常退出: {error}"))?;
+    if let Some(state) = &context.state {
+        if state.proxy_service.is_running().await {
+            state.proxy_service.stop().await?;
+        }
+    }
+    Ok(())
 }
 
 /// 令牌优先级：命令行 → 环境变量 → 已有文件 → 新生成并写入 `<配置目录>/web-token`。
@@ -402,12 +424,14 @@ fn resolve_token(
     if let Some(token) = explicit {
         let token = token.trim().to_string();
         if !token.is_empty() {
+            validate_token(&token)?;
             return Ok((Some(token), true));
         }
     }
     if let Ok(token) = std::env::var("CC_SWITCH_WEB_TOKEN") {
         let token = token.trim().to_string();
         if !token.is_empty() {
+            validate_token(&token)?;
             return Ok((Some(token), true));
         }
     }
@@ -416,6 +440,8 @@ fn resolve_token(
     if let Ok(existing) = std::fs::read_to_string(&token_path) {
         let existing = existing.trim().to_string();
         if !existing.is_empty() {
+            validate_token(&existing)?;
+            persist_token(&existing).map_err(|error| format!("保护令牌文件失败: {error}"))?;
             return Ok((Some(existing), false));
         }
     }
@@ -429,6 +455,17 @@ fn resolve_token(
 
 /// 手工指定令牌时至少要这么长——太短的话暴力猜解就可行了。
 const MIN_TOKEN_LEN: usize = 16;
+
+fn validate_token(token: &str) -> Result<(), String> {
+    if token.len() < MIN_TOKEN_LEN
+        || !token
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~'))
+    {
+        return Err("令牌须至少 16 字符，仅含英文字母、数字、-、_、.、~".into());
+    }
+    Ok(())
+}
 
 /// 256 位随机令牌（两个 UUID v4 的十六进制拼接，64 个字符）。
 fn generate_token() -> String {
@@ -445,7 +482,8 @@ fn persist_token(token: &str) -> Result<(), std::io::Error> {
     if let Some(parent) = token_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&token_path, token)
+    crate::config::atomic_write_private(&token_path, token.as_bytes())
+        .map_err(std::io::Error::other)
 }
 
 fn build_router(context: Arc<Context>) -> Router {
@@ -455,6 +493,7 @@ fn build_router(context: Arc<Context>) -> Router {
         .route("/capabilities", get(routes::capabilities))
         .route("/env", get(env_info))
         .route("/events", get(events))
+        .route("/session-transcript", post(transcript::stream))
         // 导入 / 导出：浏览器没有服务端文件系统，用上传 / 下载代替文件对话框
         .route("/upload", post(upload))
         .route("/download", get(download))
@@ -470,6 +509,11 @@ fn build_router(context: Arc<Context>) -> Router {
                 .post(login)
                 .layer(axum::extract::DefaultBodyLimit::max(4096)),
         )
+        .route(
+            "/healthz",
+            get(|| async { Json(serde_json::json!({"status":"ok"})) }),
+        )
+        .route("/readyz", get(readiness))
         .nest("/api", api)
         .fallback(static_files)
         .layer(middleware::from_fn_with_state(context.clone(), guard_host))
@@ -518,63 +562,115 @@ async fn security_headers(
 }
 
 /// 托管前端产物：`--dist` 目录优先，其次是编译进二进制的那份，最后回退 `index.html`（SPA）。
-async fn static_files(AxumState(context): AxumState<Arc<Context>>, uri: Uri) -> Response {
+async fn static_files(
+    AxumState(context): AxumState<Arc<Context>>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
     let requested = uri.path().trim_start_matches('/');
     let requested = if requested.is_empty() {
         "index.html"
     } else {
         requested
     };
-
+    let gzip = headers
+        .get(header::ACCEPT_ENCODING)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|value| value.split(',').any(|part| part.trim() == "gzip"));
     if let Some(dir) = &context.dist_dir {
-        let candidate = dir.join(requested);
-        if candidate.is_file() {
-            match tokio::fs::read(&candidate).await {
-                Ok(bytes) => return asset_response(requested, bytes),
-                Err(error) => log::warn!("读取 {candidate:?} 失败: {error}"),
+        let candidate = match files::static_path(dir, requested) {
+            Ok(path) => path,
+            Err(()) => return (StatusCode::FORBIDDEN, "静态文件路径不被允许").into_response(),
+        };
+        if let Ok(bytes) = tokio::fs::read(&candidate).await {
+            return asset_response(requested, bytes, gzip);
+        }
+        // A custom distribution must never fall back to embedded assets from another build.
+        if let Ok(index) = files::static_path(dir, "index.html") {
+            if let Ok(bytes) = tokio::fs::read(index).await {
+                return asset_response("index.html", bytes, gzip);
             }
         }
+        return StatusCode::NOT_FOUND.into_response();
     }
-
     if let Some(asset) = EmbeddedWeb::get(requested) {
-        return asset_response(requested, asset.data.into_owned());
+        return asset_response(requested, asset.data.into_owned(), gzip);
     }
-
-    // SPA：未知路径交给前端路由
     if let Some(index) = EmbeddedWeb::get("index.html") {
-        return asset_response("index.html", index.data.into_owned());
+        return asset_response("index.html", index.data.into_owned(), gzip);
     }
-    if let Some(dir) = &context.dist_dir {
-        if let Ok(bytes) = tokio::fs::read(dir.join("index.html")).await {
-            return asset_response("index.html", bytes);
-        }
-    }
-
     (
         StatusCode::NOT_FOUND,
-        "前端产物缺失：请在仓库根目录执行 `pnpm build:web` 后重新构建服务端",
+        "前端产物缺失，请运行 pnpm build:web 并重建服务端",
     )
         .into_response()
 }
 
-fn asset_response(path: &str, bytes: Vec<u8>) -> Response {
+fn asset_response(path: &str, bytes: Vec<u8>, gzip: bool) -> Response {
+    use std::io::Write;
     let mime = mime_guess::from_path(path).first_or_octet_stream();
+    let compress = gzip
+        && bytes.len() > 1024
+        && matches!(mime.type_().as_str(), "text" | "application" | "image")
+        && (mime.type_().as_str() != "image" || mime.subtype().as_str() == "svg+xml");
+    let (bytes, compressed) = if compress {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        match encoder.write_all(&bytes).and_then(|()| encoder.finish()) {
+            Ok(encoded) => (encoded, true),
+            Err(_) => (bytes, false),
+        }
+    } else {
+        (bytes, false)
+    };
     let mut response = bytes.into_response();
     let headers = response.headers_mut();
     if let Ok(value) = HeaderValue::from_str(mime.as_ref()) {
         headers.insert(header::CONTENT_TYPE, value);
     }
-    // 产物带内容哈希，可以长缓存；index.html 不缓存，保证升级后立刻生效
-    let cache_control = if path.ends_with("index.html") {
-        "no-cache"
-    } else {
-        "public, max-age=31536000, immutable"
-    };
+    headers.insert(header::VARY, HeaderValue::from_static("Accept-Encoding"));
+    if compressed {
+        headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+    }
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static(cache_control),
+        HeaderValue::from_static(if path.ends_with("index.html") {
+            "no-cache"
+        } else {
+            "public, max-age=31536000, immutable"
+        }),
     );
     response
+}
+
+async fn readiness(AxumState(context): AxumState<Arc<Context>>) -> Response {
+    let ready = context.state.is_some() && !*context.shutdown.borrow();
+    (
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(serde_json::json!({"ready": ready})),
+    )
+        .into_response()
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut term) => {
+                tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = term.recv() => {} }
+            }
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 /// 校验 `Host` 与 `Origin`：默认只接受本机来源，挡住 DNS rebinding。
@@ -626,7 +722,7 @@ async fn auth(
     match context.token() {
         Some(expected) if provided == expected => {
             let mut response = Redirect::to("/").into_response();
-            match token_cookie(&context.cookie_name, &expected) {
+            match token_cookie(&context.cookie_name, &expected, context.hsts) {
                 Ok(value) => {
                     response.headers_mut().insert(header::SET_COOKIE, value);
                     response
@@ -647,7 +743,7 @@ async fn login(
     match context.token() {
         Some(expected) if body.token.as_deref().map(str::trim) == Some(expected.as_str()) => {
             let mut response = Json(serde_json::json!({ "ok": true })).into_response();
-            match token_cookie(&context.cookie_name, &expected) {
+            match token_cookie(&context.cookie_name, &expected, context.hsts) {
                 Ok(cookie) => {
                     response.headers_mut().insert(header::SET_COOKIE, cookie);
                     response
@@ -663,9 +759,11 @@ async fn login(
 fn token_cookie(
     name: &str,
     token: &str,
+    secure: bool,
 ) -> Result<HeaderValue, axum::http::header::InvalidHeaderValue> {
     HeaderValue::from_str(&format!(
-        "{name}={token}; Path=/; HttpOnly; SameSite=Strict"
+        "{name}={token}; Path=/; HttpOnly; SameSite=Strict{}",
+        if secure { "; Secure" } else { "" }
     ))
 }
 
@@ -680,6 +778,7 @@ async fn rotate_token(
     AxumState(context): AxumState<Arc<Context>>,
     Json(body): Json<RotateTokenRequest>,
 ) -> Response {
+    let _rotation = context.token_rotation.lock().await;
     if context.token().is_none() {
         return (
             StatusCode::BAD_REQUEST,
@@ -702,12 +801,24 @@ async fn rotate_token(
             )
                 .into_response();
         }
-        Some(value) => value.to_string(),
+        Some(value) => {
+            if let Err(error) = validate_token(value) {
+                return (StatusCode::BAD_REQUEST, error).into_response();
+            }
+            value.to_string()
+        }
         None => generate_token(),
     };
 
     if let Err(error) = persist_token(&token) {
-        log::warn!("写入 web-token 失败，新令牌只在本次运行有效: {error}");
+        log::error!("写入 web-token 失败，保留原令牌: {error}");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "ok": false, "persisted": false, "error": "令牌保存失败，原令牌仍然有效"
+            })),
+        )
+            .into_response();
     }
     context.set_token(Some(token.clone()));
 
@@ -727,7 +838,7 @@ async fn rotate_token(
     }))
     .into_response();
     // 顺手给当前浏览器换上新 cookie，省掉一次重新登录
-    if let Ok(value) = token_cookie(&context.cookie_name, &token) {
+    if let Ok(value) = token_cookie(&context.cookie_name, &token, context.hsts) {
         response.headers_mut().insert(header::SET_COOKIE, value);
     }
     response
@@ -742,12 +853,23 @@ struct RotateTokenRequest {
 /// `GET /api/events`：SSE 事件流。
 async fn events(
     AxumState(context): AxumState<Arc<Context>>,
+    headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let provided = token_from_headers(&headers, &context.cookie_name);
     let mut receiver = context.events.subscribe();
+    let mut generation = context.auth_generation.subscribe();
+    let mut shutdown = context.shutdown.subscribe();
 
     let stream = async_stream::stream! {
         loop {
-            match receiver.recv().await {
+            if context.token().is_some() && context.token() != provided { break; }
+            let received = tokio::select! {
+                biased;
+                _ = generation.changed() => break,
+                _ = shutdown.changed() => break,
+                event = receiver.recv() => event,
+            };
+            match received {
                 Ok(event) => {
                     yield Ok(Event::default()
                         .event(event.name)
@@ -773,31 +895,28 @@ struct UploadQuery {
 }
 
 async fn upload(Query(params): Query<UploadQuery>, body: axum::body::Bytes) -> Response {
+    let _transfer = files::TRANSFER_LOCK.lock().await;
     if body.is_empty() {
         return (StatusCode::BAD_REQUEST, "上传内容为空").into_response();
     }
 
-    // 只取文件名部分，杜绝 `../` 穿越
-    let file_name = Path::new(&params.name)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "upload.sql".to_string());
-
-    let dir = crate::config::get_app_config_dir().join("uploads");
-    if let Err(error) = std::fs::create_dir_all(&dir) {
+    let path = match files::allocate("uploads", &params.name) {
+        Ok(path) => path,
+        Err(error) => return (StatusCode::INSUFFICIENT_STORAGE, error).into_response(),
+    };
+    let data = body.to_vec();
+    let saved_path = path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        if files::usage()? + data.len() as u64 > files::MAX_TRANSFER_BYTES {
+            return Err("临时传输目录已达到 512 MiB".to_string());
+        }
+        crate::config::atomic_write_private(&saved_path, &data).map_err(|error| error.to_string())
+    })
+    .await;
+    if !matches!(result, Ok(Ok(()))) {
         return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("创建上传目录失败: {error}"),
-        )
-            .into_response();
-    }
-
-    let path = dir.join(file_name);
-    if let Err(error) = std::fs::write(&path, &body) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("写入上传文件失败: {error}"),
+            StatusCode::INSUFFICIENT_STORAGE,
+            "上传失败，请检查空间和目录权限",
         )
             .into_response();
     }
@@ -831,19 +950,29 @@ async fn download(Query(params): Query<DownloadQuery>) -> Response {
         return (StatusCode::FORBIDDEN, "只能下载 CC Switch 配置目录里的文件").into_response();
     }
 
-    let bytes = match tokio::fs::read(&path).await {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            return (StatusCode::NOT_FOUND, format!("读取文件失败: {error}")).into_response();
+    let mut file = match tokio::fs::File::open(&path).await {
+        Ok(file) if file.metadata().await.is_ok_and(|meta| meta.is_file()) => file,
+        _ => return (StatusCode::NOT_FOUND, "下载文件不可读").into_response(),
+    };
+    let stream = async_stream::stream! {
+        use tokio::io::AsyncReadExt;
+        loop {
+            let mut buffer = vec![0u8; 64 * 1024];
+            match file.read(&mut buffer).await {
+                Ok(0) => break,
+                Ok(count) => { buffer.truncate(count); yield Ok::<_, std::io::Error>(bytes::Bytes::from(buffer)); }
+                Err(error) => { yield Err(error); break; }
+            }
         }
     };
+    let body = axum::body::Body::from_stream(stream);
 
     let file_name = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| "download.bin".to_string());
 
-    let mut response = bytes.into_response();
+    let mut response = body.into_response();
     let headers = response.headers_mut();
     headers.insert(
         header::CONTENT_TYPE,
@@ -856,9 +985,13 @@ async fn download(Query(params): Query<DownloadQuery>) -> Response {
 }
 
 /// `GET /api/env`：前端 shim 需要的宿主信息（版本、home 目录、配置目录）。
-async fn env_info() -> Response {
+async fn env_info(AxumState(context): AxumState<Arc<Context>>) -> Response {
     axum::Json(serde_json::json!({
         "name": "cc-switch-server",
+        "mode": "web",
+        "buildCommit": env!("CC_SWITCH_BUILD_COMMIT"),
+        "instance": context.cookie_name,
+        "upstream": include_str!("../../../docs/upstream-v4.0.17.lock"),
         "version": env!("CARGO_PKG_VERSION"),
         "homeDir": dirs::home_dir().map(|path| path.to_string_lossy().to_string()),
         "configDir": crate::config::get_app_config_dir().to_string_lossy().to_string(),

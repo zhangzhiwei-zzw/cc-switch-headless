@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { proxyApi } from "@/lib/api/proxy";
 import { toast } from "@/lib/toast";
@@ -305,6 +306,7 @@ export function useProxyClientHost() {
   return useQuery({
     queryKey: proxyKeys.clientHost,
     queryFn: () => proxyApi.getProxyClientHost(),
+    enabled: supports("proxyClientHost"),
   });
 }
 

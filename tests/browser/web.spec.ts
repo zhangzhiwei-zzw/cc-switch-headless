@@ -190,3 +190,125 @@ test("two instances keep independent cookies in the same browser, including rest
   await other.reload();
   await expect(other.getByRole("navigation")).toBeVisible();
 });
+
+test("all application pages avoid unsupported commands and hide unavailable actions", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const unsupported: string[] = [];
+  const pending: Promise<void>[] = [];
+  page.on("response", (response) => {
+    if (!response.url().endsWith("/api/invoke")) return;
+    pending.push(
+      response
+        .json()
+        .then((body) => {
+          if (String(body.error ?? "").includes("E_NOT_IMPLEMENTED"))
+            unsupported.push(body.error);
+        })
+        .catch(() => {}),
+    );
+  });
+  await login(page);
+  for (const name of [
+    "Claude Code",
+    "Claude Desktop",
+    "Codex",
+    "Gemini CLI",
+    "Grok Build",
+    "OpenCode",
+    "OpenClaw",
+    "Hermes",
+    "Pi",
+    "MiniMax Code",
+    "Antigravity",
+  ]) {
+    await page
+      .getByRole("navigation")
+      .getByRole("button", { name, exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Stack", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("tab", { name: /Workspace|Memory|OpenClaw config/ }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Add Provider", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: /Add.*provider/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /^Back to (presets|providers)$/ })
+      .click();
+    if (
+      await page.getByRole("heading", { name: /Add.*provider/i }).isVisible()
+    ) {
+      await page
+        .getByRole("button", { name: "Back to providers", exact: true })
+        .click();
+    }
+    await expect(
+      page.getByRole("heading", { name: /Add.*provider/i }),
+    ).toHaveCount(0);
+  }
+  await expect(page.getByRole("note")).toContainText(
+    "Web can edit Antigravity",
+  );
+  await expect(
+    page.getByRole("button", { name: /Open terminal/i }),
+  ).toHaveCount(0);
+  await Promise.all(pending);
+  expect(unsupported).toEqual([]);
+});
+
+test("Web settings pages do not invoke desktop-only configuration commands", async ({
+  page,
+}) => {
+  const unsupported: string[] = [];
+  const pending: Promise<void>[] = [];
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/invoke"))
+      pending.push(
+        response
+          .json()
+          .then((body) => {
+            if (String(body.error ?? "").includes("E_NOT_IMPLEMENTED"))
+              unsupported.push(body.error);
+          })
+          .catch(() => {}),
+      );
+  });
+  await login(page);
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "Settings", exact: true })
+    .click();
+  for (const name of [
+    "General",
+    "App config",
+    "Local routing",
+    "Data",
+    "About",
+  ]) {
+    await page
+      .getByRole("navigation")
+      .getByRole("button", { name, exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+  }
+  await expect(
+    page
+      .getByRole("navigation")
+      .getByRole("button", { name: "Network", exact: true }),
+  ).toHaveCount(0);
+  await Promise.all(pending);
+  expect(unsupported).toEqual([]);
+});

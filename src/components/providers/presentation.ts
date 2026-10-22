@@ -641,7 +641,7 @@ export interface LaunchInput {
   app: AppId;
   t: TFunction;
   providers: Provider[];
-  openTerminal: (provider: Provider) => void;
+  openTerminal?: (provider: Provider) => void;
 }
 
 /**
@@ -665,13 +665,15 @@ export function buildLaunchSections(input: LaunchInput): ProviderSection[] {
                 },
               ]
             : [],
-          buttons: [
-            {
-              key: "openTerminal",
-              label: t("provider.openTerminalWithProvider"),
-              onClick: () => openTerminal(p),
-            },
-          ],
+          buttons: openTerminal
+            ? [
+                {
+                  key: "openTerminal",
+                  label: t("provider.openTerminalWithProvider"),
+                  onClick: () => openTerminal(p),
+                },
+              ]
+            : [],
         },
       })),
     },

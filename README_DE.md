@@ -1,3 +1,5 @@
+> Dieses Dokument beschreibt die Desktop-Anwendung aus dem Upstream-Projekt. Installation und Funktionsumfang dieses Web-Server-Forks: [English README](README_EN.md) und [Web-Dokumentation](docs/README.md).
+
 <div align="center">
 
 # CC Switch

@@ -155,6 +155,12 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
 
         // ---- 设置 ----
         table.insert("get_settings", get_settings as Handler);
+        table.insert(
+            "get_app_config_dir_override",
+            get_app_config_dir_override as Handler,
+        );
+        table.insert("get_log_config", get_log_config as Handler);
+        table.insert("set_log_config", set_log_config as Handler);
         table.insert("save_settings", save_settings as Handler);
         table.insert("get_config_dir", get_config_dir as Handler);
         table.insert("open_config_folder", open_config_folder as Handler);
@@ -202,6 +208,43 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             set_opencode_default_model as Handler,
         );
         table.insert("get_agy_models", get_agy_models as Handler);
+        table.insert(
+            "fetch_models_for_config",
+            fetch_models_for_config as Handler,
+        );
+        table.insert(
+            "get_openclaw_live_provider_ids",
+            get_openclaw_live_provider_ids as Handler,
+        );
+        table.insert(
+            "get_hermes_live_provider_ids",
+            get_hermes_live_provider_ids as Handler,
+        );
+        table.insert(
+            "get_hermes_model_config",
+            get_hermes_model_config as Handler,
+        );
+        table.insert(
+            "get_openclaw_default_model",
+            get_openclaw_default_model as Handler,
+        );
+        table.insert(
+            "set_openclaw_default_model",
+            set_openclaw_default_model as Handler,
+        );
+        table.insert(
+            "get_openclaw_model_catalog",
+            get_openclaw_model_catalog as Handler,
+        );
+        table.insert(
+            "get_openclaw_live_provider",
+            get_openclaw_live_provider as Handler,
+        );
+        table.insert(
+            "get_hermes_live_provider",
+            get_hermes_live_provider as Handler,
+        );
+
         table.insert("get_pi_current_state", get_pi_current_state as Handler);
         table.insert(
             "get_pi_session_discovery",
@@ -1411,16 +1454,8 @@ fn web_allocate_export_path(_context: Arc<Context>, args: Value) -> HandlerFutur
         }
         let Args { default_name } = parse(args)?;
 
-        // 只取文件名部分，杜绝 `../` 穿越
-        let file_name = std::path::Path::new(&default_name)
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "cc-switch-export.sql".to_string());
-
-        let dir = crate::config::get_app_config_dir().join("exports");
-        std::fs::create_dir_all(&dir).map_err(|e| format!("创建导出目录失败: {e}"))?;
-        let path = dir.join(file_name);
+        let _transfer = super::files::TRANSFER_LOCK.lock().await;
+        let path = super::files::allocate("exports", &default_name)?;
         Ok(Value::String(path.to_string_lossy().into_owned()))
     })
 }
@@ -1434,7 +1469,22 @@ fn export_config_to_file(context: Arc<Context>, args: Value) -> HandlerFuture {
         }
         let Args { file_path } = parse(args)?;
         let state = context.require_state()?;
-        crate::services::import_export::export_to_file(&state, &file_path).await
+        let _transfer = super::files::TRANSFER_LOCK.lock().await;
+        let result = crate::services::import_export::export_to_file(&state, &file_path).await?;
+        let export_root = crate::config::get_app_config_dir()
+            .join("exports")
+            .canonicalize()
+            .map_err(|e| e.to_string())?;
+        let path = std::path::Path::new(&file_path)
+            .canonicalize()
+            .map_err(|e| e.to_string())?;
+        if path.starts_with(export_root)
+            && super::files::usage()? > super::files::MAX_TRANSFER_BYTES
+        {
+            let _ = std::fs::remove_file(path);
+            return Err("临时传输目录已达到 512 MiB，导出已取消".into());
+        }
+        Ok(result)
     })
 }
 
@@ -1672,16 +1722,13 @@ fn export_session_markdown(_context: Arc<Context>, args: Value) -> HandlerFuture
             content,
         } = parse(args)?;
 
-        let file_name = std::path::Path::new(&default_name)
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "session.md".to_string());
-
-        let dir = crate::config::get_app_config_dir().join("exports");
-        std::fs::create_dir_all(&dir).map_err(|e| format!("创建导出目录失败: {e}"))?;
-        let path = dir.join(file_name);
-        crate::config::write_text_file(&path, &content).map_err(|e| e.to_string())?;
+        let _transfer = super::files::TRANSFER_LOCK.lock().await;
+        let path = super::files::allocate("exports", &default_name)?;
+        if super::files::usage()? + content.len() as u64 > super::files::MAX_TRANSFER_BYTES {
+            return Err("临时传输目录已达到 512 MiB".into());
+        }
+        crate::config::atomic_write_private(&path, content.as_bytes())
+            .map_err(|e| e.to_string())?;
         Ok(Value::String(path.to_string_lossy().into_owned()))
     })
 }
@@ -1697,5 +1744,139 @@ fn reveal_session_path(_context: Arc<Context>, _args: Value) -> HandlerFuture {
 fn launch_session_terminal(_context: Arc<Context>, _args: Value) -> HandlerFuture {
     Box::pin(async move {
         Err("Web 模式下不能打开终端；请在服务器上用 CLI 自行恢复会话".to_string())
+    })
+}
+
+fn get_openclaw_live_provider_ids(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        crate::openclaw_config::get_providers()
+            .map(|providers| providers.keys().cloned().collect::<Vec<String>>())
+            .map_err(|error| error.to_string())
+    })
+}
+
+fn get_hermes_live_provider_ids(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        crate::hermes_config::get_providers()
+            .map(|providers| providers.keys().cloned().collect::<Vec<String>>())
+            .map_err(|error| error.to_string())
+    })
+}
+
+fn get_hermes_model_config(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| crate::hermes_config::get_model_config().map_err(|error| error.to_string()))
+}
+
+fn get_openclaw_default_model(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| crate::openclaw_config::get_default_model().map_err(|error| error.to_string()))
+}
+
+fn get_openclaw_model_catalog(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| crate::openclaw_config::get_model_catalog().map_err(|error| error.to_string()))
+}
+
+fn set_openclaw_default_model(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    #[derive(serde::Deserialize)]
+    struct Args {
+        model: crate::openclaw_config::OpenClawDefaultModel,
+    }
+    match parse::<Args>(args) {
+        Ok(args) => deferred(move || {
+            crate::openclaw_config::set_default_model(&args.model).map_err(|e| e.to_string())
+        }),
+        Err(error) => Box::pin(async move { Err(error) }),
+    }
+}
+
+fn get_openclaw_live_provider(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Args {
+        provider_id: String,
+    }
+    match parse::<Args>(args) {
+        Ok(args) => deferred(move || {
+            crate::openclaw_config::get_provider(&args.provider_id).map_err(|e| e.to_string())
+        }),
+        Err(error) => Box::pin(async move { Err(error) }),
+    }
+}
+
+fn get_hermes_live_provider(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Args {
+        provider_id: String,
+    }
+    match parse::<Args>(args) {
+        Ok(args) => deferred(move || {
+            crate::hermes_config::get_provider(&args.provider_id).map_err(|e| e.to_string())
+        }),
+        Err(error) => Box::pin(async move { Err(error) }),
+    }
+}
+
+fn get_app_config_dir_override(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        Ok(crate::app_store::get_app_config_dir_override()
+            .map(|path| path.to_string_lossy().into_owned()))
+    })
+}
+fn get_log_config(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        deferred(move || state.db.get_log_config().map_err(|error| error.to_string())).await
+    })
+}
+fn set_log_config(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            config: crate::proxy::types::LogConfig,
+        }
+        let args: Args = parse(args)?;
+        let state = context.require_state()?;
+        deferred(move || {
+            state
+                .db
+                .set_log_config(&args.config)
+                .map_err(|error| error.to_string())?;
+            log::set_max_level(args.config.to_level_filter());
+            Ok(true)
+        })
+        .await
+    })
+}
+
+fn fetch_models_for_config(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            base_url: String,
+            api_key: String,
+            is_full_url: Option<bool>,
+            models_url: Option<String>,
+            custom_user_agent: Option<String>,
+            api_format: Option<String>,
+            request_headers: Option<std::collections::BTreeMap<String, String>>,
+        }
+        let args: Args = parse(args)?;
+        let user_agent =
+            crate::provider::parse_custom_user_agent(args.custom_user_agent.as_deref())
+                .ok()
+                .flatten();
+        serializable(
+            crate::services::model_fetch::fetch_models(
+                &args.base_url,
+                &args.api_key,
+                args.is_full_url.unwrap_or(false),
+                args.models_url.as_deref(),
+                user_agent,
+                args.api_format.as_deref(),
+                args.request_headers.as_ref(),
+            )
+            .await?,
+        )
     })
 }

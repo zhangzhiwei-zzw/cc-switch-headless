@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { CSS } from "@dnd-kit/utilities";
 import { DndContext, closestCenter, type Modifier } from "@dnd-kit/core";
 import {
@@ -144,7 +145,7 @@ export function ProviderList({
   const { data: openclawDefaultModel } = useOpenClawDefaultModel(
     appId === "openclaw",
   );
-  const isOpenCode = appId === "opencode";
+  const isOpenCode = appId === "opencode" && supports("omo");
   const { data: currentOmoId } = useCurrentOmoProviderId(isOpenCode);
   const { data: currentOmoSlimId } = useCurrentOmoSlimProviderId(isOpenCode);
   const {
@@ -332,7 +333,7 @@ export function ProviderList({
         app: appId,
         t,
         providers: filteredProviders,
-        openTerminal: (provider) => onOpenTerminal?.(provider),
+        openTerminal: onOpenTerminal,
       });
     }
     const defaultPrimary =
@@ -484,7 +485,7 @@ export function ProviderList({
       onOpenWebsite={onOpenWebsite}
       // Antigravity 的「打开终端」已经是主按钮，「更多」菜单里不再重复
       onOpenTerminal={appId === "agy" ? undefined : onOpenTerminal}
-      onTest={handleTest}
+      onTest={supports("providerConnectivity") ? handleTest : undefined}
       isTesting={isChecking(provider.id)}
     />
   );

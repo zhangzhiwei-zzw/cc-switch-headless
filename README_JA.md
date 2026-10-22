@@ -1,3 +1,5 @@
+> これは上流 CC Switch のデスクトップ版ドキュメントです。この fork の Web サーバーの導入と対応機能は [English README](README_EN.md) と [Web documentation](docs/README.md) を参照してください。
+
 <div align="center">
 
 # CC Switch

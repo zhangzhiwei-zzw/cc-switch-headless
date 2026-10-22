@@ -1,3 +1,4 @@
+import { supportsCommand } from "@/lib/capabilities";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import type {
@@ -147,41 +148,44 @@ export function AppConfigSection({
           actions={saveButton(app)}
         >
           <SettingsCard>
-            {app === "claude" && (
-              <>
-                <SettingsSwitchRow
-                  label={t("settings.enableClaudePluginIntegration")}
-                  help={{
-                    title: t("settings.enableClaudePluginIntegration"),
-                    body: t(
-                      "settings.enableClaudePluginIntegrationDescription",
-                    ),
-                  }}
-                  checked={!!settings.enableClaudePluginIntegration}
-                  onCheckedChange={(value) =>
-                    void onAutoSave({ enableClaudePluginIntegration: value })
-                  }
+            {app === "claude" &&
+              supportsCommand("apply_claude_plugin_config") &&
+              supportsCommand("apply_claude_onboarding_skip") && (
+                <>
+                  <SettingsSwitchRow
+                    label={t("settings.enableClaudePluginIntegration")}
+                    help={{
+                      title: t("settings.enableClaudePluginIntegration"),
+                      body: t(
+                        "settings.enableClaudePluginIntegrationDescription",
+                      ),
+                    }}
+                    checked={!!settings.enableClaudePluginIntegration}
+                    onCheckedChange={(value) =>
+                      void onAutoSave({ enableClaudePluginIntegration: value })
+                    }
+                  />
+                  <SettingsSwitchRow
+                    label={t("settings.skipClaudeOnboarding")}
+                    help={{
+                      title: t("settings.skipClaudeOnboarding"),
+                      body: t("settings.skipClaudeOnboardingDescription"),
+                    }}
+                    checked={!!settings.skipClaudeOnboarding}
+                    onCheckedChange={(value) =>
+                      void onAutoSave({ skipClaudeOnboarding: value })
+                    }
+                  />
+                </>
+              )}
+            {app === "codex" &&
+              supportsCommand("get_codex_session_compression") && (
+                <CodexAuthSettings
+                  settings={settings}
+                  onChange={onAutoSave}
+                  codexConfigDir={savedSettings?.codexConfigDir}
                 />
-                <SettingsSwitchRow
-                  label={t("settings.skipClaudeOnboarding")}
-                  help={{
-                    title: t("settings.skipClaudeOnboarding"),
-                    body: t("settings.skipClaudeOnboardingDescription"),
-                  }}
-                  checked={!!settings.skipClaudeOnboarding}
-                  onCheckedChange={(value) =>
-                    void onAutoSave({ skipClaudeOnboarding: value })
-                  }
-                />
-              </>
-            )}
-            {app === "codex" && (
-              <CodexAuthSettings
-                settings={settings}
-                onChange={onAutoSave}
-                codexConfigDir={savedSettings?.codexConfigDir}
-              />
-            )}
+              )}
             {directoryRow(app)}
           </SettingsCard>
         </SettingsBlock>

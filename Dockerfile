@@ -18,6 +18,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY src ./src
+COPY scripts/web/build.mjs ./scripts/web/build.mjs
 COPY tsconfig.json tsconfig.node.json vite.config.ts ./
 COPY tailwind.config.cjs postcss.config.cjs components.json ./
 RUN pnpm build:web
@@ -43,6 +44,10 @@ COPY src/web-shims/command-contract.json ./src/web-shims/command-contract.json
 # 前端产物要在这里就位：rust-embed 在编译期把 dist-web 读进二进制
 COPY --from=web-builder /app/dist-web ./dist-web
 
+ARG CC_SWITCH_BUILD_COMMIT=unknown
+ENV CC_SWITCH_BUILD_COMMIT=${CC_SWITCH_BUILD_COMMIT}
+# Build metadata is returned by the authenticated diagnostics endpoint.
+COPY docs/upstream-v4.0.17.lock /app/docs/upstream-v4.0.17.lock
 WORKDIR /app/src-tauri
 RUN cargo build --release --no-default-features --features server --bin cc-switch-server
 
@@ -52,7 +57,7 @@ RUN cargo build --release --no-default-features --features server --bin cc-switc
 FROM ubuntu:20.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=server-builder \
@@ -65,5 +70,6 @@ VOLUME ["/data"]
 # 容器内必须绑 0.0.0.0 才能被端口映射进来；对外只映射到宿主机回环即可
 # （Host 校验默认只认 localhost/127.0.0.1，用域名访问要加 --allow-host）
 EXPOSE 15800
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD curl -fsS http://127.0.0.1:15800/readyz || exit 1
 ENTRYPOINT ["cc-switch-server"]
 CMD ["--bind", "0.0.0.0", "--port", "15800"]

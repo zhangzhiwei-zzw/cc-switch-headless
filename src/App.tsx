@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -78,33 +80,67 @@ import { WindowControls } from "@/components/shell/WindowControls";
 import { APP_DISPLAY_NAME, AppGlyph } from "@/components/shell/AppGlyph";
 import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
 import { ProviderList } from "@/components/providers/ProviderList";
-import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
+const AddProviderDialog = lazy(() =>
+  import("@/components/providers/AddProviderDialog").then((module) => ({
+    default: module.AddProviderDialog,
+  })),
+);
 import {
   hasOpencodeDefinition,
   isNativeOpencodeConfig,
 } from "@/components/providers/forms/helpers/opencodeFormUtils";
-import { EditProviderDialog } from "@/components/providers/EditProviderDialog";
+const EditProviderDialog = lazy(() =>
+  import("@/components/providers/EditProviderDialog").then((module) => ({
+    default: module.EditProviderDialog,
+  })),
+);
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { OpenTerminalDialog } from "@/components/providers/OpenTerminalDialog";
+const OpenTerminalDialog = lazy(() =>
+  import("@/components/providers/OpenTerminalDialog").then((module) => ({
+    default: module.OpenTerminalDialog,
+  })),
+);
 import { discardUnsavedChanges, hasUnsavedChanges } from "@/lib/unsavedChanges";
-import { SettingsPage } from "@/components/settings/SettingsPage";
-import { AuthCenterPanel } from "@/components/settings/AuthCenterPanel";
-import { AppsPage } from "@/components/apps/AppsPage";
+const SettingsPage = lazy(() =>
+  import("@/components/settings/SettingsPage").then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
+const AuthCenterPanel = lazy(() =>
+  import("@/components/settings/AuthCenterPanel").then((module) => ({
+    default: module.AuthCenterPanel,
+  })),
+);
+const AppsPage = lazy(() =>
+  import("@/components/apps/AppsPage").then((module) => ({
+    default: module.AppsPage,
+  })),
+);
 import {
   checkToolUpdatesInBackground,
   useToolUpdatesAvailable,
 } from "@/components/apps/useToolManagement";
-import { UsagePage } from "@/components/usage/UsagePage";
+const UsagePage = lazy(() =>
+  import("@/components/usage/UsagePage").then((module) => ({
+    default: module.UsagePage,
+  })),
+);
 import { EnvWarningBanner } from "@/components/env/EnvWarningBanner";
 import { SwitchModePanel } from "@/components/providers/mode/SwitchModePanel";
 import { proxyApi } from "@/lib/api/proxy";
 import type { AppMode, StartupAttachFailure } from "@/types/proxy";
-import UsageScriptModal from "@/components/UsageScriptModal";
-import UnifiedMcpPanel from "@/components/mcp/UnifiedMcpPanel";
-import PromptPanel from "@/components/prompts/PromptPanel";
+const UsageScriptModal = lazy(() => import("@/components/UsageScriptModal"));
+const UnifiedMcpPanel = lazy(() => import("@/components/mcp/UnifiedMcpPanel"));
+const PromptPanel = lazy(() => import("@/components/prompts/PromptPanel"));
 import { PROMPT_APP_IDS } from "@/lib/query/prompts";
-import UnifiedSkillsPanel from "@/components/skills/UnifiedSkillsPanel";
-import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
+const UnifiedSkillsPanel = lazy(
+  () => import("@/components/skills/UnifiedSkillsPanel"),
+);
+const DeepLinkImportDialog = lazy(() =>
+  import("@/components/DeepLinkImportDialog").then((module) => ({
+    default: module.DeepLinkImportDialog,
+  })),
+);
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
 import { WhatsNewNotice } from "@/components/WhatsNewDialog";
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +155,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SessionManagerPage } from "@/components/sessions/SessionManagerPage";
+const SessionManagerPage = lazy(() =>
+  import("@/components/sessions/SessionManagerPage").then((module) => ({
+    default: module.SessionManagerPage,
+  })),
+);
 import {
   useDisableCurrentOmo,
   useDisableCurrentOmoSlim,
@@ -158,7 +198,19 @@ function App() {
 
   const [activeApp, setActiveApp] = useState<AppId>(getInitialApp);
   const sharedFeatureApp = sharedFeatureAppOf(activeApp);
-  const [currentView, setCurrentView] = useState<View>(readStoredView);
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const saved = readStoredView();
+    const requirements: Partial<Record<View, string>> = {
+      workspace: "workspace",
+      openclawConfig: "openclawConfig",
+      hermesMemory: "hermesMemory",
+      auth: "pageAuth",
+      apps: "pageApps",
+    };
+    return requirements[saved] && !supports(requirements[saved]!)
+      ? "providers"
+      : saved;
+  });
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("general");
   const [appConfigScrollTarget, setAppConfigScrollTarget] = useState<AppId>();
@@ -324,8 +376,9 @@ function App() {
   const providers = useMemo(() => data?.providers ?? {}, [data]);
   const currentProviderId = data?.currentProviderId ?? "";
   const isOpenClawView = activeApp === "openclaw" && isAppPage(currentView);
-  const { data: openclawHealthWarnings = [] } =
-    useOpenClawHealth(isOpenClawView);
+  const { data: openclawHealthWarnings = [] } = useOpenClawHealth(
+    isOpenClawView && supports("openclawConfig"),
+  );
   const {
     addProvider,
     updateProvider,
@@ -1122,9 +1175,11 @@ function App() {
         <DropdownMenuItem onSelect={() => openSettings("appConfig", activeApp)}>
           {t("appPage.configDirectory")}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => openPage("apps")}>
-          {t("appPage.installAndUpgrade")}
-        </DropdownMenuItem>
+        {supports("pageApps") && (
+          <DropdownMenuItem onSelect={() => openPage("apps")}>
+            {t("appPage.installAndUpgrade")}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={Object.values(visibleApps).filter(Boolean).length <= 1}
@@ -1170,10 +1225,9 @@ function App() {
         <>
           {currentView === "providers" &&
             activeApp !== "mcode" &&
-            (settingsData?.showProfileSwitcher ?? false) && (
-              <ProfileSwitcher activeApp={activeApp} />
-            )}
-          {activeApp === "hermes" && (
+            (settingsData?.showProfileSwitcher ?? false) &&
+            supports("profiles") && <ProfileSwitcher activeApp={activeApp} />}
+          {activeApp === "hermes" && supports("hermesMemory") && (
             <Button
               variant="quiet"
               size="regular"
@@ -1232,8 +1286,22 @@ function App() {
             onValueChange={(view) => setCurrentView(view)}
             items={[
               { value: "providers", label: t("appPage.providers") },
-              { value: "workspace", label: t("appPage.workspace") },
-              { value: "openclawConfig", label: t("appPage.openclawConfig") },
+              ...(supports("workspace")
+                ? [
+                    {
+                      value: "workspace" as const,
+                      label: t("appPage.workspace"),
+                    },
+                  ]
+                : []),
+              ...(supports("openclawConfig")
+                ? [
+                    {
+                      value: "openclawConfig" as const,
+                      label: t("appPage.openclawConfig"),
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -1249,7 +1317,14 @@ function App() {
             onValueChange={(view) => setCurrentView(view)}
             items={[
               { value: "providers", label: t("appPage.providers") },
-              { value: "hermesMemory", label: t("appPage.memory") },
+              ...(supports("hermesMemory")
+                ? [
+                    {
+                      value: "hermesMemory" as const,
+                      label: t("appPage.memory"),
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -1318,6 +1393,14 @@ function App() {
         className="min-h-0 flex-1 overflow-y-auto scroll-stable overflow-x-hidden px-6 pb-12 pt-4"
       >
         <div className="space-y-4">
+          {activeApp === "agy" && !supports("providerTerminal") && (
+            <p
+              role="note"
+              className="rounded-lg bg-muted p-4 text-sm text-muted-foreground"
+            >
+              {t("webConnection.agyScope")}
+            </p>
+          )}
           <ProviderList
             {...listCallbacks}
             providers={providers}
@@ -1414,12 +1497,20 @@ function App() {
 
     return (
       <>
-        {renderAppPageHeader()}
-        {renderAppSegments()}
-        {isOpenClawView && openclawHealthWarnings.length > 0 && (
-          <OpenClawHealthBanner warnings={openclawHealthWarnings} />
-        )}
-        {body}
+        <Suspense
+          fallback={
+            <div role="status" className="p-6">
+              {t("common.loading")}
+            </div>
+          }
+        >
+          {renderAppPageHeader()}
+          {renderAppSegments()}
+          {isOpenClawView && openclawHealthWarnings.length > 0 && (
+            <OpenClawHealthBanner warnings={openclawHealthWarnings} />
+          )}
+          {body}
+        </Suspense>
       </>
     );
   };
@@ -1588,54 +1679,70 @@ function App() {
             }
             className="flex min-h-0 flex-1 flex-col"
           >
-            {renderContent()}
+            <Suspense
+              fallback={
+                <div role="status" className="p-6">
+                  {t("common.loading")}
+                </div>
+              }
+            >
+              {renderContent()}
+            </Suspense>
           </div>
         </main>
       </div>
 
-      <AddProviderDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        appId={activeApp}
-        onSubmit={addProvider}
-        modeView={formModeView}
-      />
+      <Suspense fallback={null}>
+        {isAddOpen && (
+          <AddProviderDialog
+            open={isAddOpen}
+            onOpenChange={setIsAddOpen}
+            appId={activeApp}
+            onSubmit={addProvider}
+            modeView={formModeView}
+          />
+        )}
 
-      <EditProviderDialog
-        open={Boolean(editingProvider)}
-        provider={effectiveEditingProvider}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingProvider(null);
-          }
-        }}
-        onSubmit={handleEditProvider}
-        appId={activeApp}
-        isProxyTakeover={isCurrentAppTakeoverActive}
-        isCurrent={effectiveEditingProvider?.id === currentProviderId}
-        modeView={formModeView}
-      />
+        {editingProvider && (
+          <EditProviderDialog
+            open={Boolean(editingProvider)}
+            provider={effectiveEditingProvider}
+            onOpenChange={(open) => {
+              if (!open) {
+                setEditingProvider(null);
+              }
+            }}
+            onSubmit={handleEditProvider}
+            appId={activeApp}
+            isProxyTakeover={isCurrentAppTakeoverActive}
+            isCurrent={effectiveEditingProvider?.id === currentProviderId}
+            modeView={formModeView}
+          />
+        )}
 
-      {effectiveUsageProvider && (
-        <UsageScriptModal
-          key={effectiveUsageProvider.id}
-          provider={effectiveUsageProvider}
-          appId={activeApp}
-          isOpen={Boolean(usageProvider)}
-          onClose={() => setUsageProvider(null)}
-          onSave={(script) => {
-            if (usageProvider) {
-              void saveUsageScript(usageProvider, script);
-            }
-          }}
-        />
-      )}
+        {effectiveUsageProvider && (
+          <UsageScriptModal
+            key={effectiveUsageProvider.id}
+            provider={effectiveUsageProvider}
+            appId={activeApp}
+            isOpen={Boolean(usageProvider)}
+            onClose={() => setUsageProvider(null)}
+            onSave={(script) => {
+              if (usageProvider) {
+                void saveUsageScript(usageProvider, script);
+              }
+            }}
+          />
+        )}
 
-      <OpenTerminalDialog
-        provider={terminalProvider}
-        appId={activeApp}
-        onClose={() => setTerminalProvider(null)}
-      />
+        {terminalProvider && (
+          <OpenTerminalDialog
+            provider={terminalProvider}
+            appId={activeApp}
+            onClose={() => setTerminalProvider(null)}
+          />
+        )}
+      </Suspense>
 
       <ConfirmDialog
         isOpen={Boolean(confirmAction)}
@@ -1689,7 +1796,11 @@ function App() {
         onCancel={() => setLaunchDashboardOpen(false)}
       />
 
-      {isTauriRuntime() && <DeepLinkImportDialog />}
+      {isTauriRuntime() && (
+        <Suspense fallback={null}>
+          <DeepLinkImportDialog />
+        </Suspense>
+      )}
       <FirstRunNoticeDialog />
       <NewLayoutDialog />
       <WhatsNewNotice />

@@ -196,27 +196,63 @@ fn init_logging() {
     if let Err(error) = std::fs::create_dir_all(&log_dir) {
         eprintln!("创建日志目录 {log_dir:?} 失败: {error}");
     }
-    let file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_dir.join("cc-switch.log"))
-        .ok();
+    let file = open_log(&log_dir.join("cc-switch.log"));
 
     let mut builder =
         env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
     builder.format_timestamp_millis();
-    builder.target(env_logger::Target::Pipe(Box::new(TeeWriter { file })));
+    builder.target(env_logger::Target::Pipe(Box::new(TeeWriter {
+        file,
+        path: log_dir.join("cc-switch.log"),
+    })));
     let _ = builder.try_init();
+}
+
+fn open_log(path: &std::path::Path) -> Option<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let file = options.open(path).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(error) = file.set_permissions(std::fs::Permissions::from_mode(0o600)) {
+            eprintln!("设置日志权限失败: {error}");
+        }
+    }
+    Some(file)
 }
 
 /// 同时写 stderr 与日志文件的 writer。
 struct TeeWriter {
     file: Option<std::fs::File>,
+    path: PathBuf,
 }
 
 impl Write for TeeWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let _ = std::io::stderr().write_all(buf);
+        if self
+            .file
+            .as_ref()
+            .and_then(|file| file.metadata().ok())
+            .is_some_and(|meta| meta.len() >= 10 * 1024 * 1024)
+        {
+            self.file.take();
+            let _ = std::fs::remove_file(self.path.with_extension("log.3"));
+            for index in (1..3).rev() {
+                let _ = std::fs::rename(
+                    self.path.with_extension(format!("log.{index}")),
+                    self.path.with_extension(format!("log.{}", index + 1)),
+                );
+            }
+            let _ = std::fs::rename(&self.path, self.path.with_extension("log.1"));
+            self.file = open_log(&self.path);
+        }
         if let Some(file) = &mut self.file {
             let _ = file.write_all(buf);
         }
@@ -341,6 +377,14 @@ fn init_outbound_http_client(state: &AppState) {
 }
 
 fn spawn_background_tasks(state: &AppState) {
+    crate::host::spawn(async {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
+        loop {
+            interval.tick().await;
+            let _transfer = super::files::TRANSFER_LOCK.lock().await;
+            let _ = crate::host::spawn_blocking(super::files::cleanup).await;
+        }
+    });
     // Codex 历史迁移（阻塞线程池，失败只记日志）
     {
         let db = state.db.clone();

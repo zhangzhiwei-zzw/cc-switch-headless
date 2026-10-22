@@ -9,14 +9,15 @@
     "tauri": "tauri",
     "dev:renderer": "vite",
     "build:renderer": "vite build",
-    "build:web": "CC_SWITCH_WEB=1 vite build --outDir ../dist-web",
+    "build:web": "node scripts/web/build.mjs",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
-    "check:web": "node scripts/web/check-command-coverage.mjs && node --test scripts/web/check-command-coverage.test.mjs",
-    "test:web": "playwright test"
+    "check:web": "node scripts/web/check-command-coverage.mjs && node --test scripts/web/check-command-coverage.test.mjs && node scripts/web/generate-capabilities.mjs --check",
+    "test:web": "playwright test",
+    "dev:web": "node scripts/web/build.mjs --dev"
   },
   "keywords": [],
   "author": "Jason Young",

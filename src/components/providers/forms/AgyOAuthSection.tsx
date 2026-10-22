@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -191,6 +192,7 @@ export function AgyAccountSelect({ value, onChange }: AgyAccountSelectProps) {
   const { data } = useQuery({
     queryKey: ["managed-auth-status", "agy_oauth"],
     queryFn: () => authApi.authGetStatus("agy_oauth"),
+    enabled: supports("pageAuth"),
     staleTime: 30000,
   });
   const accounts = data?.accounts ?? [];

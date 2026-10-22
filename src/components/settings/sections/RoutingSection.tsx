@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -331,48 +332,50 @@ export function RoutingSection({ onOpenApp }: RoutingSectionProps) {
               </div>
             }
           />
-          <SettingsRow
-            label={t("routingSettings.clientHost")}
-            help={{
-              title: t("routingSettings.clientHost"),
-              body: t("routingSettings.clientHostHelp"),
-            }}
-            control={
-              <div className="flex items-start gap-3">
-                <label className="space-y-1">
-                  <Input
-                    value={clientHost}
-                    placeholder={defaultClientHost(
-                      config?.listenAddress ?? "127.0.0.1",
-                    )}
-                    onChange={(event) => setClientHost(event.target.value)}
-                    aria-label={t("routingSettings.clientHost")}
-                    aria-invalid={clientHostError ? true : undefined}
-                    className="w-[262px]"
-                  />
-                  <span
-                    className={cn(
-                      "block text-caption",
-                      clientHostError ? "text-danger-text" : "text-fg-3",
-                    )}
+          {supports("proxyClientHost") && (
+            <SettingsRow
+              label={t("routingSettings.clientHost")}
+              help={{
+                title: t("routingSettings.clientHost"),
+                body: t("routingSettings.clientHostHelp"),
+              }}
+              control={
+                <div className="flex items-start gap-3">
+                  <label className="space-y-1">
+                    <Input
+                      value={clientHost}
+                      placeholder={defaultClientHost(
+                        config?.listenAddress ?? "127.0.0.1",
+                      )}
+                      onChange={(event) => setClientHost(event.target.value)}
+                      aria-label={t("routingSettings.clientHost")}
+                      aria-invalid={clientHostError ? true : undefined}
+                      className="w-[262px]"
+                    />
+                    <span
+                      className={cn(
+                        "block text-caption",
+                        clientHostError ? "text-danger-text" : "text-fg-3",
+                      )}
+                    >
+                      {clientHostError ?? t("routingSettings.clientHostHint")}
+                    </span>
+                  </label>
+                  <Button
+                    variant="neutral"
+                    size="regular"
+                    disabled={
+                      savedClientHost === undefined ||
+                      saveClientHostMutation.isPending
+                    }
+                    onClick={() => void saveClientHost()}
                   >
-                    {clientHostError ?? t("routingSettings.clientHostHint")}
-                  </span>
-                </label>
-                <Button
-                  variant="neutral"
-                  size="regular"
-                  disabled={
-                    savedClientHost === undefined ||
-                    saveClientHostMutation.isPending
-                  }
-                  onClick={() => void saveClientHost()}
-                >
-                  {t("common.save")}
-                </Button>
-              </div>
-            }
-          />
+                    {t("common.save")}
+                  </Button>
+                </div>
+              }
+            />
+          )}
           <SettingsSwitchRow
             label={t("routingSettings.logging")}
             help={{
@@ -444,17 +447,19 @@ export function RoutingSection({ onOpenApp }: RoutingSectionProps) {
         </div>
       </SettingsBlock>
 
-      <SettingsBlock
-        title={t("settings.advanced.rectifier.title")}
-        help={{
-          title: t("settings.advanced.rectifier.title"),
-          body: t("settings.advanced.rectifier.description"),
-        }}
-      >
-        <div className="rounded-panel border border-border bg-surface p-5">
-          <RectifierConfigPanel />
-        </div>
-      </SettingsBlock>
+      {supports("rectifier") && (
+        <SettingsBlock
+          title={t("settings.advanced.rectifier.title")}
+          help={{
+            title: t("settings.advanced.rectifier.title"),
+            body: t("settings.advanced.rectifier.description"),
+          }}
+        >
+          <div className="rounded-panel border border-border bg-surface p-5">
+            <RectifierConfigPanel />
+          </div>
+        </SettingsBlock>
+      )}
 
       {/* 可恢复的操作（路由目标、队列、聚合名单都保留），不用红色 */}
       <ConfirmDialog

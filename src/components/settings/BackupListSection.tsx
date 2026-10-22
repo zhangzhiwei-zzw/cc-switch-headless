@@ -1,3 +1,4 @@
+import { supportsCommand } from "@/lib/capabilities";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
@@ -411,7 +412,7 @@ export function BackupListSection({
         )}
       </div>
 
-      <BackupStorageSection />
+      {supportsCommand("list_backup_locations") && <BackupStorageSection />}
 
       {/* Restore Confirmation Dialog */}
       <Dialog

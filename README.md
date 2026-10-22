@@ -161,3 +161,6 @@ CLI 工具版本管理，以及目录选择、终端拉起、「在文件管理�
 
 Fork 自 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)（作者 Jason Young），MIT 许可。
 **上游功能及其问题请反馈给上游仓库**；上游应用的完整中文文档见 [README_ZH.md](README_ZH.md)。
+
+
+Web 文档导航：[部署与开发](docs/README.md) · [功能支持矩阵](docs/web-capabilities.md) · [安全策略](SECURITY.md) · [问题反馈](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues)。Antigravity 当前支持卡片编辑与模型发现，Web 会话启动尚未提供。

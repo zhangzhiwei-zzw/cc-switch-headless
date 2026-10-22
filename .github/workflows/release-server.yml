@@ -52,6 +52,12 @@ jobs:
             runner: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Resolve build commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -60,6 +66,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: CC_SWITCH_BUILD_COMMIT=${{ steps.source.outputs.commit }}
           target: runtime
           platforms: ${{ matrix.platform }}
           load: true
@@ -95,7 +102,7 @@ jobs:
           code=""
           for _ in $(seq 1 40); do
             code=$(curl -s -o /dev/null -w '%{http_code}' \
-              -H "Cookie: ccswitch_web_token=$token" \
+              -H "Authorization: Bearer $token" \
               http://127.0.0.1:15999/api/capabilities || true)
             [ "$code" = "200" ] && break
             sleep 0.5
@@ -148,6 +155,11 @@ jobs:
           name="cc-switch-server-linux-${{ matrix.arch }}"
           mv cc-switch-server "$name"
           sha256sum "$name" > "$name.sha256"
+          lock=$(ls docs/upstream-*.lock | sort -V | tail -n 1)
+          upstream=$(sed -n 's/^last_merged_commit *= *"\([^"]*\)".*/\1/p' "$lock")
+          upstream_tag=$(sed -n 's/^upstream_tag *= *"\([^"]*\)".*/\1/p' "$lock")
+          test -n "$upstream" && test -n "$upstream_tag"
+          printf 'commit=%s\nupstream=%s\nupstream_tag=%s\n' "$(git rev-parse HEAD)" "$upstream" "$upstream_tag" > "$name.build.txt"
           cat "$name.sha256"
 
       - uses: actions/upload-artifact@v7
@@ -156,6 +168,7 @@ jobs:
           path: |
             cc-switch-server-linux-${{ matrix.arch }}
             cc-switch-server-linux-${{ matrix.arch }}.sha256
+            cc-switch-server-linux-${{ matrix.arch }}.build.txt
           if-no-files-found: error
 
   # Windows 不能在 Linux 容器里编（MSVC 工具链 + Windows 头文件都在 Windows 上），
@@ -166,6 +179,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -183,9 +198,7 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      # 不能直接 `pnpm build:web`：那条脚本是 `CC_SWITCH_WEB=1 vite build …`，
-      # POSIX 的「前缀式环境变量」在 PowerShell 下不是合法命令。改成由 workflow
-      # 设置环境变量、直接调 vite，参数与脚本保持一致。
+      # Explicit environment also supports older tags whose package script used POSIX syntax.
       - name: Build web frontend (server assets)
         env:
           CC_SWITCH_WEB: "1"
@@ -226,6 +239,7 @@ jobs:
           "$hash  $name.exe" | Out-File -Encoding ascii "$name.exe.sha256"
           Get-Content "$name.exe.sha256"
           Get-Item "$name.exe" | Select-Object Name, Length
+          "commit=$(git rev-parse HEAD)" | Out-File -Encoding ascii "$name.build.txt"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -233,6 +247,7 @@ jobs:
           path: |
             cc-switch-server-windows-x86_64.exe
             cc-switch-server-windows-x86_64.exe.sha256
+            cc-switch-server-windows-x86_64.build.txt
           if-no-files-found: error
 
   publish:
@@ -254,13 +269,30 @@ jobs:
       - name: List assets
         run: ls -lh assets
 
+      - name: Check source provenance
+        id: provenance
+        run: |
+          python3 - <<'PYPROVENANCE'
+          import os
+          from pathlib import Path
+          records = [dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
+                     for path in Path("assets").glob("*.build.txt")]
+          commits = {record["commit"] for record in records}
+          tags = {record["upstream_tag"] for record in records if "upstream_tag" in record}
+          if len(records) != 3 or len(commits) != 1 or len(tags) != 1:
+              raise SystemExit("Artifacts do not come from one source commit and upstream baseline")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("upstream=" + tags.pop() + "\n")
+          PYPROVENANCE
+
       - name: Upload to the release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
+          append_body: true
           name: cc-switch-headless ${{ inputs.tag || github.ref_name }}
           body: |
-            CC Switch 的无头 Web 服务端，基于上游 [cc-switch](https://github.com/farion1231/cc-switch) **v4.0.17**。
+            CC Switch 的无头 Web 服务端，基于上游 [cc-switch](https://github.com/farion1231/cc-switch) **${{ steps.provenance.outputs.upstream }}**。
 
             在浏览器里管理 Claude Code / Codex / Gemini CLI 等 AI CLI 的供应商、本地路由与会话——
             界面与桌面版一致，只是走 HTTP。
@@ -280,7 +312,7 @@ jobs:
 
             ```bash
             curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
-            ~/.local/bin/cc-switch-server        # 加 --service 装成 systemd 用户服务
+            # 安装并启动 systemd 用户服务：安装脚本加 bash -s -- --service
             ```
 
             启动日志里会打印一条带令牌的地址，浏览器打开一次即可；令牌也存在 `~/.cc-switch/web-token`。

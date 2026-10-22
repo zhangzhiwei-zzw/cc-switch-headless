@@ -4909,5 +4909,8 @@
       "switched": "已切換，新開的 agy 會使用這個帳號。",
       "switchedWhileRunning": "已切換。偵測到 agy 正在執行：已開啟的 agy 仍使用原帳號，還可能把原帳號寫回去，請結束後重新開啟。"
     }
+  },
+  "webConnection": {
+    "agyScope": "Web 可編輯 Antigravity 供應商卡片與探索模型，但不會改變你在終端直接啟動的 agy。使用卡片啟動工作階段需要桌面版；金鑰不會放進可複製的指令。"
   }
 }

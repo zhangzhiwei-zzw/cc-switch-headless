@@ -75,6 +75,16 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 3000,
     strictPort: true,
+    ...(webBuild
+      ? {
+          proxy: Object.fromEntries(
+            ["/api", "/auth", "/healthz", "/readyz"].map((path) => [
+              path,
+              "http://127.0.0.1:15800",
+            ]),
+          ),
+        }
+      : {}),
   },
   resolve: {
     alias: {

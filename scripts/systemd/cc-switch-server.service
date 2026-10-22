@@ -21,7 +21,7 @@
 #
 [Unit]
 Description=CC Switch web server (provider manager + local routing)
-Documentation=https://github.com/farion1231/cc-switch
+Documentation=https://github.com/zhangzhiwei-zzw/cc-switch-headless/blob/main/docs/web-mode-zh.md
 After=network-online.target
 
 [Service]

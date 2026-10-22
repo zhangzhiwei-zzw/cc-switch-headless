@@ -1,3 +1,5 @@
+> 这是上游 CC Switch 桌面版的完整说明，保留用于跟随上游。此 fork 的 Web 安装和功能范围请从 [项目首页](README.md) 与 [Web 文档](docs/README.md) 开始。
+
 <div align="center">
 
 # cc-switch-headless

@@ -1,3 +1,7 @@
+> 本仓库提供 CC Switch 的无头 Web 服务端。Web 开发、测试和发布请先看 [docs/README.md](docs/README.md)，下面保留的桌面架构说明用于跟随上游。
+>
+> Web 本地开发：先构建并启动服务端，再执行 `pnpm dev:web`；浏览器开发服务器会把 API 代理到 `127.0.0.1:15800`。
+
 # Contributing to CC Switch
 
 > [中文版本](#贡献指南)
@@ -8,9 +12,9 @@ Thank you for your interest in contributing to CC Switch! Please read our [Code 
 
 There are many ways to contribute:
 
-- **Report bugs** — Found something broken? [Open a bug report](https://github.com/farion1231/cc-switch/issues/new?template=bug_report.yml).
-- **Suggest features** — Have an idea? [Submit a feature request](https://github.com/farion1231/cc-switch/issues/new?template=feature_request.yml).
-- **Improve docs** — Spot a typo or missing info? [Report a doc issue](https://github.com/farion1231/cc-switch/issues/new?template=doc_issue.yml).
+- **Report bugs** — Found something broken? [Open a bug report](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=bug_report.yml).
+- **Suggest features** — Have an idea? [Submit a feature request](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=feature_request.yml).
+- **Improve docs** — Spot a typo or missing info? [Report a doc issue](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=doc_issue.yml).
 - **Contribute code** — Fix bugs or implement features via pull requests.
 - **Translate** — Help us improve translations for Simplified Chinese, Traditional Chinese, English, and Japanese.
 
@@ -185,9 +189,14 @@ If you touched the headless server (`src-tauri/**` or `scripts/**`), also run it
 commands below are exactly what CI runs (see the `server` job in `.github/workflows/ci.yml`):
 
 ```bash
+# 从仓库根目录执行；Web 构建脚本兼容 Linux、macOS、Windows。
+pnpm check:web
+pnpm build:web
 cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
-cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
+cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
 bash scripts/e2e/run-all.sh
+pnpm exec playwright install chromium --only-shell
+pnpm test:web
 ```
 
 ## Pull Request Guidelines
@@ -260,7 +269,7 @@ Turkish (`tr.json`) is a community translation and is optional: you do not need 
 
 ## Questions?
 
-- [Open a question](https://github.com/farion1231/cc-switch/issues/new?template=question.yml)
+- [Open a question](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=question.yml)
 - [GitHub Discussions](https://github.com/farion1231/cc-switch/discussions)
 
 ---
@@ -275,9 +284,9 @@ Turkish (`tr.json`) is a community translation and is optional: you do not need 
 
 你可以通过多种方式参与贡献：
 
-- **报告 Bug** — 发现问题？[提交 Bug 报告](https://github.com/farion1231/cc-switch/issues/new?template=bug_report.yml)。
-- **建议功能** — 有想法？[提交功能请求](https://github.com/farion1231/cc-switch/issues/new?template=feature_request.yml)。
-- **改进文档** — 发现错误或缺失？[报告文档问题](https://github.com/farion1231/cc-switch/issues/new?template=doc_issue.yml)。
+- **报告 Bug** — 发现问题？[提交 Bug 报告](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=bug_report.yml)。
+- **建议功能** — 有想法？[提交功能请求](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=feature_request.yml)。
+- **改进文档** — 发现错误或缺失？[报告文档问题](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=doc_issue.yml)。
 - **贡献代码** — 通过 Pull Request 修复 Bug 或实现新功能。
 - **翻译** — 帮助改进简体中文、繁体中文、英文和日文的翻译。
 
@@ -452,9 +461,14 @@ cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 里那几条命令（见 `.github/workflows/ci.yml` 的 `server` job）：
 
 ```bash
+# 从仓库根目录执行；Web 构建脚本兼容 Linux、macOS、Windows。
+pnpm check:web
+pnpm build:web
 cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
-cargo build  --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
+cargo build --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server
 bash scripts/e2e/run-all.sh
+pnpm exec playwright install chromium --only-shell
+pnpm test:web
 ```
 
 ## Pull Request 指南
@@ -527,5 +541,5 @@ CC Switch 的界面支持简体中文、繁体中文、英文和日文四种语�
 
 ## 有疑问？
 
-- [提问](https://github.com/farion1231/cc-switch/issues/new?template=question.yml)
+- [提问](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues/new?template=question.yml)
 - [GitHub 讨论区](https://github.com/farion1231/cc-switch/discussions)

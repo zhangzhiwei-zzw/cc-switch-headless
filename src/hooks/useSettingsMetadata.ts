@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useCallback, useEffect, useState } from "react";
 import { settingsApi } from "@/lib/api";
 
@@ -27,7 +28,9 @@ export function useSettingsMetadata(): UseSettingsMetadataResult {
 
     const load = async () => {
       try {
-        const portable = await settingsApi.isPortable();
+        const portable = supports("updater")
+          ? await settingsApi.isPortable()
+          : false;
 
         if (!active) return;
 

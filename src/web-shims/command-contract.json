@@ -180,6 +180,64 @@
     "updater": {
       "enabled": false,
       "commands": []
+    },
+    "stack": {
+      "enabled": false,
+      "commands": []
+    },
+    "omo": {
+      "enabled": false,
+      "commands": []
+    },
+    "workspace": {
+      "enabled": false,
+      "commands": []
+    },
+    "openclawConfig": {
+      "enabled": false,
+      "commands": []
+    },
+    "hermesMemory": {
+      "enabled": false,
+      "commands": []
+    },
+    "profiles": {
+      "enabled": false,
+      "commands": []
+    },
+    "cloudSync": {
+      "enabled": false,
+      "commands": []
+    },
+    "providerConnectivity": {
+      "enabled": false,
+      "commands": []
+    },
+    "providerTerminal": {
+      "enabled": false,
+      "commands": []
+    },
+    "globalProxy": {
+      "enabled": false,
+      "commands": []
+    },
+    "rectifier": {
+      "enabled": false,
+      "commands": []
+    },
+    "proxyClientHost": {
+      "enabled": false,
+      "commands": []
+    },
+    "settingsLog": {
+      "commands": ["get_log_config", "set_log_config"]
+    },
+    "universalProviders": {
+      "enabled": false,
+      "commands": []
+    },
+    "modelDiscovery": {
+      "commands": ["fetch_models_for_config"]
     }
   },
   "apps": {
@@ -218,11 +276,16 @@
     },
     "openclaw": {
       "feature": "pageProviders",
-      "commands": []
+      "commands": [
+        "get_openclaw_live_provider_ids",
+        "get_openclaw_default_model",
+        "set_openclaw_default_model",
+        "get_openclaw_model_catalog"
+      ]
     },
     "hermes": {
       "feature": "pageProviders",
-      "commands": []
+      "commands": ["get_hermes_live_provider_ids", "get_hermes_model_config"]
     },
     "pi": {
       "feature": "pageProviders",
@@ -298,8 +361,6 @@
     "disable_current_omo_slim": "omo 的专用管理界面尚未接入 Web。",
     "exit_proxy_apps_in_mode": "路由辅助设置或桌面客户端控制尚未接入 Web。",
     "fetch_deeplink_icon": "ccswitch:// 深链接仅由桌面客户端接收。",
-    "fetch_models_for_config": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
-    "get_app_config_dir_override": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_app_config_path": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_auto_launch_status": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_balance": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
@@ -315,17 +376,10 @@
     "get_current_omo_slim_provider_id": "omo 的专用管理界面尚未接入 Web。",
     "get_custom_endpoints": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_global_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
-    "get_hermes_live_provider_ids": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "get_hermes_memory": "hermes 的专用管理界面尚未接入 Web。",
     "get_hermes_memory_limits": "hermes 的专用管理界面尚未接入 Web。",
-    "get_hermes_model_config": "hermes 的专用管理界面尚未接入 Web。",
-    "get_log_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_openclaw_agents_defaults": "openclaw 的专用管理界面尚未接入 Web。",
-    "get_openclaw_default_model": "openclaw 的专用管理界面尚未接入 Web。",
     "get_openclaw_env": "openclaw 的专用管理界面尚未接入 Web。",
-    "get_openclaw_live_provider": "openclaw 的专用管理界面尚未接入 Web。",
-    "get_openclaw_live_provider_ids": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
-    "get_openclaw_model_catalog": "openclaw 的专用管理界面尚未接入 Web。",
     "get_openclaw_tools": "openclaw 的专用管理界面尚未接入 Web。",
     "get_opencode_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_optimizer_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -391,9 +445,7 @@
     "set_global_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "set_hermes_memory": "hermes 的专用管理界面尚未接入 Web。",
     "set_hermes_memory_enabled": "hermes 的专用管理界面尚未接入 Web。",
-    "set_log_config": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "set_openclaw_agents_defaults": "openclaw 的专用管理界面尚未接入 Web。",
-    "set_openclaw_default_model": "openclaw 的专用管理界面尚未接入 Web。",
     "set_openclaw_env": "openclaw 的专用管理界面尚未接入 Web。",
     "set_openclaw_model_catalog": "openclaw 的专用管理界面尚未接入 Web。",
     "set_openclaw_tools": "openclaw 的专用管理界面尚未接入 Web。",

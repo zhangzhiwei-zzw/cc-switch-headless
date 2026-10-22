@@ -1,3 +1,6 @@
+import { supports } from "@/lib/capabilities";
+import { APP_IDS, DEFAULT_VISIBLE_APPS } from "@/config/appConfig";
+import { APP_DISPLAY_NAME } from "@/components/shell/AppGlyph";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Monitor, Moon, Sun } from "lucide-react";
 import type { SettingsFormState } from "@/hooks/useSettings";
@@ -136,23 +139,62 @@ export function GeneralSection({
           <SettingsRow
             label={t("settings.general.visibleApps")}
             control={
-              <Button variant="quiet" size="compact" onClick={onOpenApps}>
-                {t("settings.general.goToApps")}
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              supports("pageApps") ? (
+                <Button variant="quiet" size="compact" onClick={onOpenApps}>
+                  {t("settings.general.goToApps")}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <div className="flex max-w-lg flex-wrap gap-3">
+                  {APP_IDS.map((app) => {
+                    const visible = {
+                      ...DEFAULT_VISIBLE_APPS,
+                      ...settings.visibleApps,
+                    };
+                    return (
+                      <label
+                        key={app}
+                        className="flex items-center gap-1.5 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={visible[app]}
+                          disabled={
+                            visible[app] &&
+                            Object.values(visible).filter(Boolean).length <= 1
+                          }
+                          onChange={(event) =>
+                            void onAutoSave({
+                              visibleApps: {
+                                ...visible,
+                                [app]: event.target.checked,
+                              },
+                            })
+                          }
+                        />
+                        {APP_DISPLAY_NAME[app]}
+                      </label>
+                    );
+                  })}
+                </div>
+              )
             }
           />
-          <SettingsSwitchRow
-            label={t("settings.appVisibility.showProfileSwitcher")}
-            help={{
-              title: t("settings.appVisibility.showProfileSwitcher"),
-              body: t("settings.appVisibility.showProfileSwitcherDescription"),
-            }}
-            checked={settings.showProfileSwitcher ?? false}
-            onCheckedChange={(value) =>
-              void onAutoSave({ showProfileSwitcher: value })
-            }
-          />
+          {supports("profiles") && (
+            <SettingsSwitchRow
+              label={t("settings.appVisibility.showProfileSwitcher")}
+              help={{
+                title: t("settings.appVisibility.showProfileSwitcher"),
+                body: t(
+                  "settings.appVisibility.showProfileSwitcherDescription",
+                ),
+              }}
+              checked={settings.showProfileSwitcher ?? false}
+              onCheckedChange={(value) =>
+                void onAutoSave({ showProfileSwitcher: value })
+              }
+            />
+          )}{" "}
           <SettingsSwitchRow
             label={t("settings.appVisibility.showProviderSearch")}
             help={{
@@ -167,116 +209,120 @@ export function GeneralSection({
         </SettingsCard>
       </SettingsBlock>
 
-      <SettingsBlock title={t("settings.general.updates")}>
-        <SettingsCard>
-          <SettingsSwitchRow
-            label={t("settings.general.checkToolUpdates")}
-            help={{
-              title: t("settings.general.checkToolUpdates"),
-              body: t("settings.general.checkToolUpdatesHelp"),
-            }}
-            checked={settings.checkToolUpdatesOnStartup ?? false}
-            onCheckedChange={(value) =>
-              void onAutoSave({ checkToolUpdatesOnStartup: value })
-            }
-          />
-        </SettingsCard>
-      </SettingsBlock>
-
-      <SettingsBlock title={t("settings.general.windowAndTerminal")}>
-        <SettingsCard>
-          <SettingsSwitchRow
-            label={t("settings.launchOnStartup")}
-            checked={!!settings.launchOnStartup}
-            onCheckedChange={(value) =>
-              void onAutoSave({ launchOnStartup: value })
-            }
-          />
-          {settings.launchOnStartup && (
+      {supports("pageApps") && (
+        <SettingsBlock title={t("settings.general.updates")}>
+          <SettingsCard>
             <SettingsSwitchRow
-              label={t("settings.silentStartup")}
+              label={t("settings.general.checkToolUpdates")}
               help={{
-                title: t("settings.silentStartup"),
-                body: t("settings.silentStartupDescription"),
+                title: t("settings.general.checkToolUpdates"),
+                body: t("settings.general.checkToolUpdatesHelp"),
               }}
-              checked={!!settings.silentStartup}
+              checked={settings.checkToolUpdatesOnStartup ?? false}
               onCheckedChange={(value) =>
-                void onAutoSave({ silentStartup: value })
+                void onAutoSave({ checkToolUpdatesOnStartup: value })
               }
             />
-          )}
-          <SettingsSwitchRow
-            label={t("settings.minimizeToTray")}
-            help={{
-              title: t("settings.minimizeToTray"),
-              body: t("settings.general.minimizeToTrayHelp"),
-            }}
-            checked={settings.minimizeToTrayOnClose}
-            onCheckedChange={(value) =>
-              void onAutoSave({ minimizeToTrayOnClose: value })
-            }
-          />
-          {/* Linux（AppIndicator）只能出原生菜单，没得选 */}
-          {!isLinux() && (
-            <SettingsRow
-              label={t("settings.general.trayStyle")}
+          </SettingsCard>
+        </SettingsBlock>
+      )}
+
+      {supports("tray") && (
+        <SettingsBlock title={t("settings.general.windowAndTerminal")}>
+          <SettingsCard>
+            <SettingsSwitchRow
+              label={t("settings.launchOnStartup")}
+              checked={!!settings.launchOnStartup}
+              onCheckedChange={(value) =>
+                void onAutoSave({ launchOnStartup: value })
+              }
+            />
+            {settings.launchOnStartup && (
+              <SettingsSwitchRow
+                label={t("settings.silentStartup")}
+                help={{
+                  title: t("settings.silentStartup"),
+                  body: t("settings.silentStartupDescription"),
+                }}
+                checked={!!settings.silentStartup}
+                onCheckedChange={(value) =>
+                  void onAutoSave({ silentStartup: value })
+                }
+              />
+            )}
+            <SettingsSwitchRow
+              label={t("settings.minimizeToTray")}
               help={{
-                title: t("settings.general.trayStyle"),
-                body: t("settings.general.trayStyleHelp"),
+                title: t("settings.minimizeToTray"),
+                body: t("settings.general.minimizeToTrayHelp"),
+              }}
+              checked={settings.minimizeToTrayOnClose}
+              onCheckedChange={(value) =>
+                void onAutoSave({ minimizeToTrayOnClose: value })
+              }
+            />
+            {/* Linux（AppIndicator）只能出原生菜单，没得选 */}
+            {!isLinux() && (
+              <SettingsRow
+                label={t("settings.general.trayStyle")}
+                help={{
+                  title: t("settings.general.trayStyle"),
+                  body: t("settings.general.trayStyleHelp"),
+                }}
+                control={
+                  <SegmentedControl
+                    size="sm"
+                    aria-label={t("settings.general.trayStyle")}
+                    value={settings.nativeTrayMenu ? "menu" : "panel"}
+                    onValueChange={(value) =>
+                      void onAutoSave({ nativeTrayMenu: value === "menu" })
+                    }
+                    items={[
+                      {
+                        value: "panel",
+                        label: t("settings.general.trayStylePanel"),
+                      },
+                      {
+                        value: "menu",
+                        label: t("settings.general.trayStyleMenu"),
+                      },
+                    ]}
+                  />
+                }
+              />
+            )}
+            {isLinux() && (
+              <SettingsSwitchRow
+                label={t("settings.useAppWindowControls")}
+                help={{
+                  title: t("settings.useAppWindowControls"),
+                  body: t("settings.useAppWindowControlsDescription"),
+                }}
+                checked={!!settings.useAppWindowControls}
+                onCheckedChange={(value) =>
+                  void onAutoSave({ useAppWindowControls: value })
+                }
+              />
+            )}
+            <SettingsRow
+              label={t("settings.terminal.title")}
+              help={{
+                title: t("settings.terminal.title"),
+                body: t("settings.general.terminalHelp"),
               }}
               control={
-                <SegmentedControl
-                  size="sm"
-                  aria-label={t("settings.general.trayStyle")}
-                  value={settings.nativeTrayMenu ? "menu" : "panel"}
-                  onValueChange={(value) =>
-                    void onAutoSave({ nativeTrayMenu: value === "menu" })
+                <TerminalSelect
+                  className="h-8 w-[160px]"
+                  value={settings.preferredTerminal}
+                  onChange={(terminal) =>
+                    void onAutoSave({ preferredTerminal: terminal })
                   }
-                  items={[
-                    {
-                      value: "panel",
-                      label: t("settings.general.trayStylePanel"),
-                    },
-                    {
-                      value: "menu",
-                      label: t("settings.general.trayStyleMenu"),
-                    },
-                  ]}
                 />
               }
             />
-          )}
-          {isLinux() && (
-            <SettingsSwitchRow
-              label={t("settings.useAppWindowControls")}
-              help={{
-                title: t("settings.useAppWindowControls"),
-                body: t("settings.useAppWindowControlsDescription"),
-              }}
-              checked={!!settings.useAppWindowControls}
-              onCheckedChange={(value) =>
-                void onAutoSave({ useAppWindowControls: value })
-              }
-            />
-          )}
-          <SettingsRow
-            label={t("settings.terminal.title")}
-            help={{
-              title: t("settings.terminal.title"),
-              body: t("settings.general.terminalHelp"),
-            }}
-            control={
-              <TerminalSelect
-                className="h-8 w-[160px]"
-                value={settings.preferredTerminal}
-                onChange={(terminal) =>
-                  void onAutoSave({ preferredTerminal: terminal })
-                }
-              />
-            }
-          />
-        </SettingsCard>
-      </SettingsBlock>
+          </SettingsCard>
+        </SettingsBlock>
+      )}
     </>
   );
 }

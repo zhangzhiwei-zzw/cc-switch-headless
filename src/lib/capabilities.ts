@@ -17,6 +17,7 @@ import {
 export type CapabilityMap = Record<string, boolean>;
 
 let features: CapabilityMap | null = null;
+let availableCommands: Set<string> | null = null;
 
 /**
  * 拉取服务端能力表。桌面模式直接跳过（全部可用）。
@@ -72,8 +73,10 @@ export async function initializeCapabilities(): Promise<void> {
       }
     }
     features = payload.features;
+    availableCommands = new Set(payload.commands);
   } catch {
     features = {};
+    availableCommands = new Set();
     if (
       getWebConnectionStatus() === "checking" ||
       getWebConnectionStatus() === "ready"
@@ -91,9 +94,19 @@ export function supports(feature: string): boolean {
   return features[feature] === true;
 }
 
+/** Gate an individual action using the same runtime command inventory. */
+export function supportsCommand(command: string): boolean {
+  return (
+    availableCommands === null ||
+    availableCommands.has(command) ||
+    contract.browserCommands.includes(command)
+  );
+}
+
 /** 测试用：重置内部状态。 */
 export function resetCapabilitiesForTest(
   next: CapabilityMap | null = null,
 ): void {
   features = next;
+  availableCommands = null;
 }

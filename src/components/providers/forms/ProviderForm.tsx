@@ -903,10 +903,16 @@ function ProviderFormFull({
         preset,
       }));
     } else if (appId === "opencode") {
-      return opencodeProviderPresets.map<PresetEntry>((preset, index) => ({
-        id: `opencode-${index}`,
-        preset,
-      }));
+      return opencodeProviderPresets
+        .map<PresetEntry>((preset, index) => ({
+          id: `opencode-${index}`,
+          preset,
+        }))
+        .filter(
+          (entry) =>
+            supports("omo") ||
+            !["omo", "omo-slim"].includes(entry.preset.category ?? ""),
+        );
     } else if (appId === "openclaw") {
       return openclawProviderPresets.map<PresetEntry>((preset, index) => ({
         id: `openclaw-${index}`,
@@ -2636,7 +2642,9 @@ function ProviderFormFull({
               isCopilotAuthenticated={isCopilotAuthenticated}
               selectedGitHubAccountId={selectedGitHubAccountId}
               onGitHubAccountSelect={setSelectedGitHubAccountId}
-              onManageAuthAccounts={onManageAuthAccounts}
+              onManageAuthAccounts={
+                supports("pageAuth") ? onManageAuthAccounts : undefined
+              }
               isCodexOauthAuthenticated={isCodexOauthAuthenticated}
               selectedCodexAccountId={selectedCodexAccountId}
               onCodexAccountSelect={setSelectedCodexAccountId}
@@ -2722,7 +2730,9 @@ function ProviderFormFull({
               onCodexAuthSelectionInvalidated={() =>
                 setHasValidCodexOfficialSelection(false)
               }
-              onManageAuthAccounts={onManageAuthAccounts}
+              onManageAuthAccounts={
+                supports("pageAuth") ? onManageAuthAccounts : undefined
+              }
               codexOauthSelectionLabel={t("codexOauth.signInMethod")}
               codexOauthNoneOptionLabel={t("codexOauth.noneOptionLabel")}
               codexOauthNoneOptionDescription={t(

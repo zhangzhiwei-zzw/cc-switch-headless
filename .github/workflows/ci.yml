@@ -62,6 +62,7 @@ jobs:
             # 服务端（headless）单独一路：scripts/** 只被 e2e 用到，不该顺带触发
             # 三平台矩阵和 WSL2 那两个 job。server 同时覆盖 Web 构建与浏览器回归。
             server:
+              - "docs/web-capabilities.md"
               - "src-tauri/**"
               - "src/**"
               - "tests/browser/**"

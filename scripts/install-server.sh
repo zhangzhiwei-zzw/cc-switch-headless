@@ -55,6 +55,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+[[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ] || die "端口须为 1–65535"
+case "$INSTALL_DIR" in *$'\n'*|*'%'*|*'"'*) die "安装路径不能含换行、百分号或双引号" ;; esac
+
 command -v curl >/dev/null || die "需要 curl"
 command -v sha256sum >/dev/null || die "需要 sha256sum（coreutils）"
 
@@ -117,12 +120,18 @@ if [ -z "$INSTALL_DIR" ]; then
   if [ "$(id -u)" -eq 0 ]; then INSTALL_DIR=/usr/local/bin; else INSTALL_DIR="$HOME/.local/bin"; fi
 fi
 
+# Validate before replacing a working installation. Rename is atomic on this filesystem.
+chmod 755 "${TMPDIR_INSTALL}/${ASSET}"
+"${TMPDIR_INSTALL}/${ASSET}" --help >/dev/null 2>&1 \
+  || die "新二进制无法运行，原安装保持不变；请检查系统 glibc 版本"
 mkdir -p "$INSTALL_DIR"
-install -m 755 "${TMPDIR_INSTALL}/${ASSET}" "${INSTALL_DIR}/cc-switch-server"
-echo "==> 已安装到 ${INSTALL_DIR}/cc-switch-server"
-"${INSTALL_DIR}/cc-switch-server" --help >/dev/null 2>&1 \
-  && info "二进制可执行" \
-  || die "装好的二进制跑不起来——很可能是系统的 glibc 比产物要求的还旧"
+INSTALL_STAGED=$(mktemp "${INSTALL_DIR}/.cc-switch-server.XXXXXX")
+install -m 755 "${TMPDIR_INSTALL}/${ASSET}" "$INSTALL_STAGED"
+if [ -f "${INSTALL_DIR}/cc-switch-server" ]; then
+  cp -p "${INSTALL_DIR}/cc-switch-server" "${INSTALL_DIR}/cc-switch-server.previous"
+fi
+mv -f "$INSTALL_STAGED" "${INSTALL_DIR}/cc-switch-server"
+echo "==> 已安装到 ${INSTALL_DIR}/cc-switch-server（上个版本保存在 .previous）"
 
 case ":$PATH:" in
   *":${INSTALL_DIR}:"*) ;;
@@ -141,7 +150,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/cc-switch-server --port ${PORT}
+ExecStart="${INSTALL_DIR}/cc-switch-server" --port ${PORT}
 WorkingDirectory=%h
 Environment=RUST_LOG=info
 Restart=on-failure
@@ -155,7 +164,8 @@ EOF
 
   echo "==> 已写入 ${UNIT_DIR}/cc-switch-server.service"
   systemctl --user daemon-reload
-  systemctl --user enable --now cc-switch-server
+  systemctl --user enable cc-switch-server
+  systemctl --user restart cc-switch-server
   systemctl --user --no-pager --lines=0 status cc-switch-server || true
   echo "    未登录也保持运行：loginctl enable-linger $USER"
   echo "    看日志：journalctl --user -u cc-switch-server -f"

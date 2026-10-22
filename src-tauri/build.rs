@@ -1,4 +1,19 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=CC_SWITCH_BUILD_COMMIT");
+    let commit = std::env::var("CC_SWITCH_BUILD_COMMIT")
+        .ok()
+        .or_else(|| {
+            std::process::Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .ok()
+                .filter(|output| output.status.success())
+                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        })
+        .unwrap_or_else(|| "unknown".into());
+    println!("cargo:rustc-env=CC_SWITCH_BUILD_COMMIT={commit}");
+    println!("cargo:rerun-if-changed=../.git/HEAD");
+    println!("cargo:rerun-if-changed=../.git/refs/heads/main");
     // tauri-build 只在桌面版（default feature）编译；server 模式没有 tauri 依赖，
     // 也不需要生成上下文/资源清单。
     #[cfg(feature = "desktop")]

@@ -4929,6 +4929,7 @@
     "incompatible": {
       "title": "Cannot load server capabilities",
       "description": "The server returned an unexpected response. Check your reverse proxy configuration and that the frontend and server versions match, then retry."
-    }
+    },
+    "agyScope": "Web can edit Antigravity provider cards and discover models. These cards do not change the CLI started in your own shell; launching a card requires the desktop app. Credentials are never copied into a shell command."
   }
 }

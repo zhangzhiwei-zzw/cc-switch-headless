@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { HelpTip } from "@/components/ui/help-tip";
 import { useMemo } from "react";
 import { FolderSearch, Undo2 } from "lucide-react";
@@ -241,17 +242,19 @@ export function DirectoryInput({
           className="text-xs"
           onChange={(event) => onChange(event.target.value)}
         />
-        <HoverTip content={t("settings.browseDirectory")}>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onBrowse}
-            aria-label={t("settings.browseDirectory")}
-          >
-            <FolderSearch className="h-4 w-4" />
-          </Button>
-        </HoverTip>
+        {supports("pickDirectory") && (
+          <HoverTip content={t("settings.browseDirectory")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onBrowse}
+              aria-label={t("settings.browseDirectory")}
+            >
+              <FolderSearch className="h-4 w-4" />
+            </Button>
+          </HoverTip>
+        )}
         <HoverTip content={t("settings.resetDefault")}>
           <Button
             type="button"

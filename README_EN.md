@@ -170,3 +170,6 @@ Parameters, systemd, Docker and the implementation notes are documented in
 Fork of [farion1231/cc-switch](https://github.com/farion1231/cc-switch) by Jason Young, MIT licensed.
 **Upstream features and their bugs belong upstream**; the full Chinese documentation for the upstream app is
 in [README_ZH.md](README_ZH.md).
+
+
+Web documentation: [deployment and development](docs/README.md), [capability matrix](docs/web-capabilities.md), [security](SECURITY.md). Antigravity currently supports card editing and model discovery; launching sessions from Web is not available.

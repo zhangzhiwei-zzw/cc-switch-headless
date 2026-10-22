@@ -50,7 +50,11 @@ async function callServer<T>(cmd: string, args: InvokeArgs): Promise<T> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cmd, args: args ?? {} }),
     },
-    0,
+    /^(install|update_skill|import_|restore_|sync_|rebuild_|testUsageScript|queryProviderUsage)/.test(
+      cmd,
+    )
+      ? 300_000
+      : 60_000,
   );
 
   if (!response.ok) {
@@ -141,8 +145,7 @@ async function exportAndDownload(args: InvokeArgs): Promise<unknown> {
 /**
  * `stream_session_messages`：浏览器里没有 Tauri 的 `Channel`。
  *
- * 服务端一次读完整段会话（`web_session_transcript`），这里按桌面版同样的
- * `Header → Messages → Done` 顺序喂给回调，前端的分块应用逻辑因此不用改。
+ * 服务端解析会话后，通过 NDJSON 按 Header → Messages → Done 发送，浏览器逐批消费。
  */
 async function streamSessionMessages(args: InvokeArgs): Promise<void> {
   const channel = args?.onChunk as Channel<unknown> | undefined;
@@ -152,33 +155,44 @@ async function streamSessionMessages(args: InvokeArgs): Promise<void> {
     typeof args?.sourcePath === "string" ? args.sourcePath : "";
 
   try {
-    const payload = await callServer<{
-      messages: unknown[];
-      turns: unknown[];
-      approxBytes: number;
-      cached: boolean;
-      parseMs: number;
-    }>("web_session_transcript", { providerId, sourcePath });
-
-    channel?.onmessage?.({
-      type: "header",
-      total: payload.messages.length,
-      turns: payload.turns,
-      cached: payload.cached,
-      parseMs: payload.parseMs,
-    });
-
-    // 桌面版按字节切包；浏览器里整段已经在内存中，按条数分批即可
-    const batchSize = 200;
-    for (let start = 0; start < payload.messages.length; start += batchSize) {
-      channel?.onmessage?.({
-        type: "messages",
-        start,
-        messages: payload.messages.slice(start, start + batchSize),
-      });
+    const response = await webFetch(
+      "/api/session-transcript",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerId, sourcePath }),
+        signal: AbortSignal.timeout(120_000),
+      },
+      0,
+    );
+    if (!response.ok || !response.body)
+      throw new Error(`会话读取失败: HTTP ${response.status}`);
+    const reader = response.body
+      .pipeThrough(new TextDecoderStream())
+      .getReader();
+    let pending = "";
+    let done = false;
+    try {
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        pending += result.value;
+        let newline: number;
+        while ((newline = pending.indexOf("\n")) >= 0) {
+          const line = pending.slice(0, newline);
+          pending = pending.slice(newline + 1);
+          if (!line.trim()) continue;
+          const chunk = JSON.parse(line) as { type: string; message?: string };
+          if (chunk.type === "error") throw new Error(chunk.message);
+          channel?.onmessage?.(chunk);
+          if (chunk.type === "done") done = true;
+        }
+      }
+      if (!done) throw new Error("会话传输中断，请重试");
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
     }
-
-    channel?.onmessage?.({ type: "done", payloadBytes: payload.approxBytes });
   } catch (error) {
     channel?.onmessage?.({ type: "error", message: String(error) });
     throw error;
@@ -247,8 +261,7 @@ export function isTauri(): boolean {
 /**
  * `Channel` 替身。
  *
- * 服务端 PoC 未实现流式命令（`stream_session_messages`），调用会得到
- * `E_NOT_IMPLEMENTED`，前端会退回到一次性拉取。
+ * 流式命令通过认证后的 NDJSON HTTP 响应逐批传递。
  */
 export class Channel<T> {
   onmessage?: (message: T) => void;

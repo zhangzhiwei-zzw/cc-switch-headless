@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { createPortal } from "react-dom";
 import { badgeVariants } from "@/components/ui/badge";
 import { HoverTip } from "@/components/ui/hover-tip";
@@ -92,7 +93,9 @@ interface SwitchModePanelProps extends ListCallbacks {
 
 /** Gemini CLI、Grok Build、Claude Desktop 没有聚合模式（Q6）：那一格隐藏，前两格位置不变。 */
 const modesFor = (app: ModeAppId): AppMode[] =>
-  isStackAppId(app) ? ["direct", "route", "stack"] : ["direct", "route"];
+  isStackAppId(app) && supports("stack")
+    ? ["direct", "route", "stack"]
+    : ["direct", "route"];
 
 /**
  * 切换式应用的供应商页（v7 S1–S3）：模式行 → 通知槽 → 按查看的模式分区的列表。
@@ -145,7 +148,10 @@ export function SwitchModePanel({
   const setFailover = useSetAutoFailoverEnabled();
   const addToQueue = useAddToFailoverQueue();
   const removeFromQueue = useRemoveFromFailoverQueue();
-  const { data: stack } = useProxyStack(app, isStackAppId(app));
+  const { data: stack } = useProxyStack(
+    app,
+    isStackAppId(app) && supports("stack"),
+  );
   const setStackMember = useSetProxyStackMember();
   const adoptCatalog = useAdoptCodexStackCatalog();
   const modeActions = useModeActions(app);

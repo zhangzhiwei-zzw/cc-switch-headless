@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useMemo, useState, useEffect } from "react";
 import {
   AlertTriangle,
@@ -201,6 +202,7 @@ export function ProviderCard({
     queryKey: ["managed-auth-status", "codex_oauth"],
     queryFn: () => authApi.authGetStatus("codex_oauth"),
     enabled:
+      supports("pageAuth") &&
       codexOfficialIdentity === "managed_account" &&
       Boolean(managedCodexAccountId),
     staleTime: 30_000,
@@ -269,7 +271,7 @@ export function ProviderCard({
   const isXaiOauth = provider.meta?.providerType === PROVIDER_TYPES.XAI_OAUTH;
   // Antigravity 官方卡绑了授权中心的账号：额度查绑定的号（只有 macOS 能切号，其他平台忽略绑定）
   const agyBoundAccountId =
-    appId === "agy" && isOfficial && isMac()
+    appId === "agy" && isOfficial && isMac() && supports("pageAuth")
       ? resolveManagedAccountId(provider.meta, "agy_oauth")?.trim() || null
       : null;
   // 获取用量数据以判断是否有多套餐

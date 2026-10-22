@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import type { AppId } from "@/lib/api";
@@ -44,6 +45,7 @@ export function useSidebarStatus() {
     queries: MANAGED_AUTH_PROVIDERS.map((provider) => ({
       queryKey: ["managed-auth-status", provider],
       queryFn: () => authApi.authGetStatus(provider),
+      enabled: supports("pageAuth"),
       staleTime: 60_000,
     })),
   });

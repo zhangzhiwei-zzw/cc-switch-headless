@@ -10,12 +10,12 @@ body:
       label: Self Checks / 自检
       options:
         - label: |
-            I have read the [FAQ](https://github.com/farion1231/cc-switch#faq) section in README.
-            我已阅读 README 中的[常见问题](https://github.com/farion1231/cc-switch/blob/main/README_ZH.md#常见问题)。
+            I have read the [FAQ](https://github.com/zhangzhiwei-zzw/cc-switch-headless/blob/main/docs/web-mode-zh.md#常见问题) section in README.
+            我已阅读 README 中的[常见问题](https://github.com/zhangzhiwei-zzw/cc-switch-headless/blob/main/docs/web-mode-zh.md#常见问题)。
           required: true
         - label: |
-            I have searched for [existing issues](https://github.com/farion1231/cc-switch/issues), including closed ones.
-            我已搜索过[已有的 Issue](https://github.com/farion1231/cc-switch/issues)，包括已关闭的。
+            I have searched for [existing issues](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues), including closed ones.
+            我已搜索过[已有的 Issue](https://github.com/zhangzhiwei-zzw/cc-switch-headless/issues)，包括已关闭的。
           required: true
 
   - type: input
@@ -98,5 +98,29 @@ body:
       description: |
         Any other information, screenshots, or logs.
         其他信息、截图或日志。
+    validations:
+      required: false
+
+  - type: dropdown
+    id: web-deployment
+    attributes:
+      label: Web deployment / Web 部署方式
+      options:
+        - Native binary / 原生二进制
+        - systemd user service / systemd 用户服务
+        - Docker
+        - Source build / 源码构建
+        - Desktop-only upstream issue / 上游桌面版问题
+    validations:
+      required: true
+
+  - type: textarea
+    id: web-diagnostics
+    attributes:
+      label: Web diagnostics / Web 诊断
+      description: |
+        Include the About page build commit, server OS, browser version and whether SSH forwarding or HTTPS proxy is used.
+        请附上关于页的构建提交、服务端系统、浏览器版本，以及是否使用 SSH 隧道或 HTTPS 反代。
+        Redact API keys, tokens, auth URLs and private session content. 不要粘贴密钥、访问令牌、登录链接或私人会话内容。
     validations:
       required: false

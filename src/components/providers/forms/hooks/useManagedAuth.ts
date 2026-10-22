@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -48,6 +49,7 @@ export function useManagedAuth(
   } = useQuery<ManagedAuthStatus>({
     queryKey,
     queryFn: () => authApi.authGetStatus(authProvider),
+    enabled: supports("pageAuth"),
     staleTime: 30000,
     // A rejected xAI refresh token is persisted as `requires_reauth` by the
     // proxy hot path. Periodically refresh local status so an already-open Auth

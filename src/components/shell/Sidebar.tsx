@@ -769,7 +769,9 @@ function SettingsDirectory({
         aria-label={t("nav.settings")}
         className={cn("flex min-h-0 flex-1 flex-col", collapsed && "mt-2")}
       >
-        {SETTINGS_ITEMS.map(({ section, icon }) => (
+        {SETTINGS_ITEMS.filter(
+          ({ section }) => section !== "network" || supports("globalProxy"),
+        ).map(({ section, icon }) => (
           <NavItem
             key={section}
             collapsed={collapsed}

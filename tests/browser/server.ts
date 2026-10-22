@@ -1,3 +1,4 @@
+import contract from "../../src/web-shims/command-contract.json" with { type: "json" };
 import { spawn, type ChildProcess } from "node:child_process";
 import {
   mkdtempSync,
@@ -32,7 +33,9 @@ export class TestServer {
         newLayoutNoticeConfirmed: true,
         whatsNewSeenVersion: "99.0.0",
         proxyConfirmed: true,
-        visibleApps: { pi: true },
+        visibleApps: Object.fromEntries(
+          Object.keys(contract.apps).map((app) => [app, true]),
+        ),
         sessionAutoSyncEnabled: false,
       }),
     );

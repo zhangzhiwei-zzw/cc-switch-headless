@@ -1,3 +1,6 @@
+import { supports } from "@/lib/capabilities";
+import { isTauriRuntime } from "@/lib/platform";
+import { webFetch } from "@/lib/webConnection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
@@ -47,6 +50,18 @@ function readStarPromptDismissed(): boolean {
  */
 export function AboutSection({ isPortable }: AboutSectionProps) {
   const { t } = useTranslation();
+  const [diagnostics, setDiagnostics] = useState<{
+    buildCommit: string;
+    instance: string;
+    configDir: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!isTauriRuntime())
+      void webFetch("/api/env")
+        .then((response) => (response.ok ? response.json() : null))
+        .then(setDiagnostics)
+        .catch(() => {});
+  }, []);
   // 惰性初始化自模块缓存：重挂时首帧即渲染上次的值，避免 loading 闪烁；首次挂载缓存
   // 为空则回退到原始初值（null / loading）。
   const [version, setVersion] = useState<string | null>(() => appVersionCache);
@@ -104,13 +119,17 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
 
       if (!displayVersion) {
         await settingsApi.openExternal(
-          "https://github.com/farion1231/cc-switch/releases",
+          isTauriRuntime()
+            ? "https://github.com/farion1231/cc-switch/releases"
+            : "https://github.com/zhangzhiwei-zzw/cc-switch-headless/releases",
         );
         return;
       }
 
       await settingsApi.openExternal(
-        `https://github.com/farion1231/cc-switch/releases/tag/${displayVersion}`,
+        isTauriRuntime()
+          ? `https://github.com/farion1231/cc-switch/releases/tag/${displayVersion}`
+          : "https://github.com/zhangzhiwei-zzw/cc-switch-headless/releases",
       );
     } catch (error) {
       console.error("[AboutSection] Failed to open release notes", error);
@@ -119,7 +138,11 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
   }, [t, updateInfo?.availableVersion, version]);
 
   const handleOpenGithub = useCallback(() => {
-    void settingsApi.openExternal("https://github.com/farion1231/cc-switch");
+    void settingsApi.openExternal(
+      isTauriRuntime()
+        ? "https://github.com/farion1231/cc-switch"
+        : "https://github.com/zhangzhiwei-zzw/cc-switch-headless",
+    );
   }, []);
 
   const handleDismissStarPrompt = useCallback(() => {
@@ -222,38 +245,50 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
             )}
           </div>
         </div>
-        <Button
-          type="button"
-          variant={hasUpdate ? "solid" : "neutral"}
-          size="regular"
-          onClick={handleCheckUpdate}
-          disabled={isChecking || isDownloading}
-        >
-          {isDownloading ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("settings.updating")}
-            </>
-          ) : hasUpdate ? (
-            <>
-              <Download className="h-3.5 w-3.5" />
-              {t("settings.updateTo", {
-                version: updateInfo?.availableVersion ?? "",
-              })}
-            </>
-          ) : isChecking ? (
-            <>
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              {t("settings.checking")}
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-3.5 w-3.5" />
-              {t("settings.checkForUpdates")}
-            </>
-          )}
-        </Button>
+        {supports("updater") && (
+          <Button
+            type="button"
+            variant={hasUpdate ? "solid" : "neutral"}
+            size="regular"
+            onClick={handleCheckUpdate}
+            disabled={isChecking || isDownloading}
+          >
+            {isDownloading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t("settings.updating")}
+              </>
+            ) : hasUpdate ? (
+              <>
+                <Download className="h-3.5 w-3.5" />
+                {t("settings.updateTo", {
+                  version: updateInfo?.availableVersion ?? "",
+                })}
+              </>
+            ) : isChecking ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                {t("settings.checking")}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                {t("settings.checkForUpdates")}
+              </>
+            )}
+          </Button>
+        )}
       </div>
+      {diagnostics && (
+        <dl className="space-y-1 break-all px-5 py-4 text-caption text-fg-2">
+          <dt>CC Switch Web</dt>
+          <dd>{diagnostics.instance}</dd>
+          <dt>Commit</dt>
+          <dd>{diagnostics.buildCommit}</dd>
+          <dt>{t("appPage.configDirectory")}</dt>
+          <dd>{diagnostics.configDir}</dd>
+        </dl>
+      )}
 
       {hasUpdate && updateInfo && (
         <div className="space-y-1 px-5 py-4 text-body">

@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
@@ -65,6 +66,7 @@ export function AddProviderDialog({
   const { t } = useTranslation();
   // OpenCode and OpenClaw don't support universal providers
   const showUniversalTab =
+    supports("universalProviders") &&
     appId !== "opencode" &&
     appId !== "openclaw" &&
     appId !== "hermes" &&
@@ -593,10 +595,12 @@ export function AddProviderDialog({
         </FullScreenPanel>
       )}
 
-      <AuthSettingsPanel
-        target={authSettingsTarget}
-        onClose={() => setAuthSettingsTarget(null)}
-      />
+      {supports("pageAuth") && (
+        <AuthSettingsPanel
+          target={authSettingsTarget}
+          onClose={() => setAuthSettingsTarget(null)}
+        />
+      )}
       {conflictDialog}
     </FullScreenPanel>
   );
