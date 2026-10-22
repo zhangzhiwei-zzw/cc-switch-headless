@@ -24,6 +24,7 @@ jobs:
   # 放在最前面查，不白跑编译。推 tag 和 push main 同时发生，不能指望 CI 先跑完单测，
   # 所以这里自己跑一遍检查所有随包摘要的那份单测。
   whats-new-check:
+    if: vars.ENABLE_DESKTOP_RELEASE == 'true'
     name: Check in-app what's new summaries
     runs-on: ubuntu-22.04
     steps:
@@ -74,6 +75,7 @@ jobs:
         run: pnpm vitest run tests/config/whatsNewEntries.test.ts
 
   release:
+    if: vars.ENABLE_DESKTOP_RELEASE == 'true'
     needs: whats-new-check
     runs-on: ${{ matrix.os }}
     environment: release

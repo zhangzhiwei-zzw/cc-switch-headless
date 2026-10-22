@@ -24,8 +24,32 @@ pnpm dev:web
 
 ## 发布
 
-推送 main 只触发 CI；推送 `v*` 标签才触发服务端发布，也可以手动运行 Release server 并填写已有标签。手动发布会检出该标签，所有架构从同一提交构建；不填标签只产生构建产物。
+推送 main 只触发 CI；推送 `v*-headless*` 标签触发服务端发布，也可以手动运行 Release server 并填写已有标签。手动发布会检出该标签，所有架构从同一提交构建；不填标签只产生构建产物。
 
 每个平台提供二进制、SHA256 和 `.build.txt` 源码提交信息。发布版本与上游基线分别记录，Web 修改不应覆盖旧标签来复用同一个版本。可以使用 `v4.0.18-headless` 一类独立标签，并在 Release 说明中标注上游基线。
 
-安装脚本校验二进制 SHA256；维护者发布前应核对构建提交和 CI 结果。Release 工作流不以 main CI 为依赖，手动发布时需自行确认目标提交的检查结果。
+安装脚本校验二进制 SHA256。构建可以与 CI 并行，公开 Release 前会先校验三平台产物的源码提交与上游基线，然后查询 **产物对应提交** 的 `ci.yml` 运行：
+
+- 只接受本仓库 `main` 上 push、手动或定时触发的 CI；PR、其他提交和其他工作流的结果不算。
+- 同一提交有多次 CI 时，以最新一次运行为准；必须完成且结论为 `success`。
+- CI 排队、运行中或尚未出现时最多等待 30 分钟；失败、取消或等待超时均停止公开发布，构建产物仍可从工作流下载。
+- 修复或重新运行该提交的 CI 后，再重新运行 Release server。修改代码会产生新提交，需要使用新标签，不能覆盖旧标签。
+- 例外发布仅限手动运行：填写已有 `tag`，勾选 `skip_ci` 并填写 `ci_bypass_reason`。原因、操作者和提交会写入工作流摘要，Release 正文也会记录跳过原因。自动标签发布不能跳过 CI。
+
+手动发布时建议选择包含最新发布策略的 main 工作流；产物仍检出填写的标签，CI 校验也针对该标签的产物提交。GitHub 运行记录可能被清理，发布旧标签遇到无记录时需要重建对应 CI 或显式记录例外。实现见 [`require-release-ci.cjs`](../scripts/ci/require-release-ci.cjs)，API 依据见 [GitHub 工作流运行文档](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow)。
+
+## 仓库维护配置
+
+`.github/CODEOWNERS` 指向本 fork 的维护者 `@zhangzhiwei-zzw`。该文件只声明代码负责人；在 GitHub 的 main 分支保护或 ruleset 中启用必需检查、Code Owner 审核等规则，才会强制执行。仓库保护规则须在 GitHub 单独配置。
+
+Sponsor 按钮保留对上游作者 `farion1231` 的支持入口，并非本 fork 的收款入口。
+
+以下继承的可选流程默认不运行，需要维护者在 GitHub **Settings → Secrets and variables → Actions → Variables** 显式设置：
+
+| 仓库变量 | 启用值 | 用途与前提 |
+| --- | --- | --- |
+| `ENABLE_CLAUDE_REVIEW` | `true` | 响应维护者的 `@claude` 请求；需要 `CLAUDE_CODE_OAUTH_TOKEN` secret |
+| `ENABLE_R2_MIRROR` | `true` | 上游桌面下载/更新镜像；需要 R2 secrets 和桌面 updater 资产，不适用于当前 headless 产物 |
+| `ENABLE_DESKTOP_RELEASE` | `true` | 手动桌面打包；需要对应平台的签名、公证配置 |
+
+常规 Web CI、桌面兼容性 CI 和 headless 发布不依赖这些变量。可选流程的事件仍可能产生跳过记录，但未启用时不会分配构建 runner。

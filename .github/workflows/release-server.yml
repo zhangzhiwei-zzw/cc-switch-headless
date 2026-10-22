@@ -9,17 +9,25 @@
 #   cc-switch-server-linux-<arch>          可执行文件
 #   cc-switch-server-linux-<arch>.sha256   校验和
 #
-# 与上游那份 release.yml（打桌面版安装包）互不干扰：两个 workflow 都往同一个
-# tag 的 Release 里加资产。
+# 正式发布前要求产物对应提交的 main CI 成功；构建可与 CI 并行。
+# 桌面版 release.yml 保持手动、显式启用，与此流程独立。
 name: Release server
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*-headless*"]
   workflow_dispatch:
     inputs:
       tag:
         description: "要附加产物的已有 tag（留空则只构建、不发 Release）"
+        required: false
+        type: string
+      skip_ci:
+        description: "例外发布：跳过目标提交的 CI 门槛（必须填写原因）"
+        type: boolean
+        default: false
+      ci_bypass_reason:
+        description: "跳过 CI 的原因（会记录在运行摘要和 Release 正文）"
         required: false
         type: string
 
@@ -257,9 +265,10 @@ jobs:
 
   publish:
     name: attach to release
+    timeout-minutes: 40
     needs: [build, build-windows]
     runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
     steps:
       # 必须带 pattern：同一个 run 里除了服务端产物，还有 buildx 用
       # `cache-to: type=gha` 注册的缓存 artifact（`<owner>~<repo>~<hash>.dockerbuild`）。
@@ -292,7 +301,30 @@ jobs:
               raise SystemExit("Artifacts do not come from one source commit and upstream baseline")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write("upstream=" + tags.pop() + "\n")
+              output.write("commit=" + commits.pop() + "\n")
           PYPROVENANCE
+
+      # Load policy from this workflow's commit, even when manually building an older tag.
+      - name: Checkout release policy
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: release-policy
+          sparse-checkout: scripts/ci
+          persist-credentials: false
+
+      - name: Require successful CI for artifact source
+        id: ci
+        uses: actions/github-script@v8
+        env:
+          RELEASE_COMMIT: ${{ steps.provenance.outputs.commit }}
+          SKIP_CI: ${{ inputs.skip_ci == true && 'true' || 'false' }}
+          CI_BYPASS_REASON: ${{ inputs.ci_bypass_reason }}
+        with:
+          retries: 3
+          script: |
+            const gate = require('./release-policy/scripts/ci/require-release-ci.cjs');
+            await gate({ github, context, core });
 
       - name: Upload to the release
         uses: softprops/action-gh-release@v2
@@ -304,7 +336,9 @@ jobs:
             CC Switch 的无头 Web 服务端，基于上游 [cc-switch](https://github.com/farion1231/cc-switch) **${{ steps.provenance.outputs.upstream }}**。
 
             在浏览器里管理 Claude Code / Codex / Gemini CLI 等 AI CLI 的供应商、本地路由与会话——
-            界面与桌面版一致，只是走 HTTP。
+            复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。
+
+            CI 验证：${{ steps.ci.outputs.evidence }}
 
             ### 下载
 

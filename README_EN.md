@@ -4,7 +4,7 @@
 
 ### Headless web server for CC Switch
 
-**Manage providers, local routing and sessions for Claude Code / Codex / Gemini CLI and 8 more AI CLIs — from a browser. Same UI as the desktop app, served over HTTP.**
+**Manage providers, local routing and sessions for Claude Code / Codex / Gemini CLI and 9 more AI CLIs — from a browser. Reuses the desktop frontend over HTTP, with features gated by Web capabilities.**
 
 [![Based on cc-switch v4.0.18](https://img.shields.io/badge/based%20on-cc--switch%20v4.0.18-blue)](https://github.com/farion1231/cc-switch)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
@@ -26,7 +26,7 @@ This fork adds a headless server, `cc-switch-server`:
 - **embeds the frontend** into the binary — deployment is copying one file
 - runs the local proxy for real: protocol conversion and failover happen server-side
 
-The desktop app is unchanged.
+Desktop builds remain available; shared code uses `desktop` / `server` features to select the runtime.
 
 ## Quick start
 
@@ -42,7 +42,13 @@ the sha256 and installs to `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
-~/.local/bin/cc-switch-server          # add --service for a systemd user unit
+~/.local/bin/cc-switch-server          # run the server in the foreground
+```
+
+To install and start a systemd user service, pass `--service` to the installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash -s -- --service
 ```
 
 Without the pipe (swap `x86_64` for `aarch64` on ARM):
@@ -111,6 +117,7 @@ docker logs cc-switch-web | grep token    # grab the token
 **As a service** — the repository ships a systemd unit:
 
 ```bash
+mkdir -p ~/.config/systemd/user
 cp scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
 systemctl --user enable --now cc-switch-server
 loginctl enable-linger "$USER"            # keep it running while logged out
@@ -118,7 +125,7 @@ loginctl enable-linger "$USER"            # keep it running while logged out
 
 ## What you can do
 
-The UI is the desktop one. From a browser you can:
+The Web build reuses the desktop frontend and hides unsupported actions. From a browser you can:
 
 - **Providers** — add / edit / delete / switch / reorder; the editor previews what the config file will look
   like after switching
@@ -126,7 +133,7 @@ The UI is the desktop one. From a browser you can:
   between direct and routed mode, configure the failover queue
 - **Data** — export an SQL backup (downloaded straight to the browser), restore by uploading one, and
   create / restore / rename / delete backups
-- **Sessions** — browse the session logs the CLIs on **that machine** left behind: search, read, delete
+- **Sessions** — browse the session logs the CLIs on **that machine** left behind: search, read, and delete where supported. Delete Kimi sessions in Kimi Code
 - **MCP** — CRUD, per-app toggles, import from the apps' own configs, re-sync back to them
 - **Skills** — install / update / uninstall, repo management, import unmanaged ones, migrate storage,
   install from a ZIP (browser picks the file → upload → the server unpacks it), backups, skills.sh search

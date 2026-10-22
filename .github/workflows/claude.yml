@@ -12,7 +12,10 @@ on:
 
 jobs:
   claude:
-    if: |
+    # Opt in only after configuring CLAUDE_CODE_OAUTH_TOKEN.
+    if: >-
+      vars.ENABLE_CLAUDE_REVIEW == 'true' &&
+      (
       ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
         (github.event.comment.author_association == 'OWNER' ||
          github.event.comment.author_association == 'MEMBER' ||
@@ -33,6 +36,7 @@ jobs:
         (github.event.issue.author_association == 'OWNER' ||
          github.event.issue.author_association == 'MEMBER' ||
          github.event.issue.author_association == 'COLLABORATOR')))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read

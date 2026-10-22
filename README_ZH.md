@@ -6,13 +6,13 @@
 
 ### CC Switch 的无头 Web 服务端 —— 在浏览器里管理 Claude Code、Codex、Gemini CLI 等 12 个 AI CLI
 
-**界面和桌面版一模一样，只是走 HTTP。为服务器、容器和装不了 WebKitGTK 的系统而做。**
+**复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。为服务器、容器和装不了 WebKitGTK 的系统而做。**
 
 <sub>
 🙏 Fork 自 <a href="https://github.com/farion1231/cc-switch">farion1231/cc-switch</a>（作者 Jason Young）。<br/>
 本 fork 增加了 <code>cc-switch-server</code>：一个无头二进制，用 HTTP 提供同一套前端、读写同一份
 <code>~/.cc-switch</code> 数据，所以供应商切换、本地路由、会话浏览和备份在没有桌面的机器上一样能用。
-桌面版未做改动——上游功能与其问题请反馈给<a href="https://github.com/farion1231/cc-switch">上游</a>。
+保留桌面构建能力——上游功能与其问题请反馈给<a href="https://github.com/farion1231/cc-switch">上游</a>。
 </sub>
 
 > 📄 **本文是上游应用的完整中文文档**（桌面版的全部功能、FAQ、赞助商等）。
@@ -63,7 +63,7 @@ cargo build --release --no-default-features --features server --bin cc-switch-se
 
 ---
 
-> **以下内容描述的是上游应用本身**，本 fork 未做改动。
+> **以下内容描述的是上游应用本身**，Web 能力及差异以 [Web 支持矩阵](docs/web-capabilities.md) 为准。
 > 其中的官网、赞助商与下载按钮都指向上游项目。
 
 

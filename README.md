@@ -4,7 +4,7 @@
 
 ### CC Switch 的无头 Web 服务端
 
-**在浏览器里管理 Claude Code / Codex / Gemini CLI 等 12 个 AI CLI 的供应商、本地路由与会话。界面和桌面版一模一样，只是走 HTTP。**
+**在浏览器里管理 Claude Code / Codex / Gemini CLI 等 12 个 AI CLI 的供应商、本地路由与会话。复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。**
 
 [![基于 cc-switch v4.0.18](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.18-blue)](https://github.com/farion1231/cc-switch)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
@@ -25,7 +25,7 @@ WebKitGTK 4.1**（Ubuntu 22.04 起）——在 Ubuntu 20.04 这类系统上跑�
 - 前端**编进二进制**，部署就是拷一个文件
 - 本地路由是真跑的：代理在服务端做协议转换与故障转移
 
-桌面版未做改动。
+保留桌面构建能力；共享代码通过 `desktop` / `server` feature 区分运行时。
 
 ## 快速开始
 
@@ -40,7 +40,13 @@ Release 里有三份产物，不用装 Rust：`linux-x86_64`、`linux-aarch64`�
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash
-~/.local/bin/cc-switch-server          # 加 --service 顺带装成 systemd 用户服务
+~/.local/bin/cc-switch-server          # 前台启动服务端
+```
+
+安装并启动 systemd 用户服务，将 `--service` 传给安装脚本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/main/scripts/install-server.sh | bash -s -- --service
 ```
 
 不想用管道的话手动装（aarch64 把名字里的 `x86_64` 换成 `aarch64`）：
@@ -109,6 +115,7 @@ docker logs cc-switch-web | grep token    # 取令牌
 **常驻** —— 仓库自带 systemd 单元：
 
 ```bash
+mkdir -p ~/.config/systemd/user
 cp scripts/systemd/cc-switch-server.service ~/.config/systemd/user/
 systemctl --user enable --now cc-switch-server
 loginctl enable-linger "$USER"            # 未登录也保持运行
@@ -116,12 +123,12 @@ loginctl enable-linger "$USER"            # 未登录也保持运行
 
 ## 能做什么
 
-界面与桌面版一致，下面这些都能在浏览器里完成：
+Web 复用桌面版前端，并按能力隐藏未接入入口。下面这些可以在浏览器里完成：
 
 - **供应商**：新增 / 编辑 / 删除 / 切换 / 排序；编辑器会预览「切过去之后配置文件长什么样」
 - **本地路由**：启动代理（默认 `127.0.0.1:15721`）、把 CLI 配置指向它、在直连与路由之间切换、配置故障转移队列
 - **数据**：导出 SQL 备份（浏览器直接下载）、上传 SQL 恢复、备份的创建 / 恢复 / 重命名 / 删除
-- **会话**：浏览**服务端这台机器**上各 CLI 留下的会话，支持搜索、查看、删除
+- **会话**：浏览**服务端这台机器**上各 CLI 留下的会话，支持搜索、查看和受支持应用的会话删除；Kimi 会话需要在 Kimi Code 中删除
 - **MCP**：增删改、按应用开关、从各应用导入、一键重新同步回各应用
 - **Skills**：安装 / 更新 / 卸载、仓库管理、从未托管目录导入、存储位置迁移、
   从 ZIP 安装（浏览器选文件 → 上传 → 服务端解压）、备份恢复、skills.sh 搜索

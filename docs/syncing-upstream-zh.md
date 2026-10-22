@@ -180,6 +180,8 @@ server 二进制构建通过。本次未运行单元测试、HTTP/浏览器回�
 
 - v4.0.15 的 `set_proxy_route` 返回 `RouteSwitchResult`（`kind` / `clientConfigChanged`），
   Web 必须序列化真实结果，不能继续返回 `true`，否则路由切换提示会丢失；
+- Coding Plan 查询和智谱无套餐时的余额回退统一在 `services/provider/usage.rs::query_coding_plan_usage`；
+  同步上游时不要在桌面命令或 Web 桥接层重新实现这段业务；
 - Pi 的 `get_pi_current_state` / `get_pi_session_discovery` /
   `update_pi_provider_usage_script` 必须在 Web 注册；只合并上游业务实现不会自动接通 HTTP；
 - 新增 `tray_panel` Rust 模块只在 `desktop` feature 下编译；Vite 的托盘面板入口也只在
@@ -372,11 +374,13 @@ git push ssh://git@ssh.github.com:443/zhangzhiwei-zzw/cc-switch-headless.git v4.
 注意：
 
 - tag 必须用 **`vX.Y.Z-headless`**，不要用上游的 `vX.Y.Z`（会撞名）；
-- `release-server.yml` 由 tag push 触发，构建三条腿（Linux x86_64 / aarch64 / Windows），
-  各自跑 smoke test、断言 glibc ≤ 2.31 且不链 OpenSSL，再把 6 个资产挂到 Release；
-- 发版正文的版本号在合并时就要改（见收尾清单），否则 Release 页面会写着旧版本；
-- 发布后核对 `releases/latest` 与 6 个资产；`workflow_dispatch` 也能跑，但它是在工作流
-  所在分支的提交上创建 / 附加 Release，指向不如手动 tag 可控。
+- `release-server.yml` 由 `v*-headless*` 标签推送触发，构建三条腿（Linux x86_64 / aarch64 / Windows）；
+  Linux 检查 glibc ≤ 2.31 且不链 OpenSSL，各平台执行 smoke test；
+- 产物元数据必须来自同一提交与上游基线，公开发布还要求该提交在 main 的最新 CI 成功；
+  排队或运行中最多等待 30 分钟。失败或超时后，先处理 CI，再重新运行 Release server；
+- 每个平台有二进制、`.sha256` 与 `.build.txt`，发布后核对 `releases/latest` 及 9 个资产；
+- `workflow_dispatch` 填写标签后会检出该标签构建，留空只构建。例外跳过 CI 需要显式填写
+  `skip_ci` 和原因，记录见 [发布策略](README.md#发布)。
 
 ## 合并错了怎么回滚
 

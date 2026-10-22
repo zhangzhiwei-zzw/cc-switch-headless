@@ -4,7 +4,6 @@
 
 use crate::app_config::AppType;
 use crate::error::AppError;
-#[cfg(any(feature = "server", test))]
 use crate::provider::Provider;
 use crate::provider::{UsageData, UsageResult, UsageScript};
 use crate::settings;
@@ -190,7 +189,7 @@ pub async fn query_usage(
     .await
 }
 
-// Web 用量分发由 server feature 编译；桌面命令保留上游的托管账号实现。
+// Web 用量分发由 server feature 编译；Coding Plan 查询由两个运行时共用。
 /// UsageScript 的模板类型标记。
 #[cfg(feature = "server")]
 pub const TEMPLATE_TYPE_GITHUB_COPILOT: &str = "github_copilot";
@@ -238,7 +237,6 @@ pub fn subscription_quota_to_usage_result(
 
 /// Resolve `(base_url, api_key)` for native usage queries, delegating to the
 /// per-app resolver on `Provider`. Missing provider → empty credentials.
-#[cfg(any(feature = "server", test))]
 pub fn resolve_native_credentials(
     app_type: &AppType,
     provider: Option<&Provider>,
@@ -249,8 +247,7 @@ pub fn resolve_native_credentials(
 }
 
 /// ZenMux 这类把额度信息放在脚本里的供应商，优先用脚本里的凭据。
-#[cfg(any(feature = "server", test))]
-fn resolve_coding_plan_credentials(
+pub(crate) fn resolve_coding_plan_credentials(
     app_type: &AppType,
     provider: Option<&Provider>,
     usage_script: Option<&UsageScript>,
@@ -286,6 +283,116 @@ fn resolve_coding_plan_credentials(
     }
 }
 
+/// 两种运行时共用 Coding Plan 查询、智谱余额回退和用量结果转换。
+pub(crate) async fn query_coding_plan_usage(
+    app_type: &AppType,
+    provider: Option<&Provider>,
+    usage_script: Option<&UsageScript>,
+) -> Result<UsageResult, String> {
+    let (base_url, api_key) = resolve_coding_plan_credentials(app_type, provider, usage_script);
+
+    // 火山方舟用账号 AK/SK 签名查询用量（存于 usage_script，与推理 api_key 分离）；
+    // 其他供应商为 None，service 层沿用 api_key。
+    let access_key_id = usage_script.and_then(|s| s.access_key_id.clone());
+    let secret_access_key = usage_script.and_then(|s| s.secret_access_key.clone());
+    // 智谱团队版：显式 provider 标识 + 组织/项目 ID（与个人版智谱 base_url 相同，
+    // 靠 coding_plan_provider == "zhipu_team" 在 service 层路由）。
+    let coding_plan_provider = usage_script.and_then(|s| s.coding_plan_provider.clone());
+    let team_organization_id = usage_script.and_then(|s| s.team_organization_id.clone());
+    let team_project_id = usage_script.and_then(|s| s.team_project_id.clone());
+
+    let outcome = crate::services::coding_plan::query_coding_plan(
+        &base_url,
+        &api_key,
+        access_key_id.as_deref(),
+        secret_access_key.as_deref(),
+        coding_plan_provider.as_deref(),
+        team_organization_id.as_deref(),
+        team_project_id.as_deref(),
+    )
+    .await
+    .map_err(|e| format!("Failed to query coding plan: {e}"))?;
+
+    // 智谱按量账户没有 Coding Plan：有套餐显示套餐，没有就显示账户余额（#8465），
+    // 不再显示「查询失败」让人以为供应商坏了。卡片和托盘都按余额样式显示这条结果。
+    let quota = match outcome {
+        crate::services::coding_plan::CodingPlanOutcome::Quota(quota) => quota,
+        crate::services::coding_plan::CodingPlanOutcome::ZhipuNoPlan(_) => {
+            return crate::services::balance::query_zhipu_balance(&base_url, &api_key)
+                .await
+                .map_err(|e| format!("Failed to query balance: {e}"));
+        }
+    };
+
+    // 将 SubscriptionQuota 转换为 UsageResult
+    if !quota.success {
+        return Ok(UsageResult {
+            success: false,
+            data: None,
+            error: quota.error,
+        });
+    }
+
+    // ZenMux 的 tier 携带 USD 额度信息，需要编码为 JSON extra
+    let has_usd = quota
+        .tiers
+        .first()
+        .map(|t| t.used_value_usd.is_some())
+        .unwrap_or(false);
+    let plan_label = quota
+        .credential_message
+        .as_deref()
+        .and_then(|msg| msg.split(' ').next())
+        .map(|tier| format!("ZenMux·{}", tier.to_uppercase()));
+    let mut first_tier = true;
+
+    let data: Vec<UsageData> = quota
+        .tiers
+        .iter()
+        .map(|tier| {
+            let total = 100.0;
+            let used = tier.utilization;
+            let remaining = total - used;
+            let extra = if has_usd {
+                let mut extra_json = serde_json::json!({
+                    "resetsAt": tier.resets_at,
+                });
+                if let Some(v) = tier.used_value_usd {
+                    extra_json["usedValueUsd"] = serde_json::json!(v);
+                }
+                if let Some(v) = tier.max_value_usd {
+                    extra_json["maxValueUsd"] = serde_json::json!(v);
+                }
+                if first_tier {
+                    if let Some(ref label) = plan_label {
+                        extra_json["planLabel"] = serde_json::json!(label);
+                    }
+                    first_tier = false;
+                }
+                Some(extra_json.to_string())
+            } else {
+                tier.resets_at.clone()
+            };
+            UsageData {
+                plan_name: Some(tier.name.clone()),
+                remaining: Some(remaining),
+                total: Some(total),
+                used: Some(used),
+                unit: Some("%".to_string()),
+                is_valid: Some(true),
+                invalid_message: None,
+                extra,
+            }
+        })
+        .collect();
+
+    Ok(UsageResult {
+        success: true,
+        data: if data.is_empty() { None } else { Some(data) },
+        error: None,
+    })
+}
+
 /// 供应商用量查询里**不依赖托管账号**的那几条路径：
 /// Coding Plan（token_plan）、官方余额（balance）、官方订阅额度
 /// （official_subscription）、通用 JS 脚本。
@@ -310,97 +417,7 @@ pub async fn query_provider_usage(
 
     // ── Coding Plan 专用路径 ──
     if template_type == TEMPLATE_TYPE_TOKEN_PLAN {
-        let (base_url, api_key) =
-            resolve_coding_plan_credentials(&app_type, provider, usage_script);
-
-        // 火山方舟用账号 AK/SK 签名查询用量（存于 usage_script，与推理 api_key
-        // 分离）；其他供应商为 None，service 层沿用 api_key。
-        let access_key_id = usage_script.and_then(|s| s.access_key_id.clone());
-        let secret_access_key = usage_script.and_then(|s| s.secret_access_key.clone());
-        // 智谱团队版：显式 provider 标识 + 组织/项目 ID（与个人版智谱 base_url
-        // 相同，靠 coding_plan_provider == "zhipu_team" 在 service 层路由）。
-        let coding_plan_provider = usage_script.and_then(|s| s.coding_plan_provider.clone());
-        let team_organization_id = usage_script.and_then(|s| s.team_organization_id.clone());
-        let team_project_id = usage_script.and_then(|s| s.team_project_id.clone());
-
-        let quota = crate::services::coding_plan::get_coding_plan_quota(
-            &base_url,
-            &api_key,
-            access_key_id.as_deref(),
-            secret_access_key.as_deref(),
-            coding_plan_provider.as_deref(),
-            team_organization_id.as_deref(),
-            team_project_id.as_deref(),
-        )
-        .await
-        .map_err(|e| format!("Failed to query coding plan: {e}"))?;
-
-        if !quota.success {
-            return Ok(UsageResult {
-                success: false,
-                data: None,
-                error: quota.error,
-            });
-        }
-
-        // ZenMux 的 tier 携带 USD 额度信息，需要编码为 JSON extra
-        let has_usd = quota
-            .tiers
-            .first()
-            .map(|t| t.used_value_usd.is_some())
-            .unwrap_or(false);
-        let plan_label = quota
-            .credential_message
-            .as_deref()
-            .and_then(|msg| msg.split(' ').next())
-            .map(|tier| format!("ZenMux·{}", tier.to_uppercase()));
-        let mut first_tier = true;
-
-        let data: Vec<UsageData> = quota
-            .tiers
-            .iter()
-            .map(|tier| {
-                let total = 100.0;
-                let used = tier.utilization;
-                let remaining = total - used;
-                let extra = if has_usd {
-                    let mut extra_json = serde_json::json!({
-                        "resetsAt": tier.resets_at,
-                    });
-                    if let Some(v) = tier.used_value_usd {
-                        extra_json["usedValueUsd"] = serde_json::json!(v);
-                    }
-                    if let Some(v) = tier.max_value_usd {
-                        extra_json["maxValueUsd"] = serde_json::json!(v);
-                    }
-                    if first_tier {
-                        if let Some(ref label) = plan_label {
-                            extra_json["planLabel"] = serde_json::json!(label);
-                        }
-                        first_tier = false;
-                    }
-                    Some(extra_json.to_string())
-                } else {
-                    tier.resets_at.clone()
-                };
-                UsageData {
-                    plan_name: Some(tier.name.clone()),
-                    remaining: Some(remaining),
-                    total: Some(total),
-                    used: Some(used),
-                    unit: Some("%".to_string()),
-                    is_valid: Some(true),
-                    invalid_message: None,
-                    extra,
-                }
-            })
-            .collect();
-
-        return Ok(UsageResult {
-            success: true,
-            data: if data.is_empty() { None } else { Some(data) },
-            error: None,
-        });
+        return query_coding_plan_usage(&app_type, provider, usage_script).await;
     }
 
     // ── 官方余额查询路径 ──
