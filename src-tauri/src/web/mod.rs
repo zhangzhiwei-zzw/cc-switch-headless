@@ -116,6 +116,8 @@ impl Context {
 
 /// 服务端入口（由 `src/bin/server.rs` 调用）。
 pub fn run() {
+    #[cfg(unix)]
+    crate::raise_open_file_limit();
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -991,7 +993,7 @@ async fn env_info(AxumState(context): AxumState<Arc<Context>>) -> Response {
         "mode": "web",
         "buildCommit": env!("CC_SWITCH_BUILD_COMMIT"),
         "instance": context.cookie_name,
-        "upstream": include_str!("../../../docs/upstream-v4.0.17.lock"),
+        "upstream": include_str!("../../../docs/upstream-v4.0.18.lock"),
         "version": env!("CARGO_PKG_VERSION"),
         "homeDir": dirs::home_dir().map(|path| path.to_string_lossy().to_string()),
         "configDir": crate::config::get_app_config_dir().to_string_lossy().to_string(),

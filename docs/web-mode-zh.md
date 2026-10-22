@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.17**（已合并至上游 `0a41250d`），见
-> [`upstream-v4.0.17.lock`](upstream-v4.0.17.lock)。
+> 当前对标基线 **v4.0.18**（已合并至上游 `e4873bc8`），见
+> [`upstream-v4.0.18.lock`](upstream-v4.0.18.lock)。
 >
 > **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
 > 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。
@@ -261,6 +261,7 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 供应商：新增 / 编辑 / 删除 / 切换 / 排序 / 从 live 导入 / 编辑器预览；
   **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库：单张 PNG
   ≤ 256×256、data URI ≤ 64 KiB，整个图标库最多 100 个，名称 ≤ 64 字符；
+- **Kimi Code**：支持供应商及模型管理、MCP、Skills、提示词、会话阅读和用量同步；配置位于服务端的 `~/.kimi-code`（可通过 `KIMI_CODE_HOME` 覆盖）。采用多供应商共存模式，默认模型在 CLI 中用 `/model` 选择，不提供本地路由；OAuth 登录和会话删除由 Kimi Code 管理。详见 [Kimi 接入](kimi-code-integration-zh.md)。
 - **Antigravity（agy）供应商**：可配置 API Key、地址和模型；模型发现由服务器上安装的
   `agy` CLI 执行。Web 不启动 agy 会话，也不会改变直接在 shell 启动的 agy；页面明确显示此限制。OpenCode 供应商卡也可读取 / 设置 `opencode.json` 顶层默认模型；
 - 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；用量页的显示设置

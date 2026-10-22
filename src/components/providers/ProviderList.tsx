@@ -168,6 +168,7 @@ export function ProviderList({
   const isInConfig = useCallback(
     (provider: Provider): boolean => {
       switch (appId) {
+        case "kimi":
         case "mcode":
           return provider.meta?.liveConfigManaged === true;
         case "opencode":
@@ -447,7 +448,7 @@ export function ProviderList({
           appId={appId}
           onCreate={appId === "pi" ? undefined : onCreate}
           onImport={
-            appId === "pi" || appId === "mcode"
+            appId === "pi" || appId === "mcode" || appId === "kimi"
               ? undefined
               : () => importMutation.mutate()
           }

@@ -1,0 +1,11 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.18"
+upstream_commit = "cb90a2440d1a771d67f46b65b2e0f2ea5106ce85"
+resolved_at = "2026-10-22"
+
+# 记录 tag peel 后的 commit；main 比该 tag 多 1 个提交（Kimi Code 接入）。
+# 本次从 0a41250d 合并 9 个上游提交，涉及 120 个文件。
+last_merged_commit = "e4873bc8aa2555225d4867ec2f04b1290f1d21d9"
+last_merged_tag = "v4.0.18"
+
+# 同步流程见 syncing-upstream-zh.md。

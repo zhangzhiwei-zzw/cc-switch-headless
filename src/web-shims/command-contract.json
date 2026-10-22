@@ -299,6 +299,10 @@
       "feature": "pageProviders",
       "commands": []
     },
+    "kimi": {
+      "feature": "pageProviders",
+      "commands": []
+    },
     "agy": {
       "feature": "pageProviders",
       "commands": ["get_agy_models"]

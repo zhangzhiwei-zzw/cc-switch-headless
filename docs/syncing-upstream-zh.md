@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.17.lock`](upstream-v4.0.17.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.18.lock`](upstream-v4.0.18.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -73,6 +73,7 @@ Host github.com
 | 2026-10-17 | v4.0.9 → v4.0.14 | 175 | 335 | 5 个文件 / 6 处 |
 | 2026-10-18 | v4.0.14 → v4.0.15 + 2 commits | 20 | 93 | 4 个文件 / 5 处 |
 | 2026-10-21 | v4.0.15 → v4.0.17 + 上游后续提交 | 89 | 298 | 7 个文件 |
+| 2026-10-22 | v4.0.17 后续提交 → v4.0.18 + Kimi Code | 9 | 120 | 11 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -134,6 +135,16 @@ Vite 面板入口只在桌面构建启用。Web 的 `set_proxy_route` 改为返�
 本机模型发现和 OpenCode 默认模型读写，托管账号中心仍由 `pageAuth: false` 明确隐藏。
 冲突涉及 `README.md`、`package.json`、`Cargo.toml`、Provider 命令、`lib.rs`、MCP 服务和
 `App.tsx`。命令覆盖契约补入 11 个应用及新命令，Antigravity 托管账号查询列为 Web 未支持。
+
+本次（2026-10-22）合并至上游 `e4873bc8`（v4.0.18 后 1 个提交）。保留上一轮 Web
+安全与部署修复；新增 Kimi Code 的 Web 应用声明和配置目录映射，复用上游供应商、
+MCP、Skills、提示词、会话和用量服务。Kimi 使用共存模式，不支持本地路由，
+默认模型仍在 CLI 中用 `/model` 选择；Web 不提供 CLI 安装、OAuth 登录或终端启动。
+Unix 提升文件描述符软上限的修复同步应用到服务端入口。
+
+本次合并的检查：前端类型与格式、Web 构建、命令覆盖（327 个前端命令、168 个服务端
+命令、12 个应用）、能力文档一致性、Rust 格式、server Clippy（`-D warnings`）及
+server 二进制构建通过。本次未运行单元测试、HTTP/浏览器回归或跨平台发布构建。
 
 ## 冲突高发区
 
@@ -321,10 +332,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.17.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.18.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.17.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.18.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

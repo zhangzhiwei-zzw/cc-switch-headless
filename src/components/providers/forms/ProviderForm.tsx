@@ -98,6 +98,7 @@ import { ClaudeDesktopProviderForm } from "./ClaudeDesktopProviderForm";
 import { GrokBuildProviderForm } from "./GrokBuildProviderForm";
 import { CodexFormFields } from "./CodexFormFields";
 import { GeminiFormFields } from "./GeminiFormFields";
+import { KimiProviderForm } from "./KimiProviderForm";
 import { AgyAccountSelect } from "./AgyOAuthSection";
 import { isMac } from "@/lib/platform";
 import { McodeProviderForm } from "./McodeProviderForm";
@@ -326,6 +327,7 @@ export interface ProviderFormProps {
 }
 
 export function ProviderForm(props: ProviderFormProps) {
+  if (props.appId === "kimi") return <KimiProviderForm {...props} />;
   if (props.appId === "mcode") return <McodeProviderForm {...props} />;
   if (props.appId === "pi") {
     return <PiProviderForm {...props} />;

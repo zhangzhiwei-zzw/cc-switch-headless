@@ -1620,6 +1620,7 @@
       "ccsub": "CCSub 是稳定、实惠的 AI API 中转平台，Claude Code 官方订阅的超强平替，一个 Key 覆盖全部模型，价格约为官方 1/3。",
       "subrouter": "SubRouter 是中转站聚合平台，一个 Key 可接入多个模型与供应商。",
       "qiniu": "七牛云是多协议 AI 中转平台，一个 Key 即可调用原生 Claude、GPT、Gemini 模型，兼容 Anthropic、OpenAI、Gemini 多种接口。",
+      "haoai": "hao.ai 是面向开发者与团队的高速、稳定大模型统一 API 网关：一个 Key 即可接入 GPT、Claude、Grok 等主流模型，兼容 OpenAI、Anthropic 协议，提供模型路由、故障回退与完整调用日志，价格低至官方参考价的 1.5 折。CC Switch 用户通过此链接注册，首单可享 5% 赠送额度！",
       "fenno": "Fenno.ai 是稳定高效的 API 中转服务商，可接入多种主流模型。CC Switch 用户专属福利：通过此链接订阅 1.99 刀 /50 刀额度的 Trial 计划，有效期 7 天！",
       "teamorouter": "TeamoRouter 是企业级 Agentic LLM 网关，价格最高可达 90% 折扣。为 CC Switch 的用户提供了特别福利：新用户通过此链接注册，首次充值享 10% 折扣！",
       "ppio": "PPIO 是国内领先的独立 Agentic Cloud 服务商，一个 API Key 调用全部旗舰开源模型。通过此链接注册并完成实名认证，即可获得 ¥10 代金券。",
@@ -4931,5 +4932,27 @@
       "description": "服务端返回了异常响应，请检查反向代理配置及前后端版本是否匹配，然后重试。"
     },
     "agyScope": "Web 可编辑 Antigravity 供应商卡片与发现模型，但不会改变你在终端直接启动的 agy。使用卡片启动会话需要桌面版；密钥不会放进可复制的命令。"
+  },
+  "kimi": {
+    "modelSelectionHint": "启用后，在 Kimi Code 中使用 /model 选择默认模型。",
+    "providerType": "供应商类型",
+    "baseUrl": "请求地址",
+    "models": "模型",
+    "addModel": "添加模型",
+    "removeModel": "移除模型",
+    "modelId": "模型 ID",
+    "contextSize": "上下文长度",
+    "capabilities": {
+      "image_in": "图片输入",
+      "thinking": "思考",
+      "always_thinking": "始终思考",
+      "tool_use": "工具调用",
+      "dynamically_loaded_tools": "按需加载工具"
+    },
+    "empty": {
+      "title": "添加 Kimi Code 供应商",
+      "description": "配置请求地址、API Key 和模型；已有 Kimi 配置会自动导入。"
+    },
+    "deleteSessionHint": "请在 Kimi Code 中删除，以同时更新会话索引和历史记录。"
   }
 }

@@ -567,6 +567,7 @@ fn get_config_dir(_context: Arc<Context>, args: Value) -> HandlerFuture {
                 .parent()
                 .map(|path| path.to_path_buf())
                 .ok_or_else(|| "无法解析 MiniMax Code 配置目录".to_string())?,
+            AppType::Kimi => crate::kimi_config::data_dir(),
             AppType::Agy => crate::agy_config::agy_dir(),
         };
         Ok(Value::String(dir.to_string_lossy().to_string()))

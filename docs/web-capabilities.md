@@ -51,6 +51,7 @@
 | hermes | `get_hermes_live_provider_ids`, `get_hermes_model_config` |
 | pi | `get_pi_current_state`, `get_pi_session_discovery`, `update_pi_provider_usage_script` |
 | mcode | 通用供应商命令 |
+| kimi | 通用供应商命令 |
 | agy | `get_agy_models` |
 
 Antigravity 支持卡片编辑和服务器 agy CLI 模型发现；Web 不提供会话启动，卡片不会改变用户直接在 shell 启动的 agy。
