@@ -66,6 +66,6 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 - 单个实例的令牌具有管理员权限；不提供多用户、角色或租户隔离。
 - 托管账号中心、CLI 安装升级、终端启动、目录选择、桌面自动更新尚未接入。
 - OpenClaw/Hermes 的专用配置、记忆及工作区等入口未接入，不影响表中明确支持的功能。
-- 会话分块传输仍需后端先解析文件；它不代表服务端解析的内存占用有固定上限。
+- 会话读取限制两个并发任务，文件预检 64 MiB、输出 32 MiB、单条消息 2 MiB；SQLite 和原生解析器仍可能完整加载内容，不是严格内存沙箱。
 
 [部署说明](web-mode-zh.md) · [排错指南](web-troubleshooting.md) · [开发者能力表](web-capabilities.md) · [安全边界](../SECURITY.md)

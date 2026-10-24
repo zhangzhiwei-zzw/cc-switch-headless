@@ -4771,6 +4771,7 @@
     }
   },
   "webConnection": {
+    "sessionBusy": "Oturum okuma işlemleri meşgul. Kısa bir süre sonra yeniden deneyin.",
     "agyScope": "Web, Antigravity sağlayıcı kartlarını düzenleyebilir ve modelleri bulabilir. Bu kartlar, kendi terminalinizden başlattığınız agy yapılandırmasını değiştirmez. Karttan oturum başlatmak masaüstü uygulamasını gerektirir. Kimlik bilgileri kopyalanabilir komutlara eklenmez."
   },
   "kimi": {

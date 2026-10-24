@@ -3,6 +3,7 @@
 本仓库在上游 CC Switch 业务层上提供无头 Web 服务。浏览器操作的是**运行服务端的机器**的配置和会话。
 
 - [安装、Docker、systemd、HTTPS、升级与回滚](web-mode-zh.md)
+- [会话读取限额与性能](web-mode-zh.md#会话性能与读取限额) · [请求诊断与浏览器策略](web-mode-zh.md#请求诊断与浏览器策略)
 - [应用支持表：供应商、路由、MCP、Skills、会话与用量](web-app-support.md)
 - [排错指南：登录、反代、容器、数据库与恢复](web-troubleshooting.md)
 - [开发者能力与命令覆盖矩阵](web-capabilities.md)
@@ -25,6 +26,14 @@ pnpm dev:web
 ```
 
 `build:web` 和 `dev:web` 通过 Node 设置环境变量，兼容 Windows。Windows 启动二进制路径使用 `src-tauri/target/debug/cc-switch-server.exe`。HTTP 回归脚本使用 Bash/Python，应在 Linux 或 WSL 中运行。
+
+### 控制本地构建占用
+
+开发和测试 profile 默认 `debug=0`、`incremental=true`：减少调试符号，保留增量编译。需要堆栈中的源码行号时，可临时设置 `CARGO_PROFILE_DEV_DEBUG=line-tables-only`；测试对应 `CARGO_PROFILE_TEST_DEBUG`。设置变化会引发重新编译，定位完成后恢复默认即可。
+
+日常 Web 开发固定使用 server feature 和 debug profile；检查 Rust 类型时用 `cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server`，需要启动服务时再 build。前端改动使用 `pnpm dev:web`，无需每次重编 Rust。完整桌面矩阵和 release 构建可交给 CI，保留 Cargo 下载缓存与固定工具链，避免反复冷编译。
+
+空间紧张时可用 `cargo clean --manifest-path src-tauri/Cargo.toml -p cc-switch` 仅清理本包产物；整个 target 清空后需要重新编译依赖。关闭增量编译可进一步减少缓存，但会牺牲后续修改的编译速度。具体取舍见 [Cargo profile 文档](https://doc.rust-lang.org/cargo/reference/profiles.html)。
 
 ## 发布
 

@@ -10,10 +10,13 @@
 //!
 //! 启动与桌面版一致的部分见 [`state::bootstrap`]。
 
+mod assets;
+mod diagnostics;
 mod files;
 pub mod mcp;
 pub mod prompts;
 pub mod routes;
+mod sessions;
 pub mod skills;
 pub mod state;
 mod transcript;
@@ -523,14 +526,13 @@ fn build_router(context: Arc<Context>) -> Router {
             context.clone(),
             security_headers,
         ))
+        .layer(middleware::from_fn(diagnostics::trace_request))
         .with_state(context)
 }
 
 /// 给所有响应加一组安全头。
 ///
-/// 没上 CSP：前端 `src/index.html` 里有一段内联的主题初始化脚本（避免深色模式闪烁），
-/// `script-src 'self'` 会把它拦掉，而写死它的 sha256 又会在上游改动那段脚本时
-/// 静默失效。要加 CSP 得先把那段脚本抽成独立文件。
+/// Enforce low-risk document restrictions; evaluate the full resource policy in report-only mode.
 async fn security_headers(
     AxumState(context): AxumState<Arc<Context>>,
     request: Request<axum::body::Body>,
@@ -538,6 +540,15 @@ async fn security_headers(
 ) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        ),
+    );
+    headers.insert("content-security-policy-report-only", HeaderValue::from_static(
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://models.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    ));
     // 别让浏览器猜类型（上传目录里的文件也会经由本服务返回）
     headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
@@ -575,73 +586,80 @@ async fn static_files(
     } else {
         requested
     };
-    let gzip = headers
-        .get(header::ACCEPT_ENCODING)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|value| value.split(',').any(|part| part.trim() == "gzip"));
+    let gzip = assets::accepts_gzip(&headers);
     if let Some(dir) = &context.dist_dir {
-        let candidate = match files::static_path(dir, requested) {
-            Ok(path) => path,
-            Err(()) => return (StatusCode::FORBIDDEN, "静态文件路径不被允许").into_response(),
-        };
-        if let Ok(bytes) = tokio::fs::read(&candidate).await {
-            return asset_response(requested, bytes, gzip);
+        if files::static_path(dir, requested).is_err() {
+            return (StatusCode::FORBIDDEN, "静态文件路径不被允许").into_response();
         }
-        // A custom distribution must never fall back to embedded assets from another build.
-        if let Ok(index) = files::static_path(dir, "index.html") {
-            if let Ok(bytes) = tokio::fs::read(index).await {
-                return asset_response("index.html", bytes, gzip);
+        if let Some(response) = custom_asset(dir, requested, gzip).await {
+            return response;
+        }
+        if spa_path(requested) {
+            if let Some(response) = custom_asset(dir, "index.html", gzip).await {
+                return response;
             }
         }
         return StatusCode::NOT_FOUND.into_response();
     }
-    if let Some(asset) = EmbeddedWeb::get(requested) {
-        return asset_response(requested, asset.data.into_owned(), gzip);
+    if let Some(response) = embedded_asset(requested, gzip) {
+        return response;
     }
-    if let Some(index) = EmbeddedWeb::get("index.html") {
-        return asset_response("index.html", index.data.into_owned(), gzip);
+    if spa_path(requested) {
+        if let Some(response) = embedded_asset("index.html", gzip) {
+            return response;
+        }
     }
-    (
-        StatusCode::NOT_FOUND,
-        "前端产物缺失，请运行 pnpm build:web 并重建服务端",
-    )
-        .into_response()
+    StatusCode::NOT_FOUND.into_response()
 }
 
-fn asset_response(path: &str, bytes: Vec<u8>, gzip: bool) -> Response {
-    use std::io::Write;
-    let mime = mime_guess::from_path(path).first_or_octet_stream();
-    let compress = gzip
-        && bytes.len() > 1024
-        && matches!(mime.type_().as_str(), "text" | "application" | "image")
-        && (mime.type_().as_str() != "image" || mime.subtype().as_str() == "svg+xml");
-    let (bytes, compressed) = if compress {
-        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-        match encoder.write_all(&bytes).and_then(|()| encoder.finish()) {
-            Ok(encoded) => (encoded, true),
-            Err(_) => (bytes, false),
+fn spa_path(path: &str) -> bool {
+    !path.starts_with("api/")
+        && !path.starts_with("assets/")
+        && Path::new(path).extension().is_none()
+}
+
+async fn custom_asset(dir: &Path, requested: &str, gzip: bool) -> Option<Response> {
+    let source = files::static_path(dir, requested).ok()?;
+    let metadata = tokio::fs::metadata(&source).await.ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    if gzip {
+        if let Ok(sidecar) = files::static_path(dir, &format!("{requested}.gz")) {
+            if let Ok(compressed_meta) = tokio::fs::metadata(&sidecar).await {
+                // A stale sidecar must not serve a previous build of a custom --dist.
+                if compressed_meta.is_file()
+                    && compressed_meta
+                        .modified()
+                        .ok()
+                        .zip(metadata.modified().ok())
+                        .is_some_and(|(compressed, raw)| compressed >= raw)
+                {
+                    if let Ok(bytes) = tokio::fs::read(sidecar).await {
+                        return Some(assets::response(requested, bytes, true));
+                    }
+                }
+            }
         }
-    } else {
-        (bytes, false)
-    };
-    let mut response = bytes.into_response();
-    let headers = response.headers_mut();
-    if let Ok(value) = HeaderValue::from_str(mime.as_ref()) {
-        headers.insert(header::CONTENT_TYPE, value);
     }
-    headers.insert(header::VARY, HeaderValue::from_static("Accept-Encoding"));
-    if compressed {
-        headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+    tokio::fs::read(source)
+        .await
+        .ok()
+        .map(|bytes| assets::response(requested, bytes, false))
+}
+
+fn embedded_asset(requested: &str, gzip: bool) -> Option<Response> {
+    let source = EmbeddedWeb::get(requested)?;
+    if gzip {
+        if let Some(compressed) = EmbeddedWeb::get(&format!("{requested}.gz")) {
+            return Some(assets::response(
+                requested,
+                compressed.data.into_owned(),
+                true,
+            ));
+        }
     }
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static(if path.ends_with("index.html") {
-            "no-cache"
-        } else {
-            "public, max-age=31536000, immutable"
-        }),
-    );
-    response
+    Some(assets::response(requested, source.data.into_owned(), false))
 }
 
 async fn readiness(AxumState(context): AxumState<Arc<Context>>) -> Response {

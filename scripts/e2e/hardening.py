@@ -30,6 +30,8 @@ with tempfile.TemporaryDirectory(prefix='cc-switch-hardening-') as temporary:
     dist = root / 'web'; dist.mkdir()
     (dist / 'index.html').write_text('CUSTOM_WEB_INDEX')
     (dist / 'large.js').write_text('const value = 1;\n' * 1000)
+    # Production Web builds generate this sidecar; --dist also uses precompressed files.
+    (dist / 'large.js.gz').write_bytes(gzip.compress((dist / 'large.js').read_bytes()))
     (root / 'private.txt').write_text('OUTSIDE_ROOT')
     (dist / 'outside-link').symlink_to(root / 'private.txt')
     (config / 'settings.json').write_text(json.dumps({'sessionAutoSyncEnabled': False}))

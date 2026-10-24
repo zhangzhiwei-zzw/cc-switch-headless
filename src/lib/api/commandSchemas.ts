@@ -98,7 +98,14 @@ export type CommandResult<C extends ContractCommand> = z.output<
 const envelope = z
   .discriminatedUnion("ok", [
     z.object({ ok: z.literal(true), data: z.unknown() }).passthrough(),
-    z.object({ ok: z.literal(false), error: z.string() }).passthrough(),
+    z
+      .object({
+        ok: z.literal(false),
+        error: z.string(),
+        code: z.string().optional(),
+        requestId: z.string().optional(),
+      })
+      .passthrough(),
   ])
   .refine(
     (payload) =>

@@ -6,6 +6,7 @@
 //
 // 服务端分发表见 `src-tauri/src/web/routes.rs`。
 
+import i18n from "i18next";
 import { webFetch } from "@/lib/webConnection";
 import {
   parseInvokeResponse,
@@ -57,16 +58,16 @@ async function callServer<T>(cmd: string, args: InvokeArgs): Promise<T> {
       : 60_000,
   );
 
-  if (!response.ok) {
-    throw `调用 ${cmd} 失败: HTTP ${response.status}`;
+  const requestId = response.headers.get("X-Request-Id");
+  try {
+    if (!response.ok) throw `调用 ${cmd} 失败: HTTP ${response.status}`;
+    const payload = parseInvokeResponse(cmd, await response.json());
+    if (!payload.ok) throw payload.error;
+    validateCommandResult(cmd, payload.data);
+    return payload.data as T;
+  } catch (error) {
+    throw `${String(error)}${requestId ? ` [request ${requestId}]` : ""}`;
   }
-
-  const payload = parseInvokeResponse(cmd, await response.json());
-  if (!payload.ok) {
-    throw payload.error ?? `调用 ${cmd} 失败`;
-  }
-  validateCommandResult(cmd, payload.data);
-  return payload.data as T;
 }
 
 /**
@@ -155,6 +156,7 @@ async function streamSessionMessages(args: InvokeArgs): Promise<void> {
   const sourcePath =
     typeof args?.sourcePath === "string" ? args.sourcePath : "";
 
+  let requestId: string | null = null;
   try {
     const response = await webFetch(
       "/api/session-transcript",
@@ -166,6 +168,9 @@ async function streamSessionMessages(args: InvokeArgs): Promise<void> {
       },
       0,
     );
+    requestId = response.headers.get("X-Request-Id");
+    if (response.status === 429)
+      throw new Error(i18n.t("webConnection.sessionBusy"));
     if (!response.ok || !response.body)
       throw new Error(`会话读取失败: HTTP ${response.status}`);
     const reader = response.body
@@ -195,8 +200,9 @@ async function streamSessionMessages(args: InvokeArgs): Promise<void> {
       reader.releaseLock();
     }
   } catch (error) {
-    channel?.onmessage?.({ type: "error", message: String(error) });
-    throw error;
+    const message = `${String(error)}${requestId ? ` [request ${requestId}]` : ""}`;
+    channel?.onmessage?.({ type: "error", message });
+    throw message;
   }
 }
 

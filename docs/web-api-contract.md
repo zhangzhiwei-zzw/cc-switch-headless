@@ -30,12 +30,31 @@
 ```
 
 ```json
-{"ok":false,"error":"E_NOT_IMPLEMENTED: example_command"}
+{"ok":false,"error":"E_NOT_IMPLEMENTED: 此命令未接入 Web","code":"E_NOT_IMPLEMENTED","requestId":"<服务器生成的 UUID>"}
 ```
 
 目前 `/api/invoke` 的业务错误通常仍返回 HTTP 200，必须检查 `ok`。HTTP 401、400、403、413 等属于认证、中间件或请求解析层面的失败，不应假定响应一定是上述 JSON。`data` 可以是 `null`，例如成功的 `set_opencode_default_model`；没有默认模型的 `get_opencode_default_model` 也返回 `null`，不等于失败。
 
 Web shim 保持现有调用语义：成功 resolve `data`，失败以字符串 reject。不要仅检查 HTTP 200 就显示“操作成功”。写操作超时也不代表后端已经回滚，确认服务器状态后再决定是否重试。
+
+### 错误分类与请求追踪
+
+服务端响应头携带 `X-Request-Id`，由服务端重新生成，不信任调用者提供的编号。`/api/invoke` 业务失败还返回 `code` 和 `requestId`，仍保留 `error` 字符串兼容原有调用。Web 提示会附带编号，可用于日志关联；认证/JSON 解析等中间件错误不保证使用相同 JSON 信封，但仍有响应头编号。API 与认证响应标记 `Cache-Control: no-store`。
+
+| code | 含义 |
+| --- | --- |
+| `E_ARGUMENT` | 命令参数解析失败 |
+| `E_INIT` | 数据库未就绪 |
+| `E_NOT_IMPLEMENTED` | 命令未接入 Web |
+| `E_BUSY` | 会话读取的两个并发名额已占满 |
+| `E_SESSION_LIMIT` | 会话源、输出或单条消息超限 |
+| `E_SESSION_READ` | 会话预检或读取失败 |
+| `E_INTERNAL` | 后台任务异常；对外隐藏异常细节 |
+| `E_COMMAND` | 其他业务失败；结合 error 判断处理方式 |
+
+`E_CONTRACT` 是浏览器发现结构不匹配时产生的本地错误，不是上述服务端分类。会话流尚未开始读取时遇到并发限制返回 HTTP 429；开始传输后读取失败通过 NDJSON `type=error` 报告，HTTP 状态可能已是 200。客户端必须看到 `type=done` 才算传输完整。
+
+HTTP 日志包含编号、已知命令、状态、错误分类及 `elapsed_ms`；不记录参数或正文，未知 URL 使用固定占位路径。流式接口的 elapsed_ms 是生成响应头的时间，不代表整个流完成耗时。会话流内部失败另外记录编号和错误分类。
 
 ## 三层契约
 

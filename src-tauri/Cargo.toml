@@ -167,6 +167,16 @@ objc2-06 = { package = "objc2", version = "0.6" }
 objc2-foundation-03 = { package = "objc2-foundation", version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString"] }
 objc2-app-kit-03 = { package = "objc2-app-kit", version = "0.3", default-features = false, features = ["std", "NSAppearance", "NSGlassEffectView", "NSGraphics", "NSResponder", "NSScreen", "NSView", "NSVisualEffectView", "NSWindow"] }
 
+# 本地开发/测试不生成完整调试符号，减少缓存与测试二进制的磁盘占用。
+# 保留增量编译；需要源码行号时可临时设置 CARGO_PROFILE_DEV_DEBUG=line-tables-only。
+[profile.dev]
+debug = 0
+incremental = true
+
+[profile.test]
+debug = 0
+incremental = true
+
 # Optimize release binary size to help reduce AppImage footprint
 [profile.release]
 # 主 crate 体量大，codegen-units = 1 时 LLVM 只能单线程跑，发布编译的大头都在它身上。

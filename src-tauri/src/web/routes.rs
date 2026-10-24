@@ -19,7 +19,7 @@ use std::sync::{Arc, OnceLock};
 
 use axum::extract::State as AxumState;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{Extension, Json};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -44,30 +44,61 @@ pub struct InvokeRequest {
 /// `POST /api/invoke`
 pub async fn invoke(
     AxumState(context): AxumState<Arc<Context>>,
+    request_id: Option<Extension<super::diagnostics::RequestId>>,
     Json(request): Json<InvokeRequest>,
 ) -> Response {
-    // 数据库不可用（版本过新/初始化失败）时只放行 get_init_error，
-    // 让前端渲染恢复界面；其余命令给出明确错误。
+    let id = request_id
+        .map(|Extension(value)| value.0)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let entry = dispatch_table().get_key_value(request.cmd.as_str());
+    let command = entry.map(|(name, _)| *name).unwrap_or("<unknown>");
     if context.state.is_none() && request.cmd != "get_init_error" {
-        return Json(json!({
-            "ok": false,
-            "error": "E_INIT: 数据库未就绪，请查看服务端日志",
-        }))
-        .into_response();
+        return invoke_result(
+            &id,
+            command,
+            Err("E_INIT: 数据库未就绪，请查看服务端日志".into()),
+        );
     }
-
-    let Some(handler) = dispatch_table().get(request.cmd.as_str()).copied() else {
-        return Json(json!({
-            "ok": false,
-            "error": format!("E_NOT_IMPLEMENTED: {}", request.cmd),
-        }))
-        .into_response();
+    let Some((_, &handler)) = entry else {
+        return invoke_result(
+            &id,
+            command,
+            Err("E_NOT_IMPLEMENTED: 此命令未接入 Web".into()),
+        );
     };
+    invoke_result(&id, command, handler(context, request.args).await)
+}
 
-    match handler(context, request.args).await {
-        Ok(data) => Json(json!({ "ok": true, "data": data })).into_response(),
-        Err(error) => Json(json!({ "ok": false, "error": error })).into_response(),
-    }
+fn invoke_result(id: &str, command: &'static str, result: Result<Value, String>) -> Response {
+    let (mut response, code) = match result {
+        Ok(data) => (
+            Json(json!({"ok": true, "data": data})).into_response(),
+            None,
+        ),
+        Err(error) => {
+            let code = [
+                "E_INIT",
+                "E_NOT_IMPLEMENTED",
+                "E_ARGUMENT",
+                "E_INTERNAL",
+                "E_BUSY",
+                "E_SESSION_LIMIT",
+                "E_SESSION_READ",
+            ]
+            .into_iter()
+            .find(|code| error.starts_with(&format!("{code}:")))
+            .unwrap_or("E_COMMAND");
+            (
+                Json(json!({"ok": false, "error": error, "code": code, "requestId": id}))
+                    .into_response(),
+                Some(code),
+            )
+        }
+    };
+    response
+        .extensions_mut()
+        .insert(super::diagnostics::Outcome { command, code });
+    response
 }
 
 /// `GET /api/commands`：已实现的命令名（便于排查）。
@@ -409,7 +440,7 @@ pub fn serializable<T: Serialize>(value: T) -> Result<Value, String> {
 }
 
 pub fn parse<T: DeserializeOwned>(raw: Value) -> Result<T, String> {
-    serde_json::from_value(raw).map_err(|error| format!("参数解析失败: {error}"))
+    serde_json::from_value(raw).map_err(|error| format!("E_ARGUMENT: 参数解析失败: {error}"))
 }
 
 /// 在阻塞线程池里跑同步的 service 调用（SQLite、文件读写都在其中）。
@@ -418,9 +449,10 @@ where
     F: FnOnce() -> Result<T, String> + Send + 'static,
     T: Send + 'static,
 {
-    crate::host::spawn_blocking(work)
-        .await
-        .map_err(|error| format!("后台任务异常退出: {error}"))?
+    crate::host::spawn_blocking(work).await.map_err(|_| {
+        log::error!("Web blocking worker ended unexpectedly");
+        "E_INTERNAL: 后台任务异常退出，请联系维护者并提供请求编号".to_string()
+    })?
 }
 
 /// 把一个同步调用包成 handler，并丢进阻塞线程池：SQLite 聚合、文件读写用它。
@@ -1589,8 +1621,8 @@ fn get_session_messages(_context: Arc<Context>, args: Value) -> HandlerFuture {
             source_path,
         } = parse(args)?;
 
-        blocking(move || {
-            crate::session_manager::load_transcript(&provider_id, &source_path)
+        super::sessions::run(move || {
+            super::sessions::load(&provider_id, &source_path)
                 .map(|loaded| loaded.transcript.messages.clone())
         })
         .await
@@ -1600,8 +1632,8 @@ fn get_session_messages(_context: Arc<Context>, args: Value) -> HandlerFuture {
 
 /// 一次性返回整段会话（含轮次索引）。
 ///
-/// 浏览器端不支持 Tauri 的 `Channel`，`stream_session_messages` 由前端 shim 用
-/// 这个命令的数据在浏览器里分块喂给回调——分块逻辑在浏览器侧做，服务端只读一次。
+/// 兼容旧调用的完整 JSON 接口，同样受会话读取限额保护。
+/// 当前浏览器优先使用 `/api/session-transcript` 的 NDJSON 分块传输。
 fn web_session_transcript(_context: Arc<Context>, args: Value) -> HandlerFuture {
     Box::pin(async move {
         #[derive(serde::Deserialize)]
@@ -1625,8 +1657,8 @@ fn web_session_transcript(_context: Arc<Context>, args: Value) -> HandlerFuture 
             parse_ms: u64,
         }
 
-        blocking(move || {
-            let loaded = crate::session_manager::load_transcript(&provider_id, &source_path)?;
+        super::sessions::run(move || {
+            let loaded = super::sessions::load(&provider_id, &source_path)?;
             Ok(Payload {
                 messages: loaded.transcript.messages.clone(),
                 turns: loaded.transcript.turns.clone(),
@@ -1659,7 +1691,7 @@ fn get_session_block_content(_context: Arc<Context>, args: Value) -> HandlerFutu
             limit,
         } = parse(args)?;
 
-        blocking(move || {
+        super::sessions::run(move || {
             let source =
                 crate::session_manager::content::validate_source(&provider_id, &source_path)?;
             let full = crate::session_manager::content::resolve_content_ref(&source, &content_ref)?;

@@ -4912,6 +4912,7 @@
     }
   },
   "webConnection": {
+    "sessionBusy": "工作階段讀取忙碌中，請稍後重試。",
     "agyScope": "Web 可編輯 Antigravity 供應商卡片與探索模型，但不會改變你在終端直接啟動的 agy。使用卡片啟動工作階段需要桌面版；金鑰不會放進可複製的指令。"
   },
   "kimi": {
