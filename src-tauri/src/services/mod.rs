@@ -10,6 +10,7 @@ pub mod env_checker;
 pub mod env_manager;
 pub mod failover;
 pub mod import_export;
+pub mod kimi_oauth;
 pub mod mcp;
 pub mod model_fetch;
 pub mod model_pricing;

@@ -62,7 +62,7 @@ HTTP 日志包含编号、已知命令、状态、错误分类及 `elapsed_ms`�
 2. **类型化参数与结果**：`src/lib/api/commandSchemas.ts` 定义关键命令的 Zod schema；API 包装使用 `invokeChecked`。TypeScript 从 schema 推导调用签名，参数名称与返回字段改动会影响调用方的类型检查。
 3. **Web 运行时校验**：shim 校验所有命令的响应信封；对 `validatedCommands` 列出的关键命令还校验发出前的参数和成功返回值。请求 schema 严格检查字段，响应对象允许新增字段，不删除返回数据。
 
-当前覆盖 12 个关键命令，完整列表由 [开发者能力表](web-capabilities.md#参数与返回值契约) 生成。其他命令仍依赖 Rust 参数解析和调用方约定；NDJSON 会话流走独立接口，不在这 12 个 `/api/invoke` 契约内。桌面构建使用同一类型签名，但不经过 Web 的运行时校验。
+当前覆盖 13 个关键命令，完整列表由 [开发者能力表](web-capabilities.md#参数与返回值契约) 生成。其他命令仍依赖 Rust 参数解析和调用方约定；NDJSON 会话流走独立接口，不在这 13 个 `/api/invoke` 契约内。桌面构建使用同一类型签名，但不经过 Web 的运行时校验。
 
 格式不符合时，Web 抛出 `E_CONTRACT`，包含命令、request/response/envelope、字段路径与问题代码；不会把参数值、密钥或响应正文放进这条错误。它用于发现前后端不匹配，不会替代服务端校验，也不会阻止具有管理员令牌的调用者直接请求 HTTP。
 

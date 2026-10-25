@@ -129,7 +129,7 @@
     "sessions": true,
     "deleteSessions": false,
     "usage": "会话日志",
-    "notes": "默认模型在 CLI 内用 /model 选择；OAuth 登录与会话删除交给 Kimi Code。"
+    "notes": "支持添加、移除、切换默认供应商和模型编辑；Web 未接入托管 OAuth 登录、官方模型发现与额度，会话删除交给 Kimi Code。"
   },
   "agy": {
     "name": "Antigravity（agy）",
@@ -142,5 +142,17 @@
     "deleteSessions": false,
     "usage": "会话日志",
     "notes": "模型发现需要服务器安装 agy；Web 不启动会话，卡片不改变直接在 shell 启动的 agy。"
+  },
+  "omp": {
+    "name": "Oh My Pi",
+    "providers": "多供应商共存",
+    "routing": false,
+    "mcp": true,
+    "skills": true,
+    "prompts": true,
+    "sessions": true,
+    "deleteSessions": true,
+    "usage": "未接入会话日志导入",
+    "notes": "读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。"
   }
 }

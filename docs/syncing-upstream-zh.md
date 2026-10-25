@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.18.lock`](upstream-v4.0.18.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.20.lock`](upstream-v4.0.20.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -20,20 +20,27 @@ git fetch upstream --tags
 ## 每次同步
 
 ```bash
-git checkout main
-git pull                                          # 先把自己 fork 的 main 更新到最新
+git switch main
+git status --short                            # 有未提交修改时先保存，保持工作区干净
+git fetch origin                             # 如需核对自己的远程，按需执行
+git merge --ff-only origin/main               # 远程无新增提交时无需这一步
+git fetch upstream --prune --tags
+git log --oneline HEAD..upstream/main          # 查看这次上游变化
+git diff --stat HEAD...upstream/main -- src-tauri src
 
-git checkout -b sync/upstream-2026-11             # 开同步分支，别直接在 main 上解冲突
-git fetch upstream --tags
-git log --oneline HEAD..upstream/main | head -50  # 先看上游都改了什么
-git diff --stat HEAD...upstream/main -- src-tauri src   # 看看改动规模
-
-git merge upstream/main
-# 解冲突、本地验证（见下面「合并后必须验证」）
-git checkout main
-git merge --ff-only sync/upstream-2026-11
-git push origin main
+git merge --no-commit --no-ff upstream/main
+# 解冲突、适配 Web、验证、更新 lock 和本文记录
+git add <已检查的修改文件>
+git commit                                   # 完成合并，仅保存在本地
+# 只有明确需要发布时再 git push origin main
 ```
+
+日常只维护本地 `main` 与远程跟踪引用 `upstream/main`。后者由 `git fetch upstream`
+更新，表示上游的最新内容；不需要另建本地 `upstream` 分支，也不需要每次创建
+`sync/upstream-日期`。本 fork 的 Web 适配保留在本地 `main`，所以它不会与上游逐文件相同。
+旧的两个 `sync/upstream-*` 分支已合入 `main`，可用 `git branch -d <分支名>` 安全删除；
+删除分支名称不删除已合并的提交。`origin` 是我们自己的仓库，`upstream` 是原项目，
+同步上游和推送自己的远程是两件独立操作。
 
 **这个 fork 是自己用的，直接合 `main` 即可，不需要 PR。** 注意 `ci.yml` 只在
 **push `main`** 或 **PR → `main`** 时触发：推送同步分支本身不会跑 CI，合并到 `main`
@@ -74,6 +81,7 @@ Host github.com
 | 2026-10-18 | v4.0.14 → v4.0.15 + 2 commits | 20 | 93 | 4 个文件 / 5 处 |
 | 2026-10-21 | v4.0.15 → v4.0.17 + 上游后续提交 | 89 | 298 | 7 个文件 |
 | 2026-10-22 | v4.0.17 后续提交 → v4.0.18 + Kimi Code | 9 | 120 | 11 个文件 |
+| 2026-10-25 | v4.0.18 + Kimi Code → v4.0.20 + Codex 路由修复 | 86 | 291 | 9 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -117,7 +125,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 
 ```bash
 git fetch upstream
-git merge --no-commit --no-ff upstream/main   # 在同步分支上
+git merge --no-commit --no-ff upstream/main   # 在干净的本地 main 上
 git diff --name-only --diff-filter=U          # 冲突文件
 git merge --abort                             # 看完撤销
 ```
@@ -145,6 +153,26 @@ Unix 提升文件描述符软上限的修复同步应用到服务端入口。
 本次合并的检查：前端类型与格式、Web 构建、命令覆盖（327 个前端命令、168 个服务端
 命令、12 个应用）、能力文档一致性、Rust 格式、server Clippy（`-D warnings`）及
 server 二进制构建通过。本次未运行单元测试、HTTP/浏览器回归或跨平台发布构建。
+
+### 2026-10-25：直接在 main 同步 v4.0.20 后续修复
+
+合并至 `de0a235a`，保留前两批接口契约与发布保护，以及第三批的会话限制、预压缩、
+CSP 和请求诊断。新增 Oh My Pi（第 13 个应用）的配置目录、启动导入与原生状态桥接；
+Kimi 新的供应商添加接口、Pi/omp 用量脚本参数同步到 HTTP 层。用量页新增的最早记录日期
+查询已接入，避免热力图出现未实现接口。Antigravity 的后台模型发现同步隐藏 Windows 控制台窗口。
+
+托管 Kimi OAuth 登录、官方模型发现与额度仍未接入 Web，相关入口按能力隐藏；
+已有账号和凭据继续由服务端 CLI 管理。桌面版新增的安装、应用排序和浏览器登录能力
+仍遵循原有 Web 能力边界。两个旧同步分支均已合入 main，本轮清理后不再按日期创建分支。
+
+本轮验证：前端类型与格式、Web 构建、命令覆盖（337 个前端命令、171 个服务端命令、
+13 个应用）、13 项 RPC 契约及能力文档一致性通过；Rust 格式、server `cargo check`
+和 Clippy（`-D warnings`）通过。修复 Kimi 共享服务对桌面托盘语言函数的直接依赖；
+server 读取设置语言、缺省按系统区域选择。为兼容已有 HTTP 调用，Pi 用量脚本的 `app`
+参数缺省仍按 `pi` 处理，新前端显式传入 `pi` 或 `omp`。
+
+本轮未运行单元测试、HTTP/浏览器回归、桌面编译或跨平台发布构建。使用 dev 无调试符号
+配置，只做 Rust 检查，结束时 target 约 814 MiB；没有重建测试或 release 产物。
 
 ### v4.0.18 发布前的 CI 修复
 
@@ -346,10 +374,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.18.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.20.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.18.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.20.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
@@ -390,4 +418,4 @@ git push ssh://git@ssh.github.com:443/zhangzhiwei-zzw/cc-switch-headless.git v4.
 git revert -m 1 <merge-commit>   # 撤销这次 merge 引入的改动
 ```
 
-还没合并的同步分支直接删掉即可；`git merge --abort` 只能在解冲突过程中用。
+合并尚未提交时用 `git merge --abort` 撤销，要求开始合并前工作区干净。

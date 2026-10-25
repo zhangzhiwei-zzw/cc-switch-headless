@@ -277,6 +277,11 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
         );
 
         table.insert("get_pi_current_state", get_pi_current_state as Handler);
+        table.insert("get_omp_current_state", get_omp_current_state as Handler);
+        table.insert(
+            "add_provider_to_live_config",
+            add_provider_to_live_config as Handler,
+        );
         table.insert(
             "get_pi_session_discovery",
             get_pi_session_discovery as Handler,
@@ -595,6 +600,7 @@ fn get_config_dir(_context: Arc<Context>, args: Value) -> HandlerFuture {
             AppType::OpenClaw => crate::openclaw_config::get_openclaw_dir(),
             AppType::Hermes => crate::hermes_config::get_hermes_dir(),
             AppType::Pi => crate::pi_config::get_pi_agent_dir().map_err(|e| e.to_string())?,
+            AppType::Omp => crate::omp_config::get_omp_agent_dir().map_err(|e| e.to_string())?,
             AppType::Mcode => crate::mcode_config::config_path()
                 .parent()
                 .map(|path| path.to_path_buf())
@@ -732,6 +738,25 @@ fn delete_provider(context: Arc<Context>, args: Value) -> HandlerFuture {
         blocking(move || {
             let app_type = to_app_type(&app)?;
             ProviderService::delete(&state, app_type, &id).map_err(|e| e.to_string())?;
+            Ok(Value::Bool(true))
+        })
+        .await
+    })
+}
+
+fn add_provider_to_live_config(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            app: String,
+            id: String,
+        }
+        let Args { app, id } = parse(args)?;
+        let state = context.require_state()?;
+        blocking(move || {
+            let app_type = to_app_type(&app)?;
+            ProviderService::add_to_live_config(&state, app_type, &id)
+                .map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         })
         .await
@@ -923,6 +948,14 @@ fn get_pi_current_state(context: Arc<Context>, _args: Value) -> HandlerFuture {
     })
 }
 
+fn get_omp_current_state(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(move || {
+        let state = context.require_state()?;
+        crate::services::pi_state::PiStateService::current_omp(&state)
+            .map_err(|error| error.to_string())
+    })
+}
+
 fn get_pi_session_discovery(_context: Arc<Context>, _args: Value) -> HandlerFuture {
     deferred(|| Ok(crate::session_manager::providers::pi::session_discovery()))
 }
@@ -932,13 +965,19 @@ fn update_pi_provider_usage_script(context: Arc<Context>, args: Value) -> Handle
         #[derive(serde::Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct Args {
+            app: Option<String>,
             id: String,
             usage_script: crate::provider::UsageScript,
         }
         let args: Args = parse(args)?;
         let state = context.require_state()?;
-        ProviderService::update_pi_usage_script(&state, &args.id, args.usage_script)
-            .map_err(|error| error.to_string())
+        ProviderService::update_pi_usage_script(
+            &state,
+            to_app_type(args.app.as_deref().unwrap_or("pi"))?,
+            &args.id,
+            args.usage_script,
+        )
+        .map_err(|error| error.to_string())
     })
 }
 

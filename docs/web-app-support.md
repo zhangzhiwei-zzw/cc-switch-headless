@@ -20,6 +20,7 @@
 | MiniMax Code | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 | Kimi Code | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 | Antigravity（agy） | 卡片编辑、模型发现 | 不提供 | 支持 | 支持 | 支持 |
+| Oh My Pi | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 
 本地路由可用于 Claude Code、Claude Desktop、Codex、Gemini CLI 与 Grok Build。Claude Desktop 采用模型映射，不提供完整路由/故障转移设置。Web 暂不提供 Stack 聚合。
 
@@ -41,6 +42,7 @@ MCP 与 Skills 的勾选会写入服务器上对应 CLI 的原生配置或目录
 | MiniMax Code | 支持 | 不提供 | 会话日志 |
 | Kimi Code | 支持 | 不提供 | 会话日志 |
 | Antigravity（agy） | 支持 | 不提供 | 会话日志 |
+| Oh My Pi | 支持 | 支持 | 未接入会话日志导入 |
 
 用量列指自动导入或代理记录的来源，不表示已经接入托管账户额度。供应商余额/Coding Plan 查询取决于供应商接口、凭据和用量脚本。日志缺少模型或定价时，费用可能为 0，不表示服务免费。
 
@@ -58,8 +60,9 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 - **Hermes Agent**：默认隐藏，可在设置中启用；记忆管理、Dashboard 启动未接入。
 - **Pi**：支持原生启用状态、用量脚本、SYSTEM.md 与提示词模板；会话目录可能需要项目上下文。
 - **MiniMax Code**：会话删除交给 MCode，避免破坏原生状态；全局提示词有大小限制。
-- **Kimi Code**：默认模型在 CLI 内用 /model 选择；OAuth 登录与会话删除交给 Kimi Code。
+- **Kimi Code**：支持添加、移除、切换默认供应商和模型编辑；Web 未接入托管 OAuth 登录、官方模型发现与额度，会话删除交给 Kimi Code。
 - **Antigravity（agy）**：模型发现需要服务器安装 agy；Web 不启动会话，卡片不改变直接在 shell 启动的 agy。
+- **Oh My Pi**：读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。
 
 ## 共通限制
 

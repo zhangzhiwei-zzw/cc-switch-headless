@@ -14,7 +14,8 @@
         "get_custom_icons",
         "add_custom_icon",
         "rename_custom_icon",
-        "delete_custom_icon"
+        "delete_custom_icon",
+        "add_provider_to_live_config"
       ]
     },
     "pageRouting": {
@@ -143,7 +144,8 @@
         "queryProviderUsage",
         "testUsageScript",
         "get_pricing_model_source",
-        "set_pricing_model_source"
+        "set_pricing_model_source",
+        "get_usage_first_date"
       ]
     },
     "sessionStream": {
@@ -306,6 +308,10 @@
     "agy": {
       "feature": "pageProviders",
       "commands": ["get_agy_models"]
+    },
+    "omp": {
+      "feature": "pageProviders",
+      "commands": ["get_omp_current_state", "update_pi_provider_usage_script"]
     }
   },
   "browserCommands": [
@@ -397,7 +403,6 @@
     "get_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "get_universal_providers": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "get_upstream_proxy_status": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
-    "get_usage_first_date": "最早使用日期辅助查询未接入 Web；用量页使用 get_usage_summary。",
     "get_xai_oauth_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_xai_oauth_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "has_codex_unify_history_backup": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -473,7 +478,15 @@
     "webdav_sync_upload": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "webdav_test_connection": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "write_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
-    "write_workspace_file": "workspace 的专用管理界面尚未接入 Web。"
+    "write_workspace_file": "workspace 的专用管理界面尚未接入 Web。",
+    "kimi_oauth_status": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_start": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_poll": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_cancel": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_remove": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_quota": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_models": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "kimi_oauth_use_account": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。"
   },
   "validatedCommands": [
     "get_current_provider",
@@ -487,6 +500,7 @@
     "get_opencode_default_model",
     "set_opencode_default_model",
     "get_openclaw_live_provider_ids",
-    "get_hermes_live_provider_ids"
+    "get_hermes_live_provider_ids",
+    "get_omp_current_state"
   ]
 }

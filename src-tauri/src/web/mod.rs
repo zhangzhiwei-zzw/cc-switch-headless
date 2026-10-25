@@ -1011,7 +1011,7 @@ async fn env_info(AxumState(context): AxumState<Arc<Context>>) -> Response {
         "mode": "web",
         "buildCommit": env!("CC_SWITCH_BUILD_COMMIT"),
         "instance": context.cookie_name,
-        "upstream": include_str!("../../../docs/upstream-v4.0.18.lock"),
+        "upstream": include_str!("../../../docs/upstream-v4.0.20.lock"),
         "version": env!("CARGO_PKG_VERSION"),
         "homeDir": dirs::home_dir().map(|path| path.to_string_lossy().to_string()),
         "configDir": crate::config::get_app_config_dir().to_string_lossy().to_string(),

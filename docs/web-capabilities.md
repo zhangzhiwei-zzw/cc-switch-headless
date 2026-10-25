@@ -6,14 +6,14 @@
 
 | 功能 | Web 状态 | 必需命令数 |
 | --- | --- | --- |
-| `pageProviders` | 可用 | 13 |
+| `pageProviders` | 可用 | 14 |
 | `pageRouting` | 可用 | 11 |
 | `pageSessions` | 可用 | 6 |
 | `pageImportExport` | 可用 | 5 |
 | `pageMcp` | 可用 | 15 |
 | `pageSkills` | 可用 | 27 |
 | `pagePrompts` | 可用 | 13 |
-| `pageUsage` | 可用 | 24 |
+| `pageUsage` | 可用 | 25 |
 | `sessionStream` | 可用 | 1 |
 | `pageAuth` | 未接入，隐藏入口 | 0 |
 | `pageApps` | 未接入，隐藏入口 | 0 |
@@ -53,6 +53,7 @@
 | mcode | 通用供应商命令 |
 | kimi | 通用供应商命令 |
 | agy | `get_agy_models` |
+| omp | `get_omp_current_state`, `update_pi_provider_usage_script` |
 
 Antigravity 支持卡片编辑和服务器 agy CLI 模型发现；Web 不提供会话启动，卡片不会改变用户直接在 shell 启动的 agy。
 
@@ -60,7 +61,7 @@ OpenClaw/Hermes 支持供应商基础管理；工作区、专用配置、记忆�
 
 ## 参数与返回值契约
 
-当前 12 个关键命令具有类型化调用和 Web 运行时校验；其他命令仍只有注册与覆盖检查。
+当前 13 个关键命令具有类型化调用和 Web 运行时校验；其他命令仍只有注册与覆盖检查。
 
 - `get_current_provider`
 - `switch_provider`
@@ -74,6 +75,7 @@ OpenClaw/Hermes 支持供应商基础管理；工作区、专用配置、记忆�
 - `set_opencode_default_model`
 - `get_openclaw_live_provider_ids`
 - `get_hermes_live_provider_ids`
+- `get_omp_current_state`
 
 新增命令与变更契约见 [Web 接口契约](web-api-contract.md)。面向使用者的逐应用能力见 [应用支持表](web-app-support.md)。
 

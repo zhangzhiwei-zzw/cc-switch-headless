@@ -17,6 +17,20 @@ pub(crate) struct PiCurrentState {
 pub(crate) struct PiStateService;
 
 impl PiStateService {
+    pub(crate) fn current_omp(state: &AppState) -> Result<PiCurrentState, AppError> {
+        let _guard = futures::executor::block_on(state.proxy_service.lock_switch_for_app("omp"));
+        let enabled_provider_ids = crate::omp_config::get_providers()?.into_keys().collect();
+        let default_provider_id =
+            crate::omp_config::read_default_provider_id().unwrap_or_else(|error| {
+                log::warn!("Failed to read Oh My Pi default model: {error}");
+                None
+            });
+        Ok(PiCurrentState {
+            enabled_provider_ids,
+            default_provider_id,
+        })
+    }
+
     pub(crate) fn current(state: &AppState) -> Result<PiCurrentState, AppError> {
         let _guard = futures::executor::block_on(state.proxy_service.lock_switch_for_app(PI_APP));
         let native = read_pi_native_providers()?;

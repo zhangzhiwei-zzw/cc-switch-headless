@@ -4,9 +4,9 @@
 
 ### CC Switch 的无头 Web 服务端
 
-**在浏览器里管理 Claude Code / Codex / Gemini CLI 等 12 个 AI CLI 的供应商、本地路由与会话。复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。**
+**在浏览器里管理 Claude Code / Codex / Gemini CLI 等 13 个 AI CLI 的供应商、本地路由与会话。复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。**
 
-[![基于 cc-switch v4.0.18](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.18-blue)](https://github.com/farion1231/cc-switch)
+[![基于 cc-switch v4.0.20](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.20-blue)](https://github.com/farion1231/cc-switch)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 中文 | [English](README_EN.md) | [上游完整文档](README_ZH.md) | [Web 模式详解](docs/web-mode-zh.md)

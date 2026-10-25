@@ -328,7 +328,7 @@ fn import_live_configs_and_seed(state: &AppState) {
     // 导入、已有 id 更新，所以每次启动跑都安全，外部改过的 live 文件重启后会同步
     // 进数据库。少了这一段，浏览器里就看不到用户在 opencode.json / Pi 配置里
     // 已经写好的供应商。
-    let additive_imports: [(&str, AdditiveLiveImport); 4] = [
+    let additive_imports: [(&str, AdditiveLiveImport); 5] = [
         (
             "OpenCode",
             crate::services::provider::import_opencode_providers_from_live,
@@ -344,6 +344,10 @@ fn import_live_configs_and_seed(state: &AppState) {
         (
             "Pi",
             crate::services::provider::import_pi_providers_from_live,
+        ),
+        (
+            "Oh My Pi",
+            crate::services::provider::import_omp_providers_from_live,
         ),
     ];
     for (name, import) in additive_imports {

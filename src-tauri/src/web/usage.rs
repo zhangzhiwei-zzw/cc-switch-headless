@@ -16,6 +16,7 @@ use crate::services::usage_stats::LogFilters;
 
 pub const HANDLERS: &[(&str, Handler)] = &[
     ("get_usage_summary", get_usage_summary),
+    ("get_usage_first_date", get_usage_first_date),
     ("get_session_usage_summary", get_session_usage_summary),
     ("get_usage_summary_by_app", get_usage_summary_by_app),
     ("get_usage_trends", get_usage_trends),
@@ -77,6 +78,21 @@ fn get_usage_summary(context: Arc<Context>, args: Value) -> HandlerFuture {
                 .map_err(|error| error.to_string())
         })
         .await
+    })
+}
+
+fn get_usage_first_date(context: Arc<Context>, args: Value) -> HandlerFuture {
+    deferred(move || {
+        let query: UsageQuery = parse(args)?;
+        let state = context.require_state()?;
+        state
+            .db
+            .get_first_usage_date(
+                query.app_type.as_deref(),
+                query.provider_name.as_deref(),
+                query.model.as_deref(),
+            )
+            .map_err(|error| error.to_string())
     })
 }
 

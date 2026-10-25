@@ -1,0 +1,11 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.20"
+upstream_commit = "85ad4969b3399500baaea9d46b1e08f87aba80e1"
+resolved_at = "2026-10-25"
+
+# tag peel 后的 commit；main 比该 tag 多 1 个提交（Codex model_provider 路由修复）。
+# 本次从 e4873bc8 合并 86 个上游提交，涉及 291 个文件。
+last_merged_commit = "de0a235ad6389ce4afa333b472cdee615a3f3987"
+last_merged_tag = "v4.0.20"
+
+# 直接在本地 main 上同步，不创建按日期命名的同步分支，见 syncing-upstream-zh.md。

@@ -31,6 +31,15 @@ export const rpcContracts = {
       })
       .passthrough(),
   },
+  get_omp_current_state: {
+    args: noArgs,
+    result: z
+      .object({
+        enabledProviderIds: z.array(z.string()),
+        defaultProviderId: z.string().nullable(),
+      })
+      .passthrough(),
+  },
   get_pi_session_discovery: {
     args: noArgs,
     result: z.discriminatedUnion("status", [
