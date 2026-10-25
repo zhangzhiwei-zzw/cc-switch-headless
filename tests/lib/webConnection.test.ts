@@ -15,7 +15,7 @@ describe("Web transport connection state", () => {
   it("a command 401 invalidates the shared session", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 401 }),
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
     );
     await expect(invoke("get_providers")).rejects.toContain("HTTP 401");
     expect(getWebConnectionStatus()).toBe("unauthorized");
@@ -23,17 +23,39 @@ describe("Web transport connection state", () => {
   it("a business error does not pretend the server is disconnected", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ ok: false, error: "Invalid provider" }),
-      }),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: false, error: "Invalid provider" }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
     );
     await expect(invoke("add_provider")).rejects.toBe("Invalid provider");
     expect(getWebConnectionStatus()).toBe("ready");
   });
+  it("includes the diagnostic request ID without changing connection state", async () => {
+    const requestId = "f46c88b7-18d4-4e10-93e4-6004be2df76c";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: false, error: "Invalid provider" }), {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Request-Id": requestId,
+          },
+        }),
+      ),
+    );
+    await expect(invoke("add_provider")).rejects.toBe(
+      `Invalid provider [request ${requestId}]`,
+    );
+    expect(getWebConnectionStatus()).toBe("ready");
+  });
   it("a late unauthorized response preserves an existing capability failure", async () => {
     setWebConnectionStatus("incompatible");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 401 }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
+    );
     await webFetch("/api/invoke");
     expect(getWebConnectionStatus()).toBe("incompatible");
   });

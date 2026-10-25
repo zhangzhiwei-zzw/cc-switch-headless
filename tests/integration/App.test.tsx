@@ -8,7 +8,7 @@ import {
   fireEvent,
   within,
 } from "@testing-library/react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { providersApi } from "@/lib/api/providers";
 import {
@@ -28,6 +28,7 @@ const skillsPanelMocks = vi.hoisted(() => ({
 }));
 const windowMocks = vi.hoisted(() => ({
   isLinux: vi.fn(() => false),
+  isTauriRuntime: vi.fn(() => false),
   isMaximized: vi.fn(),
   isFullscreen: vi.fn(),
   isResizable: vi.fn(),
@@ -41,6 +42,7 @@ const windowMocks = vi.hoisted(() => ({
 vi.mock("@/lib/platform", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/platform")>()),
   isLinux: windowMocks.isLinux,
+  isTauriRuntime: windowMocks.isTauriRuntime,
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -228,12 +230,18 @@ const renderApp = (AppComponent: ComponentType) => {
 };
 
 describe("App integration with MSW", () => {
+  beforeAll(async () => {
+    // Keep cold module transformation out of the provider-flow test's timeout.
+    await import("@/App");
+  });
+
   beforeEach(() => {
     resetProviderState();
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
     skillsPanelMocks.initialViews = [];
     windowMocks.isLinux.mockReturnValue(false);
+    windowMocks.isTauriRuntime.mockReturnValue(false);
     windowMocks.isMaximized.mockResolvedValue(false);
     windowMocks.isFullscreen.mockResolvedValue(false);
     windowMocks.isResizable.mockResolvedValue(true);
@@ -892,7 +900,9 @@ describe("App integration with MSW", () => {
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
         "notifications.removeFromConfigFailed",
-        expect.objectContaining({ description: "kimi.error.defaultModelInUse" }),
+        expect.objectContaining({
+          description: "kimi.error.defaultModelInUse",
+        }),
       ),
     );
     await waitFor(() =>
@@ -1092,8 +1102,22 @@ describe("App integration with MSW", () => {
     );
   });
 
+  it("does not enable native resizing in a Linux browser", async () => {
+    windowMocks.isLinux.mockReturnValue(true);
+    setSettings({ useAppWindowControls: true });
+    const { default: App } = await import("@/App");
+    renderApp(App);
+    await screen.findByTestId("provider-list");
+    const header = document.querySelector("header")!;
+    fireEvent.mouseMove(header, { clientX: 500, clientY: 1 });
+    expect(header.style.cursor).toBe("");
+    expect(windowMocks.isResizable).not.toHaveBeenCalled();
+    expect(windowMocks.onResized).not.toHaveBeenCalled();
+  });
+
   it("shows all eight native resize cursors and restores existing inline styles", async () => {
     windowMocks.isLinux.mockReturnValue(true);
+    windowMocks.isTauriRuntime.mockReturnValue(true);
     setSettings({ useAppWindowControls: true });
     const { default: App } = await import("@/App");
     const { unmount } = renderApp(App);
@@ -1150,6 +1174,7 @@ describe("App integration with MSW", () => {
 
   it("lets the top edge resize before Tauri dragging without blocking inner-header or button events", async () => {
     windowMocks.isLinux.mockReturnValue(true);
+    windowMocks.isTauriRuntime.mockReturnValue(true);
     setSettings({ useAppWindowControls: true });
     const { default: App } = await import("@/App");
     renderApp(App);
@@ -1211,6 +1236,7 @@ describe("App integration with MSW", () => {
 
   it("clears resize hints and leaves events alone when native resizing is unavailable", async () => {
     windowMocks.isLinux.mockReturnValue(true);
+    windowMocks.isTauriRuntime.mockReturnValue(true);
     setSettings({ useAppWindowControls: true });
     const { default: App } = await import("@/App");
     renderApp(App);
