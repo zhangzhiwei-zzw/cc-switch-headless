@@ -145,7 +145,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db.clone(),
-            None,
         );
         let info = proxy.start().await.unwrap();
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
