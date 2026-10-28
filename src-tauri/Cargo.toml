@@ -1,6 +1,6 @@
 [package]
 name = "cc-switch"
-version = "4.0.20"
+version = "4.0.21"
 description = "Headless web server mode for CC Switch: manage AI CLI providers, routing and sessions from a browser."
 authors = ["Jason Young"]
 license = "MIT"
@@ -128,6 +128,7 @@ rust_decimal = "1.33"
 uuid = { version = "1.11", features = ["v4"] }
 sha2 = "0.10"
 hmac = "0.12"
+subtle = "2.6"
 json5 = "0.4"
 json-five = "0.3.1"
 sys-locale = "0.3"

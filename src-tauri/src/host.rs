@@ -140,3 +140,34 @@ pub fn decode_command_output(bytes: &[u8]) -> String {
 pub fn decode_command_output(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
+
+/// Construct a desktop CLI command without pulling Tauri commands into server builds.
+#[cfg(feature = "desktop")]
+pub fn detected_tool_command(
+    tool: &str,
+    args: &[&str],
+    timeout: std::time::Duration,
+) -> Result<std::process::Command, String> {
+    crate::commands::detected_tool_command(tool, args, timeout)
+}
+
+#[cfg(not(feature = "desktop"))]
+pub fn detected_tool_command(
+    tool: &str,
+    _args: &[&str],
+    _timeout: std::time::Duration,
+) -> Result<std::process::Command, String> {
+    Err(format!("Web 模式暂不支持运行本机 CLI 工具（{tool}）"))
+}
+
+#[cfg(feature = "desktop")]
+pub fn terminate_child_tree(child: &mut std::process::Child) -> bool {
+    crate::commands::terminate_child_tree(child)
+}
+
+#[cfg(not(feature = "desktop"))]
+pub fn terminate_child_tree(child: &mut std::process::Child) -> bool {
+    let killed = child.kill().is_ok();
+    let _ = child.wait();
+    killed
+}

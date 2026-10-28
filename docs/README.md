@@ -63,6 +63,7 @@ Sponsor 按钮保留对上游作者 `farion1231` 的支持入口，并非本 for
 | --- | --- | --- |
 | `ENABLE_CLAUDE_REVIEW` | `true` | 响应维护者的 `@claude` 请求；需要 `CLAUDE_CODE_OAUTH_TOKEN` secret |
 | `ENABLE_R2_MIRROR` | `true` | 上游桌面下载/更新镜像；需要 R2 secrets 和桌面 updater 资产，不适用于当前 headless 产物 |
+| `ENABLE_SCHEMA_VERSION_GUARD` | `true` | 自动关闭外部贡献者直接修改数据库版本号的 PR，由维护者统一分配版本；默认不启用 |
 | `ENABLE_DESKTOP_RELEASE` | `true` | 手动桌面打包；需要对应平台的签名、公证配置 |
 
 常规 Web CI、桌面兼容性 CI 和 headless 发布不依赖这些变量。可选流程的事件仍可能产生跳过记录，但未启用时不会分配构建 runner。

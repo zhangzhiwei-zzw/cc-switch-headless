@@ -607,6 +607,7 @@ fn get_config_dir(_context: Arc<Context>, args: Value) -> HandlerFuture {
                 .ok_or_else(|| "无法解析 MiniMax Code 配置目录".to_string())?,
             AppType::Kimi => crate::kimi_config::data_dir(),
             AppType::Agy => crate::agy_config::agy_dir(),
+            AppType::Dsh => crate::dsh_config::data_dir(),
         };
         Ok(Value::String(dir.to_string_lossy().to_string()))
     })
@@ -983,6 +984,7 @@ fn update_pi_provider_usage_script(context: Arc<Context>, args: Value) -> Handle
 
 fn update_providers_sort_order(context: Arc<Context>, args: Value) -> HandlerFuture {
     Box::pin(async move {
+        static SORT_ORDER_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
         #[derive(serde::Deserialize)]
         struct Args {
             app: String,
@@ -990,13 +992,19 @@ fn update_providers_sort_order(context: Arc<Context>, args: Value) -> HandlerFut
         }
         let Args { app, updates } = parse(args)?;
         let state = context.require_state()?;
-        blocking(move || {
-            let app_type = to_app_type(&app)?;
-            let changed = ProviderService::update_sort_order(&state, app_type, updates)
-                .map_err(|e| e.to_string())?;
-            Ok(Value::Bool(changed))
+        let app_type = to_app_type(&app)?;
+        let _serial = SORT_ORDER_LOCK.lock().await;
+        let sort_state = state.clone();
+        let sort_app = app_type.clone();
+        let changed = blocking(move || {
+            ProviderService::update_sort_order(&sort_state, sort_app, updates)
+                .map_err(|error| error.to_string())
         })
-        .await
+        .await?;
+        crate::mode::controller::sync_stack_order(&state, &app_type).await.map_err(|error| {
+            format!("排序已保存，但聚合模型顺序没能更新: {error} (Sort order saved, but the aggregated model order could not be updated)")
+        })?;
+        Ok(Value::Bool(changed))
     })
 }
 

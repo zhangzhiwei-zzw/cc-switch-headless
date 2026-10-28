@@ -312,6 +312,10 @@
     "omp": {
       "feature": "pageProviders",
       "commands": ["get_omp_current_state", "update_pi_provider_usage_script"]
+    },
+    "dsh": {
+      "feature": "pageProviders",
+      "commands": []
     }
   },
   "browserCommands": [
@@ -486,7 +490,12 @@
     "kimi_oauth_remove": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
     "kimi_oauth_quota": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
     "kimi_oauth_models": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
-    "kimi_oauth_use_account": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。"
+    "kimi_oauth_use_account": "Kimi 托管 OAuth 账号中心未接入 Web；登录与账号管理请在服务端 Kimi CLI 中完成。",
+    "claude_account_submit_paste": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
+    "get_claude_login_switch": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
+    "get_claude_account_quota": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
+    "get_claude_default_plan": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
+    "open_skill_dir": "浏览器不能打开服务器的文件管理器；Web 隐藏打开 Skill 目录入口，可复制 Skill 名称。"
   },
   "validatedCommands": [
     "get_current_provider",

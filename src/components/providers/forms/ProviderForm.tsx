@@ -100,6 +100,7 @@ import { CodexFormFields } from "./CodexFormFields";
 import { GeminiFormFields } from "./GeminiFormFields";
 import { KimiProviderForm } from "./KimiProviderForm";
 import { AgyAccountSelect } from "./AgyOAuthSection";
+import { ClaudeAccountSelect } from "./ClaudeOfficialSection";
 import { isMac } from "@/lib/platform";
 import { McodeProviderForm } from "./McodeProviderForm";
 import { PiProviderForm } from "./PiProviderForm";
@@ -330,7 +331,8 @@ export interface ProviderFormProps {
 
 export function ProviderForm(props: ProviderFormProps) {
   if (props.appId === "kimi") return <KimiProviderForm {...props} />;
-  if (props.appId === "mcode") return <McodeProviderForm {...props} />;
+  if (props.appId === "mcode" || props.appId === "dsh")
+    return <McodeProviderForm {...props} />;
   if (props.appId === "pi" || props.appId === "omp") {
     return <PiProviderForm {...props} />;
   }
@@ -648,6 +650,10 @@ function ProviderFormFull({
   const [selectedAgyAccountId, setSelectedAgyAccountId] = useState<
     string | null
   >(() => resolveManagedAccountId(initialData?.meta, "agy_oauth"));
+  // Claude 官方卡绑定的 Claude 官方账号；null = 默认登录（~/.claude）
+  const [selectedClaudeAccountId, setSelectedClaudeAccountId] = useState<
+    string | null
+  >(() => resolveManagedAccountId(initialData?.meta, "claude_official"));
   const [codexFastMode, setCodexFastMode] = useState<boolean>(
     () => initialData?.meta?.codexFastMode ?? false,
   );
@@ -1969,7 +1975,15 @@ function ProviderFormFull({
                     authProvider: "agy_oauth",
                     accountId: selectedAgyAccountId,
                   }
-                : undefined,
+                : appId === "claude" &&
+                    category === "official" &&
+                    selectedClaudeAccountId
+                  ? {
+                      source: "managed_account",
+                      authProvider: "claude_official",
+                      accountId: selectedClaudeAccountId,
+                    }
+                  : undefined,
       // GitHub Copilot 多账号：保存关联的账号 ID
       githubAccountId:
         isCopilotProvider && selectedGitHubAccountId
@@ -2703,6 +2717,20 @@ function ProviderFormFull({
               onStackModelRowsChange={handleClaudeStackRowsChange}
             />
           )}
+
+          {appId === "claude" &&
+            category === "official" &&
+            supports("pageAuth") && (
+              <ClaudeAccountSelect
+                value={selectedClaudeAccountId}
+                onChange={setSelectedClaudeAccountId}
+                onManageAccounts={
+                  onManageAuthAccounts
+                    ? () => onManageAuthAccounts("claude_official")
+                    : undefined
+                }
+              />
+            )}
 
           {appId === "codex" && (
             <CodexFormFields

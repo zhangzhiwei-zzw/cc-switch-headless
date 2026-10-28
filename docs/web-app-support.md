@@ -21,6 +21,7 @@
 | Kimi Code | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 | Antigravity（agy） | 卡片编辑、模型发现 | 不提供 | 支持 | 支持 | 支持 |
 | Oh My Pi | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
+| DeepSeek Harness | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 
 本地路由可用于 Claude Code、Claude Desktop、Codex、Gemini CLI 与 Grok Build。Claude Desktop 采用模型映射，不提供完整路由/故障转移设置。Web 暂不提供 Stack 聚合。
 
@@ -43,6 +44,7 @@ MCP 与 Skills 的勾选会写入服务器上对应 CLI 的原生配置或目录
 | Kimi Code | 支持 | 不提供 | 会话日志 |
 | Antigravity（agy） | 支持 | 不提供 | 会话日志 |
 | Oh My Pi | 支持 | 支持 | 未接入会话日志导入 |
+| DeepSeek Harness | 支持 | 不提供 | 未接入会话日志导入 |
 
 用量列指自动导入或代理记录的来源，不表示已经接入托管账户额度。供应商余额/Coding Plan 查询取决于供应商接口、凭据和用量脚本。日志缺少模型或定价时，费用可能为 0，不表示服务免费。
 
@@ -50,7 +52,7 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 
 ## 应用限制
 
-- **Claude Code**：修改服务端的 Claude 配置。
+- **Claude Code**：修改服务端的 Claude 配置；托管多账号登录、绑号切换和账号额度未接入 Web，使用服务端 CLI 当前登录。
 - **Claude Desktop**：模型映射经路由服务；不提供完整故障转移设置。
 - **Codex**：托管 OAuth 账号中心未接入 Web；已有服务端 CLI 登录由 CLI 管理。
 - **Gemini CLI**：与 Antigravity 是独立应用。
@@ -63,6 +65,7 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 - **Kimi Code**：支持添加、移除、切换默认供应商和模型编辑；Web 未接入托管 OAuth 登录、官方模型发现与额度，会话删除交给 Kimi Code。
 - **Antigravity（agy）**：模型发现需要服务器安装 agy；Web 不启动会话，卡片不改变直接在 shell 启动的 agy。
 - **Oh My Pi**：读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。
+- **DeepSeek Harness**：管理服务端 DSH_HOME（默认 ~/.dsh）的标准 web profile；支持原生供应商、MCP、Skills、AGENTS.md 和会话阅读。默认模型、登录、其他 profile 和会话删除由 DSH 原生界面管理。
 
 ## 共通限制
 

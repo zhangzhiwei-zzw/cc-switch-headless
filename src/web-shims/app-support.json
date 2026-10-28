@@ -9,7 +9,7 @@
     "sessions": true,
     "deleteSessions": true,
     "usage": "会话日志、代理请求",
-    "notes": "修改服务端的 Claude 配置。"
+    "notes": "修改服务端的 Claude 配置；托管多账号登录、绑号切换和账号额度未接入 Web，使用服务端 CLI 当前登录。"
   },
   "claude-desktop": {
     "name": "Claude Desktop",
@@ -154,5 +154,17 @@
     "deleteSessions": true,
     "usage": "未接入会话日志导入",
     "notes": "读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。"
+  },
+  "dsh": {
+    "name": "DeepSeek Harness",
+    "providers": "多供应商共存",
+    "routing": false,
+    "mcp": true,
+    "skills": true,
+    "prompts": true,
+    "sessions": true,
+    "deleteSessions": false,
+    "usage": "未接入会话日志导入",
+    "notes": "管理服务端 DSH_HOME（默认 ~/.dsh）的标准 web profile；支持原生供应商、MCP、Skills、AGENTS.md 和会话阅读。默认模型、登录、其他 profile 和会话删除由 DSH 原生界面管理。"
   }
 }

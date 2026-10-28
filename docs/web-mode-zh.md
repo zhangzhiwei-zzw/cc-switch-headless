@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.20**（已合并至上游 `de0a235a`），见
-> [`upstream-v4.0.20.lock`](upstream-v4.0.20.lock)。
+> 当前对标基线 **v4.0.21**（已合并至上游 `6d6b7162`），见
+> [`upstream-v4.0.21.lock`](upstream-v4.0.21.lock)。
 >
 > **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
 > 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。
@@ -267,6 +267,7 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 设置保存、配置目录查询（含 Codex 聚合设置变更后的即时重写）；用量页的显示设置
   （货币与汇率、侧栏 Today 显示项、请求日志列）存在服务端 `settings.json`，**所有浏览器
   共享**；「记住上次 Tab / 时间范围」用浏览器 localStorage，按浏览器各自独立；
+- **DeepSeek Harness（dsh）**：管理服务器 `DSH_HOME`（默认 `~/.dsh`）的标准 `web` profile，支持供应商、MCP、Skills、AGENTS.md 与会话阅读；不提供本地路由。原生界面负责登录、默认模型、其他 profile 和会话删除；尚未接入自动用量日志导入。详见 [上游接入说明](deepseek-harness-integration-zh.md)，其中安装与打开终端等桌面操作不适用于 Web。
 - **Oh My Pi（omp）**：支持供应商、原生启用状态、用量脚本、MCP、Skills、全局提示词与会话；配置默认在服务端 `~/.omp/agent`，也支持上游的 profile 与配置目录覆盖规则。会话可阅读和删除；尚未接入自动用量日志导入。不提供 CLI 安装或托管登录。
 - **Pi 供应商状态**：读取原生启用列表、默认供应商与会话目录发现状态，支持保存用量脚本；
 - **本地路由（代理）**：启动/停止代理、全局与应用级代理配置、进入/退出路由模式、

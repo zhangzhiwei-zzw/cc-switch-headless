@@ -363,6 +363,18 @@ mod tests {
     };
 
     #[test]
+    fn save_settings_should_keep_the_existing_lightweight_mode() {
+        let existing = AppSettings {
+            lightweight_mode: true,
+            ..AppSettings::default()
+        };
+
+        let merged = merge_settings_for_save(AppSettings::default(), &existing);
+
+        assert!(merged.lightweight_mode);
+    }
+
+    #[test]
     fn save_settings_should_keep_the_existing_proxy_client_host() {
         let existing = AppSettings {
             proxy_client_host: Some("172.25.144.1".to_string()),

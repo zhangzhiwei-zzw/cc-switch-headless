@@ -47,7 +47,7 @@ COPY --from=web-builder /app/dist-web ./dist-web
 ARG CC_SWITCH_BUILD_COMMIT=unknown
 ENV CC_SWITCH_BUILD_COMMIT=${CC_SWITCH_BUILD_COMMIT}
 # Build metadata is returned by the authenticated diagnostics endpoint.
-COPY docs/upstream-v4.0.20.lock /app/docs/upstream-v4.0.20.lock
+COPY docs/upstream-v4.0.21.lock /app/docs/upstream-v4.0.21.lock
 WORKDIR /app/src-tauri
 RUN cargo build --release --no-default-features --features server --bin cc-switch-server
 

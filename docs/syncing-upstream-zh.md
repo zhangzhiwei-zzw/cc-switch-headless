@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.20.lock`](upstream-v4.0.20.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.21.lock`](upstream-v4.0.21.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -82,6 +82,7 @@ Host github.com
 | 2026-10-21 | v4.0.15 → v4.0.17 + 上游后续提交 | 89 | 298 | 7 个文件 |
 | 2026-10-22 | v4.0.17 后续提交 → v4.0.18 + Kimi Code | 9 | 120 | 11 个文件 |
 | 2026-10-25 | v4.0.18 + Kimi Code → v4.0.20 + Codex 路由修复 | 86 | 291 | 9 个文件 |
+| 2026-10-28 | v4.0.20 后续提交 → v4.0.21 + DeepSeek Harness | 66 | 234 | 7 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -93,7 +94,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`5de6feb4..eb09fbb1 = 15`，不要凭印象写。
+`c4db63c6..6d6b7162 = 13`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -173,6 +174,36 @@ server 读取设置语言、缺省按系统区域选择。为兼容已有 HTTP �
 
 本轮未运行单元测试、HTTP/浏览器回归、桌面编译或跨平台发布构建。使用 dev 无调试符号
 配置，只做 Rust 检查，结束时 target 约 814 MiB；没有重建测试或 release 产物。
+
+### 2026-10-28：同步 v4.0.21 与 DeepSeek Harness
+
+在本地 `main` 合并至上游 `6d6b7162`（v4.0.21 后 13 个提交），不新建同步分支。
+7 个冲突文件为 `README.md`、`CONTRIBUTING.md`、`package.json`、`Cargo.toml`、
+`Cargo.lock`、`commands/settings.rs` 和 `lib.rs`。保留 fork 的无头入口、依赖 feature 门、
+共享设置合并函数和同步任务入口；共享设置函数补回上游新增的轻量模式状态保护。
+
+Web 接入第 14 个应用 DeepSeek Harness（`dsh`），复用上游原生配置、供应商共存、
+MCP、Skills、AGENTS.md 与只读会话能力；配置目录遵循 `$DSH_HOME` / `~/.dsh`。
+默认模型与登录仍由原生应用管理，不提供路由、会话删除或用量导入。
+DSH 普通与 zstd 会话的实际读取、解压及延迟块读取沿用 Web 的 64 MiB 上限。
+详见 [应用支持表](web-app-support.md) 与 [上游集成说明](deepseek-harness-integration-zh.md)。
+
+Claude 订阅多账号服务的 CLI 调用接入 `host` 适配层，服务端阻止托管账号快照切换；
+Web 隐藏尚未接入的账号绑定、额度查询和 Skills 打开本机目录入口，保留复制名称能力。
+供应商排序接口补齐上游的串行写入与路由堆栈顺序同步。同步 Codex 模型排序、
+OAuth 刷新、Claude Desktop 网关校验、MCP 和会话用量解析修复。
+新引入的数据库版本号 PR 自动关闭工作流默认停用，仅在维护者设置
+`ENABLE_SCHEMA_VERSION_GUARD=true` 后生效。
+
+本轮验证：前端全量测试 265 个文件、3392 项全部通过；类型、格式与 Web 构建通过。
+命令覆盖（342 个前端命令、171 个服务端
+命令、14 个应用）、13 项 RPC 契约与能力文档一致性通过。Rust 格式、server 编译及
+Clippy（`-D warnings`）通过，新增 `dsh_commands` 集成测试的 server 模式编译检查通过
+（`cargo check --test dsh_commands`，未执行 Rust 测试）。
+
+额外尝试 `server --tests` 全量编译时，原有的 Provider、路由控制器和 MCP 测试仍直接
+引用桌面专用 `tauri` / `commands` 而无法编译；这些依赖在合并前已存在，本轮未改动其
+运行环境。未运行桌面编译、HTTP/浏览器回归或跨平台发布构建，没有重建 release 产物。
 
 ### v4.0.18 发布前的 CI 修复
 
@@ -374,10 +405,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.20.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.21.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.20.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.21.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

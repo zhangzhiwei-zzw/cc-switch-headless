@@ -104,3 +104,5 @@ This fork maintains the headless Web runtime. Build with `pnpm build:web` and `c
 Browser actions affect the **server user's** CLI files. `CC_SWITCH_CONFIG_DIR` isolates the CC Switch database, not every CLI directory. Use an isolated user/container for development that writes live configurations.
 
 Keep business rules in shared services. For a new command, register its HTTP handler, classify capabilities, add typed request/result schemas for critical flows and update generated support documentation. See the [API contract guide](docs/web-api-contract.md). Document executed checks in your PR, report security issues privately, and redact credentials from diagnostics.
+
+Upstream requires a self-written **Human Note** in pull requests; write that section yourself. Schema version numbers are coordinated by maintainers. This fork's schema-version PR guard is opt-in through `ENABLE_SCHEMA_VERSION_GUARD=true`; it is disabled by default.
