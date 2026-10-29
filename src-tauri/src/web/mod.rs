@@ -62,6 +62,8 @@ pub struct ServerEvent {
 
 /// 请求处理共享上下文。
 pub struct Context {
+    /// Shared across requests so repository discovery can reuse upstream caches.
+    pub skill_service: crate::services::skill::SkillService,
     /// Stable per data directory and listener, so browser sessions on one host do not collide.
     pub cookie_name: String,
     pub auth_generation: watch::Sender<u64>,
@@ -352,6 +354,7 @@ async fn serve(mut options: Options) -> Result<(), String> {
     };
 
     let context = Arc::new(Context {
+        skill_service: crate::services::skill::SkillService::new(),
         cookie_name: resolve_cookie_name(options.cookie_name, options.port)?,
         auth_generation: watch::channel(0).0,
         token_rotation: tokio::sync::Mutex::new(()),

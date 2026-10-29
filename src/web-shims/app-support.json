@@ -164,7 +164,7 @@
     "prompts": true,
     "sessions": true,
     "deleteSessions": false,
-    "usage": "未接入会话日志导入",
-    "notes": "管理服务端 DSH_HOME（默认 ~/.dsh）的标准 web profile；支持原生供应商、MCP、Skills、AGENTS.md 和会话阅读。默认模型、登录、其他 profile 和会话删除由 DSH 原生界面管理。"
+    "usage": "会话日志",
+    "notes": "管理服务端 DSH_HOME（默认 ~/.dsh）；供应商与 MCP 同步到 web、desktop 以及已初始化的 headless/acp profile。支持 Skills、AGENTS.md、会话阅读和用量导入；默认模型、登录、sdk profile 和会话删除由 DSH 原生界面管理。"
   }
 }

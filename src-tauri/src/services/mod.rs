@@ -7,6 +7,7 @@ pub mod codex_oauth_models;
 pub mod codex_session_compression;
 pub mod coding_plan;
 pub mod config;
+pub mod dsh_account;
 pub mod env_checker;
 pub mod env_manager;
 pub mod failover;
@@ -66,3 +67,4 @@ pub mod session_usage_kimi;
 pub mod session_usage_mcode;
 
 pub mod session_usage_agy;
+pub mod session_usage_dsh;

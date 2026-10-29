@@ -11,7 +11,7 @@
 | `pageSessions` | 可用 | 6 |
 | `pageImportExport` | 可用 | 5 |
 | `pageMcp` | 可用 | 15 |
-| `pageSkills` | 可用 | 27 |
+| `pageSkills` | 可用 | 28 |
 | `pagePrompts` | 可用 | 13 |
 | `pageUsage` | 可用 | 25 |
 | `sessionStream` | 可用 | 1 |

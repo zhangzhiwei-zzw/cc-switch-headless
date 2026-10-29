@@ -146,6 +146,17 @@ check "删除仓库" "True" \
 check "已移除" "False" \
   "$(jget '{"cmd":"get_skill_repos"}' 'any(r["owner"]=="anthropics" and r["name"]=="skills" for r in d["data"])')"
 
+check "未配置的单仓库发现返回空结果" "True" \
+  "$(jget '{"cmd":"discover_repo_skills","args":{"owner":"cc-switch-e2e","name":"not-configured"}}' 'd["ok"] and d["data"] == {"skills":[],"failures":[]}')"
+check "添加停用仓库" "True" \
+  "$(jget '{"cmd":"add_skill_repo","args":{"repo":{"owner":"cc-switch-e2e","name":"disabled","branch":"main","enabled":false}}}' 'd["data"]')"
+check "停用仓库发现不触发网络下载" "True" \
+  "$(jget '{"cmd":"discover_repo_skills","args":{"owner":"cc-switch-e2e","name":"disabled"}}' 'd["ok"] and d["data"] == {"skills":[],"failures":[]}')"
+check "非法刷新参数被拒" "False" \
+  "$(jget '{"cmd":"discover_available_skills","args":{"forceRefresh":"invalid"}}' 'd["ok"]')"
+check "删除停用测试仓库" "True" \
+  "$(jget '{"cmd":"remove_skill_repo","args":{"owner":"cc-switch-e2e","name":"disabled"}}' 'd["data"]')"
+
 echo
 echo "== 用量图表设置在服务端持久化"
 call '{"cmd":"get_settings"}' | python3 -c '
@@ -202,5 +213,37 @@ check "live provider ids 可读" "1" \
   "$(jget '{"cmd":"get_opencode_live_provider_ids"}' 'len(d["data"])')"
 check "Pi 也同步了（它只有启动同步这一条路）" "True" \
   "$(jget '{"cmd":"get_providers","args":{"app":"pi"}}' '"pi-e2e" in d["data"]')"
+
+echo
+echo "== DeepSeek Harness 用量导入"
+python3 - "$CC_TEST_HOME" <<'PY'
+import json, pathlib, sys, time
+root = pathlib.Path(sys.argv[1])
+path = root / '.dsh/sessions/e2e/project/session.v4.jsonl'
+path.parent.mkdir(parents=True, exist_ok=True)
+now = int(time.time() * 1000)
+records = [
+    {"type":"session", "version":4, "id":"e2e-dsh", "cwd":"/e2e", "createdAt":now},
+    {"type":"assistant/message", "time":now, "data":{
+        "turn":1,"step":1,
+        "message":{"id":"e2e-dsh-message", "role":"assistant",
+            "source":{"kind":"model", "provider":"deepseek-account", "model":"deepseek-flash"},
+            "content":[{"type":"text", "text":"ok"}]},
+        "usage":{"inputTokens":10,"outputTokens":5,"cacheReadTokens":20,"cacheWriteTokens":0}
+    }}
+]
+path.write_text(''.join(json.dumps(record) + '\n' for record in records))
+PY
+check "DSH 会话同步接口成功" "True" \
+  "$(jget '{"cmd":"sync_session_usage"}' 'd["ok"]')"
+check "DSH 用量实际入库且保留 fresh input 语义" "1" \
+  "$(python3 - "$CC_TEST_HOME/.cc-switch/cc-switch.db" <<'PY'
+import sqlite3, sys
+with sqlite3.connect(sys.argv[1]) as db:
+    print(db.execute("SELECT COUNT(*) FROM proxy_request_logs WHERE app_type='dsh' AND input_tokens=10 AND output_tokens=5 AND cache_read_tokens=20").fetchone()[0])
+PY
+)"
+check "重复同步不会重复导入 DSH 请求" "0" \
+  "$(jget '{"cmd":"sync_session_usage"}' 'd["data"]["imported"]')"
 
 summary

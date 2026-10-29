@@ -99,7 +99,8 @@
         "get_skill_repos",
         "add_skill_repo",
         "remove_skill_repo",
-        "install_skills_from_zip"
+        "install_skills_from_zip",
+        "discover_repo_skills"
       ]
     },
     "pagePrompts": {
@@ -495,7 +496,13 @@
     "get_claude_login_switch": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
     "get_claude_account_quota": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
     "get_claude_default_plan": "Claude 托管账号登录、登录切换与账号专属额度未接入 Web；使用服务端 CLI 管理登录。",
-    "open_skill_dir": "浏览器不能打开服务器的文件管理器；Web 隐藏打开 Skill 目录入口，可复制 Skill 名称。"
+    "open_skill_dir": "浏览器不能打开服务器的文件管理器；Web 隐藏打开 Skill 目录入口，可复制 Skill 名称。",
+    "dsh_account_status": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
+    "dsh_account_sign_out": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
+    "dsh_account_login_start": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
+    "dsh_account_login_poll": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
+    "dsh_account_login_cancel": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
+    "webdav_sync_clear_settings": "WebDAV 云同步设置未接入 Web，相关设置入口按能力隐藏。"
   },
   "validatedCommands": [
     "get_current_provider",

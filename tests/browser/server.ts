@@ -53,6 +53,7 @@ export class TestServer {
         delete env[key];
     Object.assign(env, {
       HOME: this.home,
+      DSH_HOME: path.join(this.home, ".dsh"),
       USERPROFILE: this.home,
       CC_SWITCH_CONFIG_DIR: path.join(this.home, ".cc-switch"),
       PI_CODING_AGENT_DIR: path.join(this.home, ".pi/agent"),

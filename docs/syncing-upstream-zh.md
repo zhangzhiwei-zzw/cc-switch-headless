@@ -83,6 +83,7 @@ Host github.com
 | 2026-10-22 | v4.0.17 后续提交 → v4.0.18 + Kimi Code | 9 | 120 | 11 个文件 |
 | 2026-10-25 | v4.0.18 + Kimi Code → v4.0.20 + Codex 路由修复 | 86 | 291 | 9 个文件 |
 | 2026-10-28 | v4.0.20 后续提交 → v4.0.21 + DeepSeek Harness | 66 | 234 | 7 个文件 |
+| 2026-10-29 | v4.0.21 后续提交 → DSH 多 profile / 用量导入 | 23 | 100 | 4 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -94,7 +95,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`c4db63c6..6d6b7162 = 13`，不要凭印象写。
+`c4db63c6..ebb00da1 = 36`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -205,6 +206,37 @@ Clippy（`-D warnings`）通过，新增 `dsh_commands` 集成测试的 server �
 引用桌面专用 `tauri` / `commands` 而无法编译；这些依赖在合并前已存在，本轮未改动其
 运行环境。未运行桌面编译、HTTP/浏览器回归或跨平台发布构建，没有重建 release 产物。
 
+### 2026-10-29：同步 DSH 多 profile 与 Skills 增量发现
+
+直接在本地 `main` 合并上游 `ebb00da1`，新增 23 个提交、100 个文件；仍以
+v4.0.21 为标签基线（标签后 36 个提交）。冲突为 `proxy/forwarder.rs`、
+`services/webdav_auto_sync.rs`、`App.tsx`，以及本 fork 已删除的 `wsl2-nightly.yml`。
+保留进程级 OAuth 注册表、宿主事件分发与 Web 终端能力开关；不恢复独立 WSL nightly，
+现有 CI 内的 WSL 文件系统检查继续保留。保留上一轮 `tests_issue_7271` 两参数构造修复，并适配 `proxy/server.rs` 新增回环测试的同类调用。
+
+DSH 供应商与 MCP 共管 `web`、`desktop` 和已初始化的 `headless` / `acp` profile，
+服务端启动接入 profile 初始化，用量页复用上游的 DSH 会话日志导入。
+SDK profile、默认模型、账号登录与会话删除继续交给原生应用；Web 的 DSH 账号入口按
+`pageAuth` 隐藏，后台服务的异步调用通过 `host`。Codex 的终端专用模块仅桌面编译。
+
+Skills 接通 `discover_repo_skills`，全量发现支持 `forceRefresh`，共用服务实例以复用
+上游仓库缓存；新增/启用仓库时只刷新该仓库。HTTP 回归补充不存在仓库、停用仓库和
+非法刷新参数，以及 DSH 用量真实入库、输入 token 语义和重复导入保护；
+测试进程的 `DSH_HOME` 固定到临时目录。
+同步 Copilot Claude 原生消息、Gemini 工具结果、Responses WebSearch 域名过滤、
+代理回环防护、OpenCode V2 连通性检查及非当前供应商余额刷新等修复。
+WebDAV 清除配置的新命令仍按 Web 云同步能力边界列为未接入，自动上传在锁内重读设置。
+
+本轮验证：相关 18 个前端测试文件、283 项测试通过，类型、格式与 Web 构建通过；
+命令覆盖（349 个前端命令、172 个服务端命令、14 个应用）、13 项 RPC 契约和能力文档
+一致性通过。Rust 格式、桌面全部测试目标的编译检查、桌面与 server Clippy
+（`-D warnings`）及 server 二进制构建通过；未执行完整 Rust 测试或跨平台发布构建。
+
+清除测试进程的代理环境后，180 项 HTTP、安全和安装回归全部通过，包含 Skills 新接口、
+DSH 用量入库及去重。首次 HTTP 测试的 Host 请求被本机代理转发为 502，重跑未放宽断言。
+本轮浏览器回归未执行：将 Chromium 安装到 `/tmp` 时，官方 CDN 下载多次连接重置或
+超时，最终安装失败。使用无调试符号的 dev 构建，未重建 release 产物。
+
 ### v4.0.18 发布前的 CI 修复
 
 上次提交 `c84be35` 的 [CI #23](https://github.com/zhangzhiwei-zzw/cc-switch-headless/actions/runs/39626013401)
@@ -231,6 +263,9 @@ Clippy（`-D warnings`）通过，新增 `dsh_commands` 集成测试的 server �
 
 ### 已固化的适配点（每次同步都要复查）
 
+- Rust 合并后还要运行默认桌面 feature 的 `cargo check --tests`；普通构建与 Clippy
+  不覆盖 `#[cfg(test)]` 中新增的构造函数调用。`ProxyServer::new` 在本 fork 中只有
+  `config` 和 `db` 两个参数，上游新测试里的第三个 `AppHandle` 参数必须删除。
 - 先运行 `pnpm check:web`：新增前端命令不能静默漏过 Web；更新
   `src/web-shims/command-contract.json` 时，未实现命令必须保留明确原因；
 - Web 的登录、能力异常、断连和多实例行为由 `pnpm test:web` 的真实浏览器回归覆盖，

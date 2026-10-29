@@ -44,7 +44,7 @@ MCP 与 Skills 的勾选会写入服务器上对应 CLI 的原生配置或目录
 | Kimi Code | 支持 | 不提供 | 会话日志 |
 | Antigravity（agy） | 支持 | 不提供 | 会话日志 |
 | Oh My Pi | 支持 | 支持 | 未接入会话日志导入 |
-| DeepSeek Harness | 支持 | 不提供 | 未接入会话日志导入 |
+| DeepSeek Harness | 支持 | 不提供 | 会话日志 |
 
 用量列指自动导入或代理记录的来源，不表示已经接入托管账户额度。供应商余额/Coding Plan 查询取决于供应商接口、凭据和用量脚本。日志缺少模型或定价时，费用可能为 0，不表示服务免费。
 
@@ -65,7 +65,7 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 - **Kimi Code**：支持添加、移除、切换默认供应商和模型编辑；Web 未接入托管 OAuth 登录、官方模型发现与额度，会话删除交给 Kimi Code。
 - **Antigravity（agy）**：模型发现需要服务器安装 agy；Web 不启动会话，卡片不改变直接在 shell 启动的 agy。
 - **Oh My Pi**：读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。
-- **DeepSeek Harness**：管理服务端 DSH_HOME（默认 ~/.dsh）的标准 web profile；支持原生供应商、MCP、Skills、AGENTS.md 和会话阅读。默认模型、登录、其他 profile 和会话删除由 DSH 原生界面管理。
+- **DeepSeek Harness**：管理服务端 DSH_HOME（默认 ~/.dsh）；供应商与 MCP 同步到 web、desktop 以及已初始化的 headless/acp profile。支持 Skills、AGENTS.md、会话阅读和用量导入；默认模型、登录、sdk profile 和会话删除由 DSH 原生界面管理。
 
 ## 共通限制
 

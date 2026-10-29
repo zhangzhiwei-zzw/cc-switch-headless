@@ -27,6 +27,7 @@ pub const HANDLERS: &[(&str, Handler)] = &[
     ("scan_unmanaged_skills", scan_unmanaged_skills),
     ("import_skills_from_apps", import_skills_from_apps),
     ("discover_available_skills", discover_available_skills),
+    ("discover_repo_skills", discover_repo_skills),
     ("check_skill_updates", check_skill_updates),
     ("resync_skills_to_apps", resync_skills_to_apps),
     ("update_skill", update_skill),
@@ -189,18 +190,49 @@ fn import_skills_from_apps(context: Arc<Context>, args: Value) -> HandlerFuture 
 // 发现 / 更新（要走网络，直接 await）
 // ============================================================================
 
-fn discover_available_skills(context: Arc<Context>, _args: Value) -> HandlerFuture {
+fn discover_available_skills(context: Arc<Context>, args: Value) -> HandlerFuture {
     Box::pin(async move {
         let state = context.require_state()?;
         let repos = state
             .db
             .get_skill_repos()
             .map_err(|error| error.to_string())?;
-        SkillService::new()
-            .discover_available_report(repos)
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            #[serde(default)]
+            force_refresh: bool,
+        }
+        let args: Args = parse(args)?;
+        context
+            .skill_service
+            .discover_available_report(repos, args.force_refresh)
             .await
             .map_err(|error| error.to_string())
             .and_then(serializable)
+    })
+}
+
+fn discover_repo_skills(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            owner: String,
+            name: String,
+        }
+        let args: Args = parse(args)?;
+        let state = context.require_state()?;
+        let repos = state
+            .db
+            .get_skill_repos()
+            .map_err(|error| error.to_string())?;
+        let Some(repo) = repos
+            .into_iter()
+            .find(|repo| repo.owner == args.owner && repo.name == args.name)
+        else {
+            return serializable(crate::services::skill::SkillDiscoveryResult::default());
+        };
+        serializable(context.skill_service.discover_repo(&repo).await)
     })
 }
 
