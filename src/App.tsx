@@ -103,6 +103,7 @@ const OpenTerminalDialog = lazy(() =>
   })),
 );
 import { discardUnsavedChanges, hasUnsavedChanges } from "@/lib/unsavedChanges";
+import { RefreshAllQuotaButton } from "@/components/settings/auth/RefreshAllQuotaButton";
 const SettingsPage = lazy(() =>
   import("@/components/settings/SettingsPage").then((module) => ({
     default: module.SettingsPage,
@@ -1778,6 +1779,7 @@ function App() {
                   </Badge>
                 </>
               }
+              actions={<RefreshAllQuotaButton />}
             />
             <div
               id="main-content"

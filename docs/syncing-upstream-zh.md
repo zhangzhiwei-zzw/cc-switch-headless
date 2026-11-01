@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.21.lock`](upstream-v4.0.21.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.23.lock`](upstream-v4.0.23.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -84,6 +84,7 @@ Host github.com
 | 2026-10-25 | v4.0.18 + Kimi Code → v4.0.20 + Codex 路由修复 | 86 | 291 | 9 个文件 |
 | 2026-10-28 | v4.0.20 后续提交 → v4.0.21 + DeepSeek Harness | 66 | 234 | 7 个文件 |
 | 2026-10-29 | v4.0.21 后续提交 → DSH 多 profile / 用量导入 | 23 | 100 | 4 个文件 |
+| 2026-11-01 | v4.0.21 后续提交 → v4.0.23 | 56 | 156 | 7 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -95,7 +96,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`c4db63c6..ebb00da1 = 36`，不要凭印象写。
+`8be84055..8be84055 = 0`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -236,6 +237,37 @@ WebDAV 清除配置的新命令仍按 Web 云同步能力边界列为未接入�
 DSH 用量入库及去重。首次 HTTP 测试的 Host 请求被本机代理转发为 502，重跑未放宽断言。
 本轮浏览器回归未执行：将 Chromium 安装到 `/tmp` 时，官方 CDN 下载多次连接重置或
 超时，最终安装失败。使用无调试符号的 dev 构建，未重建 release 产物。
+
+### 2026-11-01：同步 v4.0.23
+
+直接在本地 `main` 合并至上游 `8be84055`，新增 56 个提交、156 个文件；该提交就是
+v4.0.23 标签指向的提交。冲突为 `README.md`、`package.json`、`Cargo.toml`、
+`commands/usage.rs`、`lib.rs`、`App.tsx` 和 `ProviderList.tsx`。
+保留 fork 的无头说明、版本描述、桌面 feature 门和延迟加载；上游定价查询改为异步后，
+仍调用 fork 的共享 `model_pricing::list_model_pricing`，不恢复桌面/Web 两份查询逻辑。
+第二次启动时恢复主窗口的新辅助函数仅在桌面构建启用。
+
+供应商编辑器同步 Kimi TOML、MiniMax Code YAML、Oh My Pi YAML 原生格式，新增并锁定
+前端 `yaml` 依赖；配置目录查询复用现有 Web 接口。DSH 新账号卡片与账号登录预设按
+`pageAuth` 隐藏，新增 Web 回归确保供应商页不调用未接入的账号状态接口，同时仍可添加
+普通供应商。原生配置读取失败提示、编辑器外部同步保护及 Skills 统一列表同步更新。
+
+Oh My Pi 会话用量导入接入共享同步流程，Web 支持表和功能说明一并更新；HTTP 回归
+增加实际 token 与总延迟入库、Pi/OMP 不重复归属和重复同步保护；
+OMP 的首字时间沿用上游行为，暂不导入、保持为空。
+同步 Claude 到 Gemini 的思考档位、OpenAI reasoning 参数、Gemini thoughtSignature、
+非流式模型验证 JSON 响应、Codex 分叉会话、Antigravity 和 MiniMax 延迟统计修复，
+以及 DSH / Kimi / MiniMax 余额凭据读取、错误日志长度限制与供应商预设更新。
+
+本轮验证：相关 22 个前端测试文件、351 项测试通过（含 DSH Web 能力负向回归）；
+类型、格式与 Web 构建通过。命令覆盖（349 个前端命令、172 个服务端命令、14 个应用）、
+13 项 RPC 契约与能力文档一致性通过。桌面全部测试目标编译检查、桌面和 server Clippy
+（`-D warnings`）、Rust 格式及 server 二进制构建通过。
+
+184 项 HTTP、安全和安装回归通过（页面接口 78 项，包含新增 OMP 用量和去重检查），
+10 项浏览器回归通过。本轮 Chromium 已成功安装到 `/tmp`，补齐上一轮未能执行的浏览器
+验证。HTTP 测试进程清除代理和原生配置覆盖变量，使用临时 HOME，不修改实际 CLI 配置。
+沿用无调试符号的 dev 构建；未执行完整 Rust 测试或跨平台 release 构建。
 
 ### v4.0.18 发布前的 CI 修复
 
@@ -440,10 +472,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.21.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.23.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.21.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.23.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

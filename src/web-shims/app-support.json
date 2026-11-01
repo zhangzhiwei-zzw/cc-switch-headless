@@ -152,7 +152,7 @@
     "prompts": true,
     "sessions": true,
     "deleteSessions": true,
-    "usage": "未接入会话日志导入",
+    "usage": "会话日志",
     "notes": "读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。"
   },
   "dsh": {

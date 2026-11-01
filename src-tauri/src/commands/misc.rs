@@ -783,6 +783,29 @@ fn mcode_installer_update_command(install_root: &str) -> String {
     )
 }
 
+/// 重跑 Kimi Code 官方 installer 升级原生安装那一处。显式传 `KIMI_INSTALL_DIR`，
+/// 保证写回探测到的目录（installer 覆盖 `<dir>/bin/kimi`），而不是默认的 `~/.kimi-code`。
+#[cfg(not(target_os = "windows"))]
+fn kimi_installer_update_command(install_root: &str) -> String {
+    format!(
+        "KIMI_INSTALL_DIR={} {KIMI_INSTALL_UNIX}",
+        shell_single_quote(install_root)
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn kimi_installer_update_command(install_root: &str) -> String {
+    // PowerShell 单引号字面量里 `'` 写作 `''`；整段经 EncodedCommand 传入，不经 cmd 解析。
+    let script = format!(
+        "$env:KIMI_INSTALL_DIR = '{}'; {KIMI_INSTALL_WINDOWS_SCRIPT}",
+        install_root.replace('\'', "''")
+    );
+    format!(
+        "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {}",
+        powershell_encoded_command(&script)
+    )
+}
+
 /// Codex 官方独立安装器（`install.sh` / `install.ps1`）装出的一处安装。
 ///
 /// 布局（2026-09 实测 install.sh、读 install.ps1）：发布包在
@@ -2315,10 +2338,11 @@ fn tool_executable_candidates(tool: &str, dir: &Path) -> Vec<std::path::PathBuf>
     #[cfg(target_os = "windows")]
     {
         let extensionless = dir.join(tool);
-        let mut candidates = vec![
-            dir.join(format!("{tool}.cmd")),
-            dir.join(format!("{tool}.exe")),
-        ];
+        let exe = dir.join(format!("{tool}.exe"));
+        let mut candidates = vec![dir.join(format!("{tool}.cmd"))];
+        if let Some(exe) = windows_preferred_tool_executable(tool, &exe) {
+            candidates.push(exe);
+        }
         if windows_runnable_sibling_for_extensionless_tool(&extensionless).is_none() {
             candidates.push(extensionless);
         }
@@ -2803,6 +2827,52 @@ fn windows_runnable_sibling_for_extensionless_tool(path: &Path) -> Option<std::p
         .find(|candidate| candidate.is_file())
 }
 
+/// OpenCode Desktop has shipped both root-level and Electron `resources/` CLI sidecars.
+/// Some Electron releases omitted the sidecar; `resources/app.asar` still identifies the
+/// Desktop bundle, so skip its GUI instead of probing `opencode.exe` with `--version`.
+/// A standalone OpenCode CLI install remains valid when no Desktop marker is present.
+#[cfg(target_os = "windows")]
+fn windows_preferred_tool_executable(tool: &str, path: &Path) -> Option<std::path::PathBuf> {
+    if tool == "opencode"
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("opencode.exe"))
+    {
+        if let Some(parent) = path.parent() {
+            let sidecar = parent.join("opencode-cli.exe");
+            if sidecar.is_file() {
+                return Some(sidecar);
+            }
+
+            let resources = parent.join("resources");
+            let bundled_sidecar = resources.join("opencode-cli.exe");
+            if bundled_sidecar.is_file() {
+                return Some(bundled_sidecar);
+            }
+
+            if resources.join("app.asar").is_file() {
+                return None;
+            }
+        }
+    }
+
+    Some(
+        windows_runnable_sibling_for_extensionless_tool(path).unwrap_or_else(|| path.to_path_buf()),
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn windows_preferred_path_default(tool: &str, raw: &str) -> Option<std::path::PathBuf> {
+    raw.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .filter(|line| {
+            !is_windows_app_execution_alias_dir(Path::new(line).parent().unwrap_or(Path::new("")))
+        })
+        .find_map(|line| windows_preferred_tool_executable(tool, Path::new(line)))
+}
+
 #[cfg(target_os = "windows")]
 fn build_windows_tool_command(
     tool_path: &Path,
@@ -3247,23 +3317,12 @@ fn resolve_path_default(
         return Ok(None);
     }
     let raw = decode_command_output(&out.stdout);
-    // `where` lists every match on PATH in order; the first is what the user
-    // actually runs. Skip App Execution Aliases (reparse points under
-    // `Microsoft\WindowsApps`) — they launch the Store / a protocol handler,
-    // are not CLIs we can `--version`-probe, and must not be treated as the
-    // PATH default. Take the first remaining real entry.
-    let resolved = raw.lines().map(str::trim).find(|line| {
-        !line.is_empty()
-            && !is_windows_app_execution_alias_dir(
-                Path::new(line).parent().unwrap_or(Path::new("")),
-            )
-    });
-    let Some(first) = resolved else {
+    // `where` lists every match on PATH in order. Skip entries that cannot be
+    // safely probed (App Execution Aliases and Desktop GUI executables) and keep
+    // looking so a later real CLI can still be the PATH default.
+    let Some(preferred) = windows_preferred_path_default(tool, &raw) else {
         return Ok(None);
     };
-    let path = Path::new(first);
-    let preferred =
-        windows_runnable_sibling_for_extensionless_tool(path).unwrap_or_else(|| path.to_path_buf());
     Ok(std::fs::canonicalize(preferred).ok())
 }
 
@@ -3554,6 +3613,68 @@ fn mcode_script_install_root(
     [bin_path, real_target].iter().find_map(|path| {
         let root = mcode_install_root_candidate(path, layout);
         (last_path_segment_lower(&root) == ".minimax-code").then_some(root)
+    })
+}
+
+/// Kimi Code 的 `upgrade` 子命令 0.43.0 起才有 `-y, --yes`。更早的版本把 `--yes` 当成主命令
+/// 的全局选项吞掉，非 TTY（静默 lifecycle 正是如此）下只打印手动升级提示就 exit 0，
+/// `kimi upgrade --yes || <fallback>` 的兜底永不触发，用户看到「版本没有变化」（#9032）。
+const KIMI_UPGRADE_YES_MIN_VERSION: &str = "0.43.0";
+
+fn kimi_upgrade_ignores_yes(version: Option<&str>) -> bool {
+    version.and_then(|v| compare_semver(v, KIMI_UPGRADE_YES_MIN_VERSION))
+        == Some(std::cmp::Ordering::Less)
+}
+
+/// Kimi Code 官方 installer 的布局：两平台都是 `<KIMI_INSTALL_DIR>/bin/kimi[.exe]`
+/// 原生二进制。npm 版的真身在 `node_modules` 下（Windows 入口是 `kimi.cmd`），不算。
+/// 先看真身：POSIX 用户自建的软链（如 `~/.local/bin/kimi`）指回安装目录时，installer
+/// 必须写回真身所在的那处；Windows 的真身是 canonicalize 出的 `\\?\` verbatim 路径，
+/// 交给 installer 前还原。纯字符串、不碰 fs。
+fn kimi_native_install_root(bin_path: &str, real_target: &str) -> Option<String> {
+    let normalized_real = real_target.replace('\\', "/").to_ascii_lowercase();
+    if normalized_real.contains("/node_modules/") {
+        return None;
+    }
+    #[cfg(not(target_os = "windows"))]
+    if is_brew_managed_path(real_target) {
+        return None;
+    }
+    let real = match real_target.strip_prefix(r"\\?\UNC\") {
+        Some(unc) => format!(r"\\{unc}"),
+        None => real_target
+            .strip_prefix(r"\\?\")
+            .unwrap_or(real_target)
+            .to_string(),
+    };
+    let root = [real.as_str(), bin_path].into_iter().find_map(|path| {
+        if !matches!(last_path_segment_lower(path).as_str(), "kimi" | "kimi.exe") {
+            return None;
+        }
+        let bin_dir = parent_dir(path);
+        if last_path_segment_lower(&bin_dir) != "bin" {
+            return None;
+        }
+        let root = parent_dir(&bin_dir);
+        (!root.is_empty()).then_some(root)
+    });
+    root
+}
+
+/// 旧版 Kimi Code（见 `KIMI_UPGRADE_YES_MIN_VERSION`）的升级命令：跳过会假成功的
+/// `kimi upgrade --yes`。包管理器认得的安装（npm / Volta / bun / Homebrew）走锚定的包管理器；
+/// 先查它，因为 Volta 的 `bin/kimi[.exe]` shim 不解析到 `node_modules`，会被误认成原生
+/// 布局、让 installer 覆盖 shim。其余原生安装重跑官方 installer。都认不出时返回 None，
+/// 交回普通锚定。
+fn kimi_legacy_update_command(bin_path: &str, real_target: &str) -> Option<String> {
+    #[cfg(not(target_os = "windows"))]
+    let package_command =
+        package_manager_anchored_command_from_paths("kimi", bin_path, real_target);
+    #[cfg(target_os = "windows")]
+    let package_command = package_manager_anchored_command_from_paths("kimi", bin_path);
+    package_command.or_else(|| {
+        kimi_native_install_root(bin_path, real_target)
+            .map(|root| kimi_installer_update_command(&root))
     })
 }
 
@@ -4165,8 +4286,8 @@ fn locate_default_tool(
             if path_default.as_ref() == Some(&real) {
                 return Ok(candidate);
             }
-            if seen.insert(real) {
-                candidates.push(candidate);
+            if seen.insert(real.clone()) {
+                candidates.push((candidate, real));
             }
         }
     }
@@ -4175,13 +4296,62 @@ fn locate_default_tool(
         return Ok(path);
     }
 
+    #[cfg(not(target_os = "windows"))]
+    if candidates.len() > 1 {
+        if let Some(target) = candidates
+            .iter()
+            .find_map(|(candidate, real)| mise_shim_target(tool, candidate, real, deadline))
+        {
+            return Ok(target);
+        }
+    }
+
     match candidates.as_slice() {
-        [only] => Ok(only.clone()),
+        [(only, _)] => Ok(only.clone()),
         [] => Err(format!("{tool} is not installed")),
         _ => Err(format!(
             "{tool} is installed but its default installation is ambiguous"
         )),
     }
+}
+
+/// mise 的 shim 是指向 mise 本体的软链，canonicalize 后和它调度的真身不是同一个文件，
+/// 按真身去重时 shim 与 `installs/node/<版本>/bin/<tool>` 会被算成两处安装。登录 shell
+/// 问不出默认入口时，让 mise 自己说 shim 现在指向哪个文件（按用户的 mise 配置选版本，
+/// 与终端里跑这个 shim 的结果一致），直接用那个真身。不是 mise shim 或解析失败返回 None。
+#[cfg(not(target_os = "windows"))]
+fn mise_shim_target(
+    tool: &str,
+    candidate: &Path,
+    real: &Path,
+    deadline: Option<CommandDeadline>,
+) -> Option<std::path::PathBuf> {
+    use std::ffi::OsStr;
+    use std::process::{Command, Stdio};
+
+    let is_mise_shim = candidate.parent().and_then(Path::file_name) == Some(OsStr::new("shims"))
+        && real.file_name() == Some(OsStr::new("mise"));
+    if !is_mise_shim {
+        return None;
+    }
+
+    let mut cmd = Command::new(real);
+    cmd.args(["which", tool])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    // GUI 进程的工作目录是 `/`；在 home 下解析，与新开终端看到的 mise 配置一致。
+    if let Some(home) = dirs::home_dir() {
+        cmd.current_dir(home);
+    }
+    isolate_child_process_group(&mut cmd);
+    let out = wait_child_output(cmd.spawn().ok()?, deadline).ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let raw = decode_command_output(&out.stdout);
+    let target = std::path::PathBuf::from(first_abs_path_line(&raw)?);
+    target.is_file().then_some(target)
 }
 
 #[derive(Clone, Copy)]
@@ -4688,6 +4858,12 @@ fn installs_anchored_command(tool: &str, installs: &[ToolInstallation]) -> Optio
             .find_map(|entry| mcode_receipt_install_root(entry, McodeLayout::NATIVE))
         {
             return Some(mcode_installer_update_command(&root));
+        }
+    }
+    // 版本号来自 `--version` 探测，所以放在这里而不是纯路径的 `anchored_command_from_paths`。
+    if tool == "kimi" && kimi_upgrade_ignores_yes(inst.version.as_deref()) {
+        if let Some(cmd) = kimi_legacy_update_command(&inst.path, &real) {
+            return Some(cmd);
         }
     }
     anchored_command_from_paths(tool, &inst.path, &real)
@@ -7785,6 +7961,101 @@ mod tests {
         .unwrap();
         assert_eq!(update, format!("kimi upgrade --yes || {posix}"));
         assert!(!update.contains("npm"));
+    }
+
+    #[test]
+    fn kimi_native_install_root_follows_the_installer_layout() {
+        assert_eq!(
+            kimi_native_install_root(
+                "/home/me/.kimi-code/bin/kimi",
+                "/home/me/.kimi-code/bin/kimi"
+            )
+            .as_deref(),
+            Some("/home/me/.kimi-code")
+        );
+        // 软链指回安装目录时写回真身那处。
+        assert_eq!(
+            kimi_native_install_root("/home/me/.local/bin/kimi", "/opt/kimi/bin/kimi").as_deref(),
+            Some("/opt/kimi")
+        );
+        assert_eq!(
+            kimi_native_install_root(
+                r"C:\Users\sc\.kimi-code\bin\kimi.exe",
+                r"\\?\C:\Users\sc\.kimi-code\bin\kimi.exe"
+            )
+            .as_deref(),
+            Some(r"C:\Users\sc\.kimi-code")
+        );
+        // npm 版不归 installer 管。
+        assert_eq!(
+            kimi_native_install_root(
+                "/home/me/.nvm/versions/node/v22.19.0/bin/kimi",
+                "/home/me/.nvm/versions/node/v22.19.0/lib/node_modules/@moonshot-ai/kimi-code/dist/main.mjs"
+            ),
+            None
+        );
+        assert_eq!(
+            kimi_native_install_root(
+                r"C:\Users\sc\AppData\Roaming\npm\kimi.cmd",
+                r"\\?\C:\Users\sc\AppData\Roaming\npm\kimi.cmd"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn legacy_kimi_native_update_reruns_the_installer() {
+        let install = |path: &str, version: &str| ToolInstallation {
+            path: path.to_string(),
+            version: Some(version.to_string()),
+            runnable: true,
+            error: None,
+            exited_with_error: false,
+            source: infer_install_source(Path::new(path)).to_string(),
+            is_path_default: true,
+            real: PathBuf::from(path),
+        };
+        let (path, root) = if cfg!(target_os = "windows") {
+            (
+                r"C:\Users\sc\.kimi-code\bin\kimi.exe",
+                r"C:\Users\sc\.kimi-code",
+            )
+        } else {
+            ("/home/me/.kimi-code/bin/kimi", "/home/me/.kimi-code")
+        };
+
+        // 0.43.0 之前 `upgrade --yes` 在非 TTY 下只打印提示就 exit 0（#9032）。
+        assert_eq!(
+            installs_anchored_command("kimi", &[install(path, "0.23.1")]),
+            Some(kimi_installer_update_command(root))
+        );
+        // 新版照旧走 CLI 自升级。
+        let current = installs_anchored_command("kimi", &[install(path, "2.4.0")]).unwrap();
+        assert!(current.contains("upgrade --yes"), "{current}");
+        assert_eq!(
+            installs_anchored_command("kimi", &[install(path, "0.43.0")]),
+            Some(current)
+        );
+        // Volta 的 shim 也是 `bin/kimi`，必须交给 Volta，不能让 installer 覆盖。
+        #[cfg(not(target_os = "windows"))]
+        {
+            let volta =
+                installs_anchored_command("kimi", &[install("/home/me/.volta/bin/kimi", "0.23.1")])
+                    .unwrap();
+            assert!(
+                volta.ends_with("volta install @moonshot-ai/kimi-code"),
+                "{volta}"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn kimi_installer_update_command_targets_the_detected_dir() {
+        assert_eq!(
+            kimi_installer_update_command("/home/me/my kimi"),
+            format!("KIMI_INSTALL_DIR='/home/me/my kimi' {KIMI_INSTALL_UNIX}")
+        );
     }
 
     #[cfg(target_os = "windows")]
@@ -10967,6 +11238,52 @@ mod tests {
 
     #[cfg(not(target_os = "windows"))]
     #[test]
+    fn mise_shim_target_resolves_shim_through_mise_which() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::tempdir().expect("temp dir should be created");
+        let root = temp.path();
+        let node_bin = root.join("installs/node/22.12.0/bin");
+        std::fs::create_dir_all(&node_bin).expect("node bin should be created");
+        let target = node_bin.join("claude");
+        std::fs::write(&target, "").expect("target should be written");
+
+        let mise_dir = root.join("bin");
+        std::fs::create_dir_all(&mise_dir).expect("mise dir should be created");
+        let mise = mise_dir.join("mise");
+        std::fs::write(
+            &mise,
+            format!(
+                "#!/bin/sh\n[ \"$1\" = which ] && [ \"$2\" = claude ] && echo '{}'\n",
+                target.display()
+            ),
+        )
+        .expect("fake mise should be written");
+        std::fs::set_permissions(&mise, std::fs::Permissions::from_mode(0o755))
+            .expect("fake mise should be executable");
+
+        let shims = root.join("shims");
+        std::fs::create_dir_all(&shims).expect("shims dir should be created");
+        let shim = shims.join("claude");
+        std::os::unix::fs::symlink(&mise, &shim).expect("shim symlink should be created");
+        let shim_real = std::fs::canonicalize(&shim).expect("shim should canonicalize");
+
+        assert_eq!(
+            mise_shim_target("claude", &shim, &shim_real, None),
+            Some(target.clone())
+        );
+        // 不是 mise shim 的候选不去问 mise。
+        let target_real = std::fs::canonicalize(&target).expect("target should canonicalize");
+        assert_eq!(
+            mise_shim_target("claude", &target, &target_real, None),
+            None
+        );
+        // mise 说不出路径（工具没装在当前版本里）时不猜。
+        assert_eq!(mise_shim_target("codex", &shim, &shim_real, None), None);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
     fn tool_executable_candidates_non_windows_uses_plain_binary_name() {
         let dir = PathBuf::from("/usr/local/bin");
         let candidates = tool_executable_candidates("opencode", &dir);
@@ -11085,6 +11402,102 @@ mod tests {
                 PathBuf::from("C:\\tools\\opencode"),
             ]
         );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn tool_executable_candidates_windows_prefers_opencode_desktop_cli_sidecar() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let gui = dir.path().join("opencode.exe");
+        let sidecar = dir.path().join("opencode-cli.exe");
+        std::fs::write(&gui, "").expect("desktop executable should be created");
+        std::fs::write(&sidecar, "").expect("CLI sidecar should be created");
+
+        let candidates = tool_executable_candidates("opencode", dir.path());
+
+        assert_eq!(
+            candidates,
+            vec![dir.path().join("opencode.cmd"), sidecar.clone()]
+        );
+        assert!(!candidates.contains(&gui));
+        assert_eq!(
+            windows_preferred_tool_executable("opencode", &gui),
+            Some(sidecar)
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn tool_executable_candidates_windows_prefers_opencode_resources_cli_sidecar() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let gui = dir.path().join("opencode.exe");
+        let resources = dir.path().join("resources");
+        let sidecar = resources.join("opencode-cli.exe");
+        std::fs::create_dir(&resources).expect("resources dir should be created");
+        std::fs::write(&gui, "").expect("desktop executable should be created");
+        std::fs::write(resources.join("app.asar"), "").expect("app.asar should be created");
+        std::fs::write(&sidecar, "").expect("CLI sidecar should be created");
+
+        let candidates = tool_executable_candidates("opencode", dir.path());
+
+        assert_eq!(
+            candidates,
+            vec![dir.path().join("opencode.cmd"), sidecar.clone()]
+        );
+        assert!(!candidates.contains(&gui));
+        assert_eq!(
+            windows_preferred_tool_executable("opencode", &gui),
+            Some(sidecar)
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn tool_executable_candidates_windows_skips_electron_desktop_without_cli_sidecar() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let gui = dir.path().join("opencode.exe");
+        let resources = dir.path().join("resources");
+        std::fs::create_dir(&resources).expect("resources dir should be created");
+        std::fs::write(&gui, "").expect("desktop executable should be created");
+        std::fs::write(resources.join("app.asar"), "").expect("app.asar should be created");
+
+        let candidates = tool_executable_candidates("opencode", dir.path());
+
+        assert_eq!(candidates, vec![dir.path().join("opencode.cmd")]);
+        assert!(!candidates.contains(&gui));
+        assert_eq!(windows_preferred_tool_executable("opencode", &gui), None);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_preferred_tool_executable_keeps_standalone_opencode_exe() {
+        let dir = tempfile::tempdir().expect("temp dir should be created");
+        let standalone = dir.path().join("opencode.exe");
+        std::fs::write(&standalone, "").expect("standalone executable should be created");
+
+        assert_eq!(
+            windows_preferred_tool_executable("opencode", &standalone),
+            Some(standalone)
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_path_default_skips_desktop_without_sidecar_and_uses_next_cli() {
+        let desktop_dir = tempfile::tempdir().expect("desktop temp dir should be created");
+        let resources = desktop_dir.path().join("resources");
+        std::fs::create_dir(&resources).expect("resources dir should be created");
+        let desktop = desktop_dir.path().join("opencode.exe");
+        std::fs::write(&desktop, "").expect("desktop executable should be created");
+        std::fs::write(resources.join("app.asar"), "").expect("app.asar should be created");
+
+        let cli_dir = tempfile::tempdir().expect("CLI temp dir should be created");
+        let cli = cli_dir.path().join("opencode.exe");
+        std::fs::write(&cli, "").expect("standalone executable should be created");
+
+        let raw = format!("{}\r\n{}\r\n", desktop.display(), cli.display());
+
+        assert_eq!(windows_preferred_path_default("opencode", &raw), Some(cli));
     }
 
     #[cfg(target_os = "windows")]

@@ -1,0 +1,11 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.23"
+upstream_commit = "8be840557bacd89d592f13ddc1bee0586afaea14"
+resolved_at = "2026-11-01"
+
+# tag peel 后的 commit；main 比该 tag 多 0 个提交。
+# 本次从 ebb00da1 合并 56 个上游提交，涉及 156 个文件。
+last_merged_commit = "8be840557bacd89d592f13ddc1bee0586afaea14"
+last_merged_tag = "v4.0.23"
+
+# 直接在本地 main 上同步，不创建按日期命名的同步分支，见 syncing-upstream-zh.md。

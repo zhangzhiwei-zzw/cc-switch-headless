@@ -246,4 +246,45 @@ PY
 check "重复同步不会重复导入 DSH 请求" "0" \
   "$(jget '{"cmd":"sync_session_usage"}' 'd["data"]["imported"]')"
 
+echo
+echo "== Oh My Pi 用量导入"
+python3 - "$CC_TEST_HOME" <<'PY'
+import datetime, json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+path = root / '.omp/agent/sessions/e2e/session.jsonl'
+path.parent.mkdir(parents=True, exist_ok=True)
+now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+records = [
+    {"type":"title", "v":1, "title":"OMP usage", "updatedAt":now, "pad":""},
+    {"type":"session", "version":3, "id":"e2e-omp-session", "timestamp":now, "cwd":"/e2e"},
+    {"type":"message", "id":"e2e-omp-message", "parentId":None, "timestamp":now, "message":{
+        "role":"assistant", "content":[], "api":"openai-completions", "provider":"e2e", "model":"e2e-omp-model",
+        "duration":1234, "ttft":200,
+        "usage":{"input":7,"output":3,"cacheRead":2,"cacheWrite":0,"totalTokens":12,
+            "cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},
+        "stopReason":"stop"
+    }}
+]
+path.write_text(''.join(json.dumps(record) + '\n' for record in records))
+PY
+check "OMP 会话同步接口成功" "True" \
+  "$(jget '{"cmd":"sync_session_usage"}' 'd["ok"]')"
+# 上游 OMP 导入器只记录总延迟；原生 ttft 尚未导入，首字时间保持为空。
+check "OMP 用量和延迟实际入库" "1" \
+  "$(python3 - "$CC_TEST_HOME/.cc-switch/cc-switch.db" <<'PY'
+import sqlite3, sys
+with sqlite3.connect(sys.argv[1]) as db:
+    print(db.execute("SELECT COUNT(*) FROM proxy_request_logs WHERE app_type='omp' AND data_source='omp_session' AND input_tokens=7 AND output_tokens=3 AND latency_ms=1234 AND first_token_ms IS NULL").fetchone()[0])
+PY
+)"
+check "OMP 会话不会被 Pi 重复导入" "0" \
+  "$(python3 - "$CC_TEST_HOME/.cc-switch/cc-switch.db" <<'PY'
+import sqlite3, sys
+with sqlite3.connect(sys.argv[1]) as db:
+    print(db.execute("SELECT COUNT(*) FROM proxy_request_logs WHERE app_type='pi'").fetchone()[0])
+PY
+)"
+check "重复同步不会重复导入 OMP 请求" "0" \
+  "$(jget '{"cmd":"sync_session_usage"}' 'd["data"]["imported"]')"
+
 summary
