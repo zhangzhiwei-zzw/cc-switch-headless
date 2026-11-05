@@ -15,6 +15,8 @@ use super::Context;
 use crate::services::usage_stats::LogFilters;
 
 pub const HANDLERS: &[(&str, Handler)] = &[
+    ("fetch_models_dev", fetch_models_dev),
+    ("fetch_exchange_rates", fetch_exchange_rates),
     ("get_usage_summary", get_usage_summary),
     ("get_usage_first_date", get_usage_first_date),
     ("get_session_usage_summary", get_session_usage_summary),
@@ -642,5 +644,22 @@ fn test_usage_script(context: Arc<Context>, args: Value) -> HandlerFuture {
         .await
         .map_err(|error| error.to_string())
         .and_then(serializable)
+    })
+}
+
+fn fetch_models_dev(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        crate::services::model_pricing::fetch_models_dev()
+            .await
+            .map(Value::String)
+    })
+}
+
+fn fetch_exchange_rates(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let rates = crate::services::exchange_rates::fetch_usd_rates()
+            .await
+            .map_err(|e| e.to_string())?;
+        serializable(rates)
     })
 }

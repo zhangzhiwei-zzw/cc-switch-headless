@@ -50,8 +50,8 @@ pub fn notify_log_recorded() {
         return;
     }
 
-    std::thread::spawn(move || {
-        std::thread::sleep(DEBOUNCE_WINDOW);
+    crate::host::spawn(async move {
+        tokio::time::sleep(DEBOUNCE_WINDOW).await;
         // 必须先清标志再 emit：万一 emit 期间又有新通知进来，
         // 下一轮防抖窗口会重新调度，不会丢失。
         EMIT_SCHEDULED.store(false, Ordering::Release);

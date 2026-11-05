@@ -101,8 +101,10 @@ pub async fn create_db_backup(state: State<'_, AppState>) -> Result<String, Stri
 
 /// List all database backup files
 #[tauri::command]
-pub fn list_db_backups() -> Result<Vec<BackupEntry>, String> {
-    crate::services::import_export::list_backups()
+pub async fn list_db_backups() -> Result<Vec<BackupEntry>, String> {
+    tauri::async_runtime::spawn_blocking(crate::services::import_export::list_backups)
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Restore database from a backup file
@@ -116,17 +118,25 @@ pub async fn restore_db_backup(
 
 /// Rename a database backup file
 #[tauri::command]
-pub fn rename_db_backup(
+pub async fn rename_db_backup(
     #[allow(non_snake_case)] oldFilename: String,
     #[allow(non_snake_case)] newName: String,
 ) -> Result<String, String> {
-    crate::services::import_export::rename_backup(&oldFilename, &newName)
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::services::import_export::rename_backup(&oldFilename, &newName)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Delete a database backup file
 #[tauri::command]
-pub fn delete_db_backup(filename: String) -> Result<(), String> {
-    crate::services::import_export::delete_backup(&filename)
+pub async fn delete_db_backup(filename: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::services::import_export::delete_backup(&filename)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ─── Backup storage overview ─────────────────────────────────

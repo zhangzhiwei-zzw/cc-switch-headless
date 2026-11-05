@@ -1,6 +1,6 @@
 {
   "name": "cc-switch",
-  "version": "4.0.25",
+  "version": "4.0.26",
   "description": "Headless web server mode for CC Switch: manage AI CLI providers, routing and sessions from a browser.",
   "type": "module",
   "scripts": {
@@ -25,7 +25,7 @@
   "packageManager": "pnpm@10.12.3",
   "devDependencies": {
     "@playwright/test": "^1.64.1",
-    "@tauri-apps/cli": "^2.10.1",
+    "@tauri-apps/cli": "^2.12.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",

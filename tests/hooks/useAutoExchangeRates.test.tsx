@@ -2,9 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchExchangeRates = vi.hoisted(() => vi.fn());
+const supportsCommand = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock("@/lib/api", () => ({ usageApi: { fetchExchangeRates } }));
-vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true }));
+vi.mock("@/lib/capabilities", () => ({ supportsCommand }));
 
 import { useAutoExchangeRates } from "@/hooks/useAutoExchangeRates";
 
@@ -17,6 +18,16 @@ const fetched = {
 describe("useAutoExchangeRates", () => {
   beforeEach(() => {
     fetchExchangeRates.mockReset();
+    supportsCommand.mockReturnValue(true);
+  });
+
+  it("skips unavailable commands without a network request", () => {
+    supportsCommand.mockReturnValue(false);
+    renderHook(() =>
+      useAutoExchangeRates({ currency: "CNY", rateSource: "auto" }, vi.fn()),
+    );
+    expect(supportsCommand).toHaveBeenCalledWith("fetch_exchange_rates");
+    expect(fetchExchangeRates).not.toHaveBeenCalled();
   });
 
   it("fetches a stale automatic rate and saves it", async () => {

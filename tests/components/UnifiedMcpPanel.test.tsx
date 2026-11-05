@@ -11,6 +11,9 @@ import UnifiedMcpPanel from "@/components/mcp/UnifiedMcpPanel";
 import { settingsApi } from "@/lib/api";
 import type { McpApps, McpServer, McpServerSpec } from "@/types";
 
+const supportsCommand = vi.hoisted(() => vi.fn(() => true));
+vi.mock("@/lib/capabilities", () => ({ supportsCommand }));
+
 const mocks = vi.hoisted(() => ({
   serversMap: {} as Record<string, McpServer>,
   isLoading: false,
@@ -145,6 +148,7 @@ const rowNames = () =>
 
 describe("UnifiedMcpPanel", () => {
   beforeEach(() => {
+    supportsCommand.mockReturnValue(true);
     mocks.serversMap = {};
     mocks.isLoading = false;
     mocks.isError = false;
@@ -171,6 +175,26 @@ describe("UnifiedMcpPanel", () => {
     mocks.refetch.mockReset().mockResolvedValue({ data: mocks.serversMap });
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
+  });
+
+  it("hides desktop connectivity actions in Web while retaining MCP editing", async () => {
+    supportsCommand.mockReturnValue(false);
+    mocks.serversMap = {
+      alpha: makeServer("alpha", { apps: { claude: true } }),
+    };
+    renderPanel();
+    expect(
+      screen.queryByRole("button", { name: "mcpPage.checkConnectivity" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "mcpPage.rowMoreAria" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "mcpPage.testConnection" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "mcpPage.copyJson" }),
+    ).toBeInTheDocument();
   });
 
   it("searches the allow-listed fields but never env or header values", async () => {
@@ -218,8 +242,10 @@ describe("UnifiedMcpPanel", () => {
       alpha: makeServer("alpha", { apps: { claude: true } }),
       beta: makeServer("beta", { apps: { codex: true } }),
       pending: makeServer("pending", { apps: { claude: true } }),
+      oauth: makeServer("oauth", { apps: { claude: true } }),
       disabled: makeServer("disabled"),
     };
+    mocks.connectivity.states.oauth = "authRequired";
     renderPanel();
     expect(
       screen.getByRole("img", { name: "mcpPage.connection.connected" }),
@@ -227,6 +253,9 @@ describe("UnifiedMcpPanel", () => {
     expect(
       screen.getByRole("img", { name: "mcpPage.connection.disconnected" }),
     ).toHaveClass("bg-danger", "rounded-full");
+    expect(
+      screen.getByRole("img", { name: "mcpPage.connection.authRequired" }),
+    ).toHaveClass("bg-warning", "rounded-full");
     expect(
       screen.getByRole("img", { name: "mcpPage.connection.unchecked" }),
     ).toHaveClass("bg-fg-3");

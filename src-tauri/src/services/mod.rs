@@ -10,11 +10,12 @@ pub mod config;
 pub mod dsh_account;
 pub mod env_checker;
 pub mod env_manager;
+pub mod exchange_rates;
 pub mod failover;
 pub mod import_export;
-pub mod exchange_rates;
 pub mod kimi_oauth;
 pub mod mcp;
+#[cfg(feature = "desktop")]
 pub mod mcp_connectivity;
 pub mod model_fetch;
 pub mod model_pricing;

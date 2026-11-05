@@ -503,7 +503,7 @@ describe("App integration with MSW", () => {
     // 再点当前页：不离开，所以不问，也不能把未保存登记清掉
     fireEvent.click(sidebarApp("MCP"));
     expect(screen.queryByTestId("confirm-dialog")).not.toBeInTheDocument();
-    expect(screen.getByTestId("mcp-editor")).toBeInTheDocument();
+    expect(await screen.findByTestId("mcp-editor")).toBeInTheDocument();
 
     // 之后真的离开时照样要问
     fireEvent.click(sidebarApp("nav.usage"));
@@ -511,7 +511,7 @@ describe("App integration with MSW", () => {
       "common.unsavedLeaveMessage",
     );
     fireEvent.click(screen.getByText("cancel-delete"));
-    expect(screen.getByTestId("mcp-editor")).toBeInTheDocument();
+    expect(await screen.findByTestId("mcp-editor")).toBeInTheDocument();
   }, 10_000);
 
   it("shows toast when auto sync fails in background", async () => {

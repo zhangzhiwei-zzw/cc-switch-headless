@@ -5,6 +5,9 @@ import { useMcpConnectivity } from "@/hooks/useMcpConnectivity";
 import { mcpApi, type McpConnectivityResult } from "@/lib/api/mcp";
 import type { McpServersMap } from "@/types";
 
+const supportsCommand = vi.hoisted(() => vi.fn(() => true));
+vi.mock("@/lib/capabilities", () => ({ supportsCommand }));
+
 vi.mock("@/lib/api/mcp", () => ({
   mcpApi: {
     startConnectivityChecks: vi.fn(),
@@ -33,10 +36,22 @@ const delivery = (call = 0) =>
 
 describe("page-local MCP connectivity", () => {
   beforeEach(() => {
+    supportsCommand.mockReturnValue(true);
     vi.mocked(mcpApi.startConnectivityChecks)
       .mockReset()
       .mockResolvedValue("batch");
     vi.mocked(mcpApi.cancelConnectivityChecks).mockReset().mockResolvedValue();
+  });
+
+  it("does not start desktop IPC checks when the Web command is unavailable", () => {
+    supportsCommand.mockReturnValue(false);
+    const { result } = renderHook(() => useMcpConnectivity(servers()));
+    act(() => {
+      result.current.checkAll();
+      result.current.checkServer("example");
+    });
+    expect(mcpApi.startConnectivityChecks).not.toHaveBeenCalled();
+    expect(result.current.states.example).toBe("unchecked");
   });
 
   it("never checks on its own and shows enabled servers as unchecked", () => {
@@ -71,7 +86,7 @@ describe("page-local MCP connectivity", () => {
     );
     expect(result.current.states.example).toBe("checking");
     expect(result.current.checking).toBe(true);
-    act(() => delivery()({ serverId: "example", connected: true }));
+    act(() => delivery()({ serverId: "example", status: "connected" }));
     expect(result.current.states.example).toBe("connected");
     expect(result.current.checking).toBe(false);
   });
@@ -89,8 +104,16 @@ describe("page-local MCP connectivity", () => {
       ["example"],
       expect.any(Function),
     );
-    act(() => delivery()({ serverId: "example", connected: false }));
+    act(() => delivery()({ serverId: "example", status: "failed" }));
     expect(result.current.states.example).toBe("disconnected");
+  });
+
+  it("keeps a sign-in requirement apart from a failed connection", () => {
+    const { result } = renderHook(() => useMcpConnectivity(servers()));
+    act(() => result.current.checkAll());
+    act(() => delivery()({ serverId: "example", status: "authRequired" }));
+    expect(result.current.states.example).toBe("authRequired");
+    expect(result.current.checking).toBe(false);
   });
 
   it("keeps results through metadata changes and resets them when the config changes", () => {
@@ -99,7 +122,7 @@ describe("page-local MCP connectivity", () => {
       { initialProps: { data: servers() } },
     );
     act(() => result.current.checkAll());
-    act(() => delivery()({ serverId: "example", connected: true }));
+    act(() => delivery()({ serverId: "example", status: "connected" }));
     const data = servers();
     data.example.name = "Renamed";
     data.example.apps.codex = true;
@@ -121,9 +144,9 @@ describe("page-local MCP connectivity", () => {
     await waitFor(() =>
       expect(mcpApi.cancelConnectivityChecks).toHaveBeenCalledWith("batch-1"),
     );
-    act(() => delivery(0)({ serverId: "example", connected: true }));
+    act(() => delivery(0)({ serverId: "example", status: "connected" }));
     expect(result.current.states.example).toBe("checking");
-    act(() => delivery(1)({ serverId: "example", connected: false }));
+    act(() => delivery(1)({ serverId: "example", status: "failed" }));
     expect(result.current.states.example).toBe("disconnected");
   });
 
@@ -132,7 +155,7 @@ describe("page-local MCP connectivity", () => {
     act(() => result.current.checkAll());
     act(() => result.current.checkServer("example"));
     expect(mcpApi.startConnectivityChecks).toHaveBeenCalledTimes(1);
-    act(() => delivery()({ serverId: "example", connected: true }));
+    act(() => delivery()({ serverId: "example", status: "connected" }));
     expect(result.current.states.example).toBe("connected");
     act(() => result.current.checkServer("example"));
     expect(mcpApi.startConnectivityChecks).toHaveBeenCalledTimes(2);
@@ -147,8 +170,8 @@ describe("page-local MCP connectivity", () => {
     rerender({ data: servers(true, "changed") });
     act(() => result.current.checkServer("example"));
     expect(mcpApi.startConnectivityChecks).toHaveBeenCalledTimes(2);
-    act(() => delivery(1)({ serverId: "example", connected: true }));
-    act(() => delivery(0)({ serverId: "example", connected: false }));
+    act(() => delivery(1)({ serverId: "example", status: "connected" }));
+    act(() => delivery(0)({ serverId: "example", status: "failed" }));
     expect(result.current.states.example).toBe("connected");
   });
 
@@ -166,8 +189,8 @@ describe("page-local MCP connectivity", () => {
     ]);
     rerender({ data: { ...servers(), other } });
     expect(result.current.states.example).toBe("unchecked");
-    act(() => delivery(0)({ serverId: "example", connected: true }));
-    act(() => delivery(1)({ serverId: "other", connected: true }));
+    act(() => delivery(0)({ serverId: "example", status: "connected" }));
+    act(() => delivery(1)({ serverId: "other", status: "connected" }));
     expect(result.current.states.example).toBe("unchecked");
     expect(result.current.checking).toBe(false);
     act(() => result.current.checkServer("example"));
@@ -191,7 +214,7 @@ describe("page-local MCP connectivity", () => {
   it("does not cancel batches that already finished", async () => {
     const { result, unmount } = renderHook(() => useMcpConnectivity(servers()));
     act(() => result.current.checkAll());
-    act(() => delivery()({ serverId: "example", connected: true }));
+    act(() => delivery()({ serverId: "example", status: "connected" }));
     unmount();
     await Promise.resolve();
     expect(mcpApi.cancelConnectivityChecks).not.toHaveBeenCalled();
@@ -225,7 +248,7 @@ describe("page-local MCP connectivity", () => {
     expect(callbacks).toHaveLength(0);
     act(() => result.current.checkAll());
     expect(callbacks).toHaveLength(1);
-    act(() => callbacks[0]({ serverId: "example", connected: true }));
+    act(() => callbacks[0]({ serverId: "example", status: "connected" }));
     expect(result.current.states.example).toBe("connected");
   });
 });

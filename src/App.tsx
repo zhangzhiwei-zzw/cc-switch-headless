@@ -82,20 +82,10 @@ import { WindowControls } from "@/components/shell/WindowControls";
 import { APP_DISPLAY_NAME, AppGlyph } from "@/components/shell/AppGlyph";
 import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
 import { ProviderList } from "@/components/providers/ProviderList";
-const AddProviderDialog = lazy(() =>
-  import("@/components/providers/AddProviderDialog").then((module) => ({
-    default: module.AddProviderDialog,
-  })),
-);
 import {
   hasOpencodeDefinition,
   isNativeOpencodeConfig,
 } from "@/components/providers/forms/helpers/opencodeFormUtils";
-const EditProviderDialog = lazy(() =>
-  import("@/components/providers/EditProviderDialog").then((module) => ({
-    default: module.EditProviderDialog,
-  })),
-);
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 const OpenTerminalDialog = lazy(() =>
   import("@/components/providers/OpenTerminalDialog").then((module) => ({
@@ -104,44 +94,18 @@ const OpenTerminalDialog = lazy(() =>
 );
 import { discardUnsavedChanges, hasUnsavedChanges } from "@/lib/unsavedChanges";
 import { RefreshAllQuotaButton } from "@/components/settings/auth/RefreshAllQuotaButton";
-const SettingsPage = lazy(() =>
-  import("@/components/settings/SettingsPage").then((module) => ({
-    default: module.SettingsPage,
-  })),
-);
-const AuthCenterPanel = lazy(() =>
-  import("@/components/settings/AuthCenterPanel").then((module) => ({
-    default: module.AuthCenterPanel,
-  })),
-);
-const AppsPage = lazy(() =>
-  import("@/components/apps/AppsPage").then((module) => ({
-    default: module.AppsPage,
-  })),
-);
 import {
   checkToolUpdatesInBackground,
   useToolUpdatesAvailable,
 } from "@/components/apps/useToolManagement";
-const UsagePage = lazy(() =>
-  import("@/components/usage/UsagePage").then((module) => ({
-    default: module.UsagePage,
-  })),
-);
 import { EnvWarningBanner } from "@/components/env/EnvWarningBanner";
 import { SwitchModePanel } from "@/components/providers/mode/SwitchModePanel";
 import { proxyApi } from "@/lib/api/proxy";
 import type { AppMode, StartupAttachFailure } from "@/types/proxy";
-const UsageScriptModal = lazy(() => import("@/components/UsageScriptModal"));
-const UnifiedMcpPanel = lazy(() => import("@/components/mcp/UnifiedMcpPanel"));
-const PromptPanel = lazy(() => import("@/components/prompts/PromptPanel"));
 import { PROMPT_APP_IDS } from "@/lib/query/prompts";
-const UnifiedSkillsPanel = lazy(
-  () => import("@/components/skills/UnifiedSkillsPanel"),
-);
 const DeepLinkImportDialog = lazy(() =>
-  import("@/components/DeepLinkImportDialog").then((module) => ({
-    default: module.DeepLinkImportDialog,
+  import("@/components/DeepLinkImportDialog").then((m) => ({
+    default: m.DeepLinkImportDialog,
   })),
 );
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
@@ -158,24 +122,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-const SessionManagerPage = lazy(() =>
-  import("@/components/sessions/SessionManagerPage").then((module) => ({
-    default: module.SessionManagerPage,
-  })),
-);
 import {
   useDisableCurrentOmo,
   useDisableCurrentOmoSlim,
 } from "@/lib/query/omo";
 import { invalidatePiProviderCaches, usePiCurrentState } from "@/lib/query/pi";
-import WorkspaceFilesPanel from "@/components/workspace/WorkspaceFilesPanel";
-import EnvPanel from "@/components/openclaw/EnvPanel";
-import ToolsPanel from "@/components/openclaw/ToolsPanel";
-import AgentsDefaultsPanel from "@/components/openclaw/AgentsDefaultsPanel";
 import OpenClawHealthBanner from "@/components/openclaw/OpenClawHealthBanner";
-import HermesMemoryPanel, {
-  HermesMemorySaveButton,
-} from "@/components/hermes/HermesMemoryPanel";
 import {
   APP_IDS,
   DEFAULT_VISIBLE_APPS,
@@ -184,6 +136,76 @@ import {
   orderAppIds,
 } from "@/config/appConfig";
 import type { PiFamilyAppId } from "@/lib/api/pi";
+
+// Keep the provider page and event listeners ready at startup. Editors, charts
+// and secondary pages are loaded when the user first opens them.
+const AddProviderDialog = lazy(() =>
+  import("@/components/providers/AddProviderDialog").then((m) => ({
+    default: m.AddProviderDialog,
+  })),
+);
+const EditProviderDialog = lazy(() =>
+  import("@/components/providers/EditProviderDialog").then((m) => ({
+    default: m.EditProviderDialog,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import("@/components/settings/SettingsPage").then((m) => ({
+    default: m.SettingsPage,
+  })),
+);
+const AuthCenterPanel = lazy(() =>
+  import("@/components/settings/AuthCenterPanel").then((m) => ({
+    default: m.AuthCenterPanel,
+  })),
+);
+const AppsPage = lazy(() =>
+  import("@/components/apps/AppsPage").then((m) => ({ default: m.AppsPage })),
+);
+const UsagePage = lazy(() =>
+  import("@/components/usage/UsagePage").then((m) => ({
+    default: m.UsagePage,
+  })),
+);
+const SessionManagerPage = lazy(() =>
+  import("@/components/sessions/SessionManagerPage").then((m) => ({
+    default: m.SessionManagerPage,
+  })),
+);
+const UsageScriptModal = lazy(() => import("@/components/UsageScriptModal"));
+const UnifiedMcpPanel = lazy(() => import("@/components/mcp/UnifiedMcpPanel"));
+const PromptPanel = lazy(() => import("@/components/prompts/PromptPanel"));
+const UnifiedSkillsPanel = lazy(
+  () => import("@/components/skills/UnifiedSkillsPanel"),
+);
+const WorkspaceFilesPanel = lazy(
+  () => import("@/components/workspace/WorkspaceFilesPanel"),
+);
+const EnvPanel = lazy(() => import("@/components/openclaw/EnvPanel"));
+const ToolsPanel = lazy(() => import("@/components/openclaw/ToolsPanel"));
+const AgentsDefaultsPanel = lazy(
+  () => import("@/components/openclaw/AgentsDefaultsPanel"),
+);
+const HermesMemoryPanel = lazy(
+  () => import("@/components/hermes/HermesMemoryPanel"),
+);
+const HermesMemorySaveButton = lazy(() =>
+  import("@/components/hermes/HermesMemoryPanel").then((m) => ({
+    default: m.HermesMemorySaveButton,
+  })),
+);
+
+function PageLoading() {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="status"
+      className="flex flex-1 items-center justify-center text-sm text-fg-2"
+    >
+      {t("common.loading")}
+    </div>
+  );
+}
 
 interface SyncStatusUpdatedPayload {
   source?: string;
@@ -232,6 +254,10 @@ function App() {
     PROMPT_APP_IDS.includes(sharedFeatureApp) ? sharedFeatureApp : "claude",
   );
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [hasOpenedAdd, setHasOpenedAdd] = useState(false);
+  useEffect(() => {
+    if (isAddOpen) setHasOpenedAdd(true);
+  }, [isAddOpen]);
   // 供应商搜索面板：页头按钮和 ⌘F 都能打开；换应用或离开供应商页就收起
   const [providerSearchOpen, setProviderSearchOpen] = useState(false);
   const [connectionStatusSlot, setConnectionStatusSlot] =
@@ -336,6 +362,10 @@ function App() {
   }, [activeApp, currentView]);
 
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
+  useEffect(() => {
+    if (editingProvider) setHasOpenedEdit(true);
+  }, [editingProvider]);
   const [usageProvider, setUsageProvider] = useState<Provider | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     provider: Provider;
@@ -608,6 +638,22 @@ function App() {
           defaultValue: `当前供应商 ${payload.providerName} 是官方供应商，建议切换到第三方供应商后再使用代理接管`,
         }),
         { duration: 8000 },
+      );
+    },
+  );
+
+  // Codex / Grok Build 跟随系统代理发请求：发往本地路由的请求被系统代理接走时客户端只看到
+  // 空正文 502，CC Switch 这边没有日志（#9221），进入路由时后端自检一次，没回来就提示。
+  useTauriEvent<{ appType: AppId; origin: string }>(
+    "proxy-loopback-hijacked",
+    (payload) => {
+      const app = APP_DISPLAY_NAME[payload.appType] ?? payload.appType;
+      toast.warning(
+        t("notifications.proxyLoopbackHijacked", {
+          app,
+          origin: payload.origin,
+        }),
+        { duration: 15000 },
       );
     },
   );
@@ -1493,7 +1539,11 @@ function App() {
               {t("provider.addProvider")}
             </Button>
           )}
-          {currentView === "hermesMemory" && <HermesMemorySaveButton />}
+          {currentView === "hermesMemory" && (
+            <Suspense fallback={null}>
+              <HermesMemorySaveButton />
+            </Suspense>
+          )}
           {appMenu}
         </>
       }
@@ -1914,21 +1964,13 @@ function App() {
             }
             className="flex min-h-0 flex-1 flex-col"
           >
-            <Suspense
-              fallback={
-                <div role="status" className="p-6">
-                  {t("common.loading")}
-                </div>
-              }
-            >
-              {renderContent()}
-            </Suspense>
+            <Suspense fallback={<PageLoading />}>{renderContent()}</Suspense>
           </div>
         </main>
       </div>
 
       <Suspense fallback={null}>
-        {isAddOpen && (
+        {(isAddOpen || hasOpenedAdd) && (
           <AddProviderDialog
             open={isAddOpen}
             onOpenChange={setIsAddOpen}
@@ -1938,7 +1980,7 @@ function App() {
           />
         )}
 
-        {editingProvider && (
+        {(editingProvider || hasOpenedEdit) && (
           <EditProviderDialog
             open={Boolean(editingProvider)}
             provider={effectiveEditingProvider}

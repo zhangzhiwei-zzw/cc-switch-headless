@@ -431,8 +431,11 @@ fn spawn_background_tasks(state: &AppState) {
             state_for_startup.clone(),
         );
 
-        if let Err(error) = state_for_startup.db.periodic_backup_if_needed() {
-            log::warn!("启动期定期备份失败: {error}");
+        let db = state_for_startup.db.clone();
+        match crate::host::spawn_blocking(move || db.periodic_backup_if_needed()).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => log::warn!("启动期定期备份失败: {error}"),
+            Err(error) => log::warn!("启动期备份任务失败: {error}"),
         }
     });
 
@@ -444,11 +447,15 @@ fn spawn_background_tasks(state: &AppState) {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(
                 PERIODIC_MAINTENANCE_INTERVAL_SECS,
             ));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             interval.tick().await;
             loop {
                 interval.tick().await;
-                if let Err(error) = db.periodic_backup_if_needed() {
-                    log::warn!("定期维护失败: {error}");
+                let db = db.clone();
+                match crate::host::spawn_blocking(move || db.periodic_backup_if_needed()).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => log::warn!("定期维护失败: {error}"),
+                    Err(error) => log::warn!("定期维护任务失败: {error}"),
                 }
             }
         });

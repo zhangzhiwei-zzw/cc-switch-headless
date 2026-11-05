@@ -13,7 +13,7 @@
 | `pageMcp` | 可用 | 15 |
 | `pageSkills` | 可用 | 28 |
 | `pagePrompts` | 可用 | 13 |
-| `pageUsage` | 可用 | 25 |
+| `pageUsage` | 可用 | 27 |
 | `sessionStream` | 可用 | 1 |
 | `pageAuth` | 未接入，隐藏入口 | 0 |
 | `pageApps` | 未接入，隐藏入口 | 0 |

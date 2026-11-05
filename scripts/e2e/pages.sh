@@ -174,6 +174,8 @@ check "面积图偏好实际写入磁盘" "area" \
 
 echo
 echo "== 用量"
+check "模型目录与汇率命令已注册" "True" \
+  "$(curl -fsS -H "$CC_COOKIE" "$CC_BASE/api/commands" | python3 -c 'import json,sys; names=json.load(sys.stdin)["commands"]; print(all(x in names for x in ["fetch_models_dev","fetch_exchange_rates"]))')"
 check "汇总可用（空库为 0）" "0" "$(jget '{"cmd":"get_usage_summary","args":{}}' 'd["data"]["totalRequests"]')"
 check "按应用拆分为空" "0" "$(jget '{"cmd":"get_usage_summary_by_app","args":{}}' 'len(d["data"])')"
 check "趋势里没有请求" "0" \

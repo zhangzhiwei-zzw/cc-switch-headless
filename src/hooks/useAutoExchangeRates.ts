@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isTauri } from "@tauri-apps/api/core";
+import { supportsCommand } from "@/lib/capabilities";
 import {
   shouldRefreshRates,
   resolveMoneyDisplay,
@@ -11,7 +11,7 @@ import type { UsageDisplaySettings } from "@/types";
  * 自动模式的汇率：缓存过期时取一次并写回设置。
  *
  * 只在使用量页挂载时尝试；失败不提示也不重试，继续用上次缓存或手填值，
- * 下次打开用量页再来。浏览器预览里没有 Tauri，跳过。
+ * 下次打开用量页再来。由运行时命令能力决定是否可用。
  */
 export function useAutoExchangeRates(
   usageDisplay: UsageDisplaySettings | undefined,
@@ -37,7 +37,8 @@ export function useAutoExchangeRates(
   }, []);
 
   useEffect(() => {
-    if (!enabled || tried.current || !isTauri()) return;
+    if (!enabled || tried.current || !supportsCommand("fetch_exchange_rates"))
+      return;
     // 按美元显示时不用换算，别为此发请求
     if (resolveMoneyDisplay(usageDisplay).currency === "USD") return;
     if (!shouldRefreshRates(usageDisplay)) return;

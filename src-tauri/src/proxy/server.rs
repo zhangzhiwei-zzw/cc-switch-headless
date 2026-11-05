@@ -540,7 +540,6 @@ mod tests {
                 ..ProxyConfig::default()
             },
             db,
-            None,
         );
         let info = proxy.start().await.expect("start test proxy");
         let base = format!("http://127.0.0.1:{}", info.port);

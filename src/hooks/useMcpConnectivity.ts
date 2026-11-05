@@ -1,3 +1,4 @@
+import { supportsCommand } from "@/lib/capabilities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MCP_APP_IDS } from "@/config/appConfig";
 import { mcpApi } from "@/lib/api/mcp";
@@ -7,6 +8,7 @@ export type McpConnectionState =
   | "unchecked"
   | "checking"
   | "connected"
+  | "authRequired"
   | "disconnected";
 
 type CheckResult = {
@@ -42,6 +44,7 @@ export function useMcpConnectivity(servers: McpServersMap | undefined) {
 
   const check = useCallback(
     (ids: string[]) => {
+      if (!supportsCommand("start_mcp_connectivity_checks")) return;
       const configs: Record<string, string> = {};
       for (const id of ids) {
         const server = servers?.[id];
@@ -74,9 +77,9 @@ export function useMcpConnectivity(servers: McpServersMap | undefined) {
       const finish = () => cancelsRef.current.delete(cancel);
       const batch = mcpApi.startConnectivityChecks(
         targets,
-        ({ serverId, connected }) => {
+        ({ serverId, status }) => {
           if (disposed || !pending.delete(serverId)) return;
-          settle(serverId, connected ? "connected" : "disconnected");
+          settle(serverId, status === "failed" ? "disconnected" : status);
           if (pending.size === 0) finish();
         },
       );

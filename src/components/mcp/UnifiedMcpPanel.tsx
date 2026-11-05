@@ -1,3 +1,4 @@
+import { supportsCommand } from "@/lib/capabilities";
 import React, { useMemo, useRef, useState } from "react";
 import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import { useMcpConnectivity } from "@/hooks/useMcpConnectivity";
@@ -168,6 +169,7 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
     error: loadError,
     refetch,
   } = useAllMcpServers();
+  const canTestConnectivity = supportsCommand("start_mcp_connectivity_checks");
   const connectivity = useMcpConnectivity(isError ? undefined : serversMap);
   const toggleAppMutation = useToggleMcpApp();
   const bulkToggleAppMutation = useBulkToggleMcpApp();
@@ -615,16 +617,18 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
         }
         actions={
           <>
-            <Button
-              type="button"
-              variant="quiet"
-              size="regular"
-              disabled={!connectivity.canCheck || connectivity.checking}
-              onClick={connectivity.checkAll}
-            >
-              <Activity className="h-4 w-4" strokeWidth={2} />
-              {t("mcpPage.checkConnectivity")}
-            </Button>
+            {canTestConnectivity && (
+              <Button
+                type="button"
+                variant="quiet"
+                size="regular"
+                disabled={!connectivity.canCheck || connectivity.checking}
+                onClick={connectivity.checkAll}
+              >
+                <Activity className="h-4 w-4" strokeWidth={2} />
+                {t("mcpPage.checkConnectivity")}
+              </Button>
+            )}
             <Button
               type="button"
               variant="quiet"
@@ -906,11 +910,13 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
                                     "h-2 w-2 shrink-0 rounded-full",
                                     connection === "connected"
                                       ? "bg-success"
-                                      : connection === "disconnected"
-                                        ? "bg-danger"
-                                        : connection === "checking"
-                                          ? "animate-pulse bg-fg-3"
-                                          : "bg-fg-3",
+                                      : connection === "authRequired"
+                                        ? "bg-warning"
+                                        : connection === "disconnected"
+                                          ? "bg-danger"
+                                          : connection === "checking"
+                                            ? "animate-pulse bg-fg-3"
+                                            : "bg-fg-3",
                                   )}
                                 />
                                 <span
@@ -1038,7 +1044,7 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
                                   align="end"
                                   className="min-w-[200px]"
                                 >
-                                  {enabled && (
+                                  {enabled && canTestConnectivity && (
                                     <DropdownMenuItem
                                       disabled={connection === "checking"}
                                       onSelect={() =>

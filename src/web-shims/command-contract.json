@@ -146,7 +146,9 @@
         "testUsageScript",
         "get_pricing_model_source",
         "set_pricing_model_source",
-        "get_usage_first_date"
+        "get_usage_first_date",
+        "fetch_models_dev",
+        "fetch_exchange_rates"
       ]
     },
     "sessionStream": {
@@ -502,7 +504,9 @@
     "dsh_account_login_start": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
     "dsh_account_login_poll": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
     "dsh_account_login_cancel": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
-    "webdav_sync_clear_settings": "WebDAV 云同步设置未接入 Web，相关设置入口按能力隐藏。"
+    "webdav_sync_clear_settings": "WebDAV 云同步设置未接入 Web，相关设置入口按能力隐藏。",
+    "start_mcp_connectivity_checks": "MCP 连通性检测依赖桌面 IPC Channel，Web 暂未接入，检测入口按命令能力隐藏。",
+    "cancel_mcp_connectivity_checks": "MCP 连通性检测依赖桌面 IPC Channel，Web 暂未接入，检测入口按命令能力隐藏。"
   },
   "validatedCommands": [
     "get_current_provider",

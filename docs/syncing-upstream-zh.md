@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.23.lock`](upstream-v4.0.23.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.26.lock`](upstream-v4.0.26.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -85,6 +85,7 @@ Host github.com
 | 2026-10-28 | v4.0.20 后续提交 → v4.0.21 + DeepSeek Harness | 66 | 234 | 7 个文件 |
 | 2026-10-29 | v4.0.21 后续提交 → DSH 多 profile / 用量导入 | 23 | 100 | 4 个文件 |
 | 2026-11-01 | v4.0.21 后续提交 → v4.0.23 | 56 | 156 | 7 个文件 |
+| 2026-11-05 | v4.0.23 → v4.0.26（保留已有 v4.0.25 同步分支） | 81 | 285 | 26 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -96,7 +97,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`8be84055..8be84055 = 0`，不要凭印象写。
+`f621d421..f621d421 = 0`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -268,6 +269,30 @@ OMP 的首字时间沿用上游行为，暂不导入、保持为空。
 10 项浏览器回归通过。本轮 Chromium 已成功安装到 `/tmp`，补齐上一轮未能执行的浏览器
 验证。HTTP 测试进程清除代理和原生配置覆盖变量，使用临时 HOME，不修改实际 CLI 配置。
 沿用无调试符号的 dev 构建；未执行完整 Rust 测试或跨平台 release 构建。
+
+### 2026-11-05：保留同步分支并合入 v4.0.26
+
+先将 `origin/sync/upstream-v4.0.25` 的两项提交快进合入本地 `main`，保留其历史，
+再合并上游 `f621d421`（v4.0.26 标签）。该分支之前将上游内容压成普通提交，
+未记录上游父提交，因此本轮出现 26 个冲突文件，包括重复添加的 MCP 检测模块。
+共享业务取最新上游实现，保留 fork 的无头说明、依赖 feature 门、共享导入导出服务、
+进程事件出口与 Web 能力门；合并提交重新记录上游 ancestry，后续继续直接同步 main。
+
+同步 Codex 配额保护、Fast 档位、Copilot Responses、代理分类重试与 IPv4 回退修复，
+以及 Skills 列表、Pi 用量、会话缓存和后台任务性能更新。DSH 配置目录覆盖同步到设置与
+共享目录解析。Web 新增 `fetch_models_dev` 与 `fetch_exchange_rates`，复用共享服务，
+自动汇率改按命令能力启用；MCP 连通性检测仍依赖桌面 IPC Channel，Web 隐藏批量及
+单项检测入口，保留配置管理。MCP SDK、进程封装和 Windows WebView 依赖仅桌面启用。
+Web 维护任务也转入阻塞线程池并跳过积压的定时 tick，避免阻塞异步请求。
+新增的浏览器来源拦截与系统代理回环探测测试均适配本 fork 的两参数 `ProxyServer::new`。
+
+本轮验证：相关 48 个前端测试文件、825 项测试通过，覆盖预设快照、Skills 安装、
+会话阅读及 MCP / 汇率的 Web 能力门。类型、格式与 Web 构建通过；命令覆盖
+（353 个前端命令、174 个服务端命令、14 个应用）、13 项 RPC 契约与能力文档检查通过。
+Rust 格式、默认桌面全部测试目标编译检查、桌面及 server Clippy（`-D warnings`）
+与 server 二进制构建通过；185 项 HTTP、安全和安装回归、10 项浏览器回归通过。
+模型目录与汇率的 HTTP 用例验证命令注册，不依赖实时外部服务；汇率行为由前端 mock
+回归覆盖。本轮未执行完整 Rust 测试或跨平台 release 构建，沿用无调试符号的 dev 配置。
 
 ### v4.0.18 发布前的 CI 修复
 
@@ -472,10 +497,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.23.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.26.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.23.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.26.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
