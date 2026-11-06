@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `pageProviders` | 可用 | 14 |
 | `pageRouting` | 可用 | 11 |
-| `pageSessions` | 可用 | 6 |
+| `pageSessions` | 可用 | 9 |
 | `pageImportExport` | 可用 | 5 |
 | `pageMcp` | 可用 | 15 |
 | `pageSkills` | 可用 | 28 |

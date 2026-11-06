@@ -40,7 +40,10 @@
         "web_session_transcript",
         "delete_session",
         "delete_sessions",
-        "get_session_block_content"
+        "get_session_block_content",
+        "sync_session_index",
+        "search_session_content",
+        "clear_session_index"
       ]
     },
     "pageImportExport": {

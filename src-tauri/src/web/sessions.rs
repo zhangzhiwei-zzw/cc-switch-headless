@@ -82,3 +82,13 @@ pub fn load(provider: &str, path: &str) -> Result<LoadedTranscript, String> {
     }
     Ok(loaded)
 }
+
+/// Background indexing shares the foreground readers' admission and size limits.
+pub fn load_index_messages(
+    provider: &str,
+    path: &str,
+) -> Result<Vec<session_manager::model::SessionMessage>, String> {
+    let _permit = acquire()?;
+    let loaded = load(provider, path)?;
+    Ok(loaded.transcript.messages.clone())
+}

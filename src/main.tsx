@@ -33,6 +33,8 @@ import { isTauriRuntime } from "@/lib/platform";
 import { setWebConnectionStatus } from "@/lib/webConnection";
 import { WebConnectionGate } from "@/components/web/WebConnectionGate";
 
+import { initializeInterfacePrefs } from "@/lib/interfacePrefs";
+
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 installGlobalErrorHandlers();
@@ -96,6 +98,7 @@ try {
 }
 
 async function bootstrap() {
+  initializeInterfacePrefs();
   // Authenticate before any business queries, initialization errors or cached data are shown.
   if (!isTauriRuntime()) {
     root.render(

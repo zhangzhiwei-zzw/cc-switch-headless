@@ -398,6 +398,9 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
 
         // ---- 会话浏览 ----
         table.insert("list_sessions", list_sessions as Handler);
+        table.insert("sync_session_index", sync_session_index as Handler);
+        table.insert("search_session_content", search_session_content as Handler);
+        table.insert("clear_session_index", clear_session_index as Handler);
         table.insert("get_session_messages", get_session_messages as Handler);
         table.insert(
             "get_session_block_content",
@@ -1647,6 +1650,47 @@ fn delete_db_backup(context: Arc<Context>, args: Value) -> HandlerFuture {
 // 读的是**服务端这台机器**上各 CLI 工具留下的会话文件——在服务器上跑 CLI
 // 的场景里这正是要看的东西。桌面的终端/文件管理器相关命令在服务端没有对应物。
 // ============================================================================
+
+fn sync_session_index(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        let status = crate::session_manager::search::start_sync_with_loader(
+            |status| {
+                if let Ok(value) = serde_json::to_value(status) {
+                    crate::event_sink::emit("session-index-status", value);
+                }
+            },
+            super::sessions::load_index_messages,
+        );
+        serializable(status)
+    })
+}
+
+fn search_session_content(_context: Arc<Context>, args: Value) -> HandlerFuture {
+    deferred(move || {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args {
+            query: String,
+            provider_ids: Option<Vec<String>>,
+            limit: Option<usize>,
+        }
+        let args: Args = parse(args)?;
+        serializable(crate::session_manager::search::search(
+            &args.query,
+            args.provider_ids,
+            args.limit
+                .unwrap_or(crate::session_manager::search::DEFAULT_LIMIT)
+                .min(crate::session_manager::search::DEFAULT_LIMIT),
+        ))
+    })
+}
+
+fn clear_session_index(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| {
+        crate::session_manager::search::clear()?;
+        Ok(true)
+    })
+}
 
 fn list_sessions(_context: Arc<Context>, _args: Value) -> HandlerFuture {
     Box::pin(async move {

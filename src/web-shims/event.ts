@@ -18,9 +18,13 @@ const handlers = new Map<string, Map<number, Handler>>();
 const registered = new Set<string>();
 
 function ensureSource(): EventSource {
-  if (!source) {
-    // EventSource 默认同源带 cookie；断线由浏览器自动重连。
+  if (!source || source.readyState === EventSource.CLOSED) {
+    // HTTP 401 closes EventSource permanently. A subscription after login must
+    // reopen it and restore every listener registered before authentication.
+    source?.close();
     source = new EventSource("/api/events");
+    registered.clear();
+    for (const name of handlers.keys()) ensureListener(name);
     source.addEventListener("error", () => {
       window.dispatchEvent(new Event("cc-switch-web-connection-check"));
     });

@@ -57,6 +57,10 @@ const webAliases: Record<string, string> = webBuild
         __dirname,
         "./src/web-shims/event.ts",
       ),
+      "@tauri-apps/api/webview": path.resolve(
+        __dirname,
+        "./src/web-shims/webview.ts",
+      ),
       "@tauri-apps/api/window": path.resolve(
         __dirname,
         "./src/web-shims/window.ts",

@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import contract from "../../src/web-shims/command-contract.json" with { type: "json" };
 import { TestServer } from "./server";
+import { mkdirSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import path from "node:path";
 
 const first = new TestServer(15870);
 const second = new TestServer(15871);
@@ -311,4 +313,141 @@ test("Web settings pages do not invoke desktop-only configuration commands", asy
   ).toHaveCount(0);
   await Promise.all(pending);
   expect(unsupported).toEqual([]);
+});
+
+test("interface density and zoom apply on startup and keyboard changes survive reload", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("cc-switch-zoom")) {
+      localStorage.setItem("cc-switch-density", "comfortable");
+      localStorage.setItem("cc-switch-zoom", "1.25");
+    }
+  });
+  await login(page);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-density",
+    "comfortable",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("zoom"),
+      ),
+    )
+    .toBe("1.25");
+  await page.keyboard.press("Control+-");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("cc-switch-zoom")))
+    .toBe("1.1");
+  await page.reload();
+  await expect(page.getByRole("navigation")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("zoom"),
+      ),
+    )
+    .toBe("1.1");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-density",
+    "comfortable",
+  );
+});
+
+test("Web session text search builds its index and refreshes matches through SSE", async ({
+  page,
+}) => {
+  let authenticatedEvents = false;
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/events") && response.status() === 200)
+      authenticatedEvents = true;
+  });
+  const directory = path.join(first.home, ".claude/projects/browser-search");
+  mkdirSync(directory, { recursive: true });
+  const sessionId = "11111111-aaaa-bbbb-cccc-222222222222";
+  const source = path.join(directory, `${sessionId}.jsonl`);
+  const title = "Browser indexed conversation";
+  const needle = "body-only-needle";
+  writeFileSync(
+    source,
+    [
+      ["user", title],
+      ["assistant", `middle reply with ${needle}`],
+      ["user", "thanks"],
+      ["assistant", "done"],
+    ]
+      .map(([role, content], index) =>
+        JSON.stringify({
+          sessionId,
+          cwd: "/browser/search",
+          timestamp: `2026-11-07T00:00:0${index}.000Z`,
+          type: role,
+          message: { role, content },
+        }),
+      )
+      .join("\n") + "\n",
+  );
+  try {
+    await login(page);
+    await page
+      .getByRole("navigation")
+      .getByRole("button", { name: "Sessions", exact: true })
+      .click();
+    await page
+      .getByRole("region", { name: "Sessions", exact: true })
+      .getByRole("heading", { level: 3 })
+      .getByRole("button")
+      .first()
+      .click();
+    await expect(
+      page.getByRole("button", { name: title, exact: true }),
+    ).toBeVisible();
+    await page
+      .getByPlaceholder(
+        "Search titles, folders, first/last messages or session IDs",
+      )
+      .fill(needle);
+    await expect(
+      page.getByRole("button", { name: title, exact: true }),
+    ).toHaveCount(0);
+    const indexed = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/invoke") &&
+        response.request().postDataJSON()?.cmd === "sync_session_index",
+    );
+    await page
+      .getByRole("button", { name: "Search message text", exact: true })
+      .click();
+    expect((await (await indexed).json()).ok).toBe(true);
+    await expect(
+      page.getByRole("button", { name: title, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator("mark").filter({ hasText: needle }).first(),
+    ).toBeVisible();
+    await expect.poll(() => authenticatedEvents).toBe(true);
+    await page
+      .getByRole("button", { name: "More session actions", exact: true })
+      .click();
+    const cleared = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/invoke") &&
+        response.request().postDataJSON()?.cmd === "clear_session_index",
+    );
+    await page
+      .getByRole("menuitemcheckbox", {
+        name: "Search message text",
+        exact: true,
+      })
+      .click();
+    expect((await (await cleared).json()).data).toBe(true);
+    await expect
+      .poll(() =>
+        existsSync(path.join(first.home, ".cc-switch/session-index.db")),
+      )
+      .toBe(false);
+  } finally {
+    unlinkSync(source);
+  }
 });
