@@ -5,8 +5,20 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.26**（已合并至上游 `44e7d3ef`，标签后 17 个提交），见
-> [`upstream-v4.0.26.lock`](upstream-v4.0.26.lock)。
+> 当前对标基线 **v4.0.31**（已合并至上游 `761b4c02`，标签后 5 个提交），见
+> [`upstream-v4.0.31.lock`](upstream-v4.0.31.lock)。
+
+本次同步新增 Copilot CLI 与 WorkBuddy，共支持 16 个应用。Copilot CLI 可管理服务器
+`~/.copilot/providers.json` 的 BYOK 卡和官方模型配置；官方登录由服务器 CLI 管理。
+WorkBuddy 可管理自定义模型及模型 ID 归属，官方账号收录、切换和额度仅在桌面版提供。
+两者支持 MCP、Skills、提示词、会话阅读与用量导入，会话删除交给各自原生应用。
+服务器路径可受 CLI 自身环境变量覆盖（如 `COPILOT_HOME`、`COPILOT_PROVIDERS_CONFIG`、
+`WORKBUDDY_CONFIG_DIR`）。
+
+高级设置中的隐私过滤可在本地路由出站前替换邮箱等 PII 与已识别的密钥；工具结果过滤
+由独立开关控制。默认关闭；检测属于尽力匹配，不能保证发现所有敏感文本。它只作用于
+经过本地代理的请求，不改变直连请求或磁盘上的原始会话。
+
 >
 > **所有配置、密钥和会话都在运行服务端的机器上**：浏览器只是操作界面，在另一台电脑上
 > 打开页面，改的是服务器的 `~/.claude`、`~/.codex`、`~/.cc-switch`，不是你本机的。

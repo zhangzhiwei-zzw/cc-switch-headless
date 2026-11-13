@@ -396,6 +396,16 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
             web_allocate_export_path as Handler,
         );
 
+        table.insert("workbuddy_model_owners", workbuddy_model_owners as Handler);
+        table.insert(
+            "get_privacy_filter_config",
+            get_privacy_filter_config as Handler,
+        );
+        table.insert(
+            "set_privacy_filter_config",
+            set_privacy_filter_config as Handler,
+        );
+
         // ---- 会话浏览 ----
         table.insert("list_sessions", list_sessions as Handler);
         table.insert("sync_session_index", sync_session_index as Handler);
@@ -536,22 +546,34 @@ fn save_settings(context: Arc<Context>, args: Value) -> HandlerFuture {
         // 保存本身是同步的文件写入，放阻塞线程池；聚合设置若要重写 Codex 配置，
         // 得等落盘之后再回异步上下文里做（失败时回滚，和桌面版一致）。
         let save_state = state.clone();
-        let (existing, stack_changed, unify_changed) = blocking(move || {
-            let existing = crate::settings::get_settings();
-            let merged = crate::settings::merge_settings_for_save(settings, &existing);
-            let unify_changed =
-                merged.unify_codex_session_history != existing.unify_codex_session_history;
-            let stack_changed = merged.codex_stack_classic_tools
-                != existing.codex_stack_classic_tools
-                || merged.codex_stack_subagent_model != existing.codex_stack_subagent_model
-                || merged.codex_stack_subagent_reasoning_effort
-                    != existing.codex_stack_subagent_reasoning_effort
-                || merged.codex_stack_auto_review_model != existing.codex_stack_auto_review_model;
+        let (existing, stack_changed, unify_changed, without_login_changed, preserve_login_changed) =
+            blocking(move || {
+                let existing = crate::settings::get_settings();
+                let merged = crate::settings::merge_settings_for_save(settings, &existing);
+                let unify_changed =
+                    merged.unify_codex_session_history != existing.unify_codex_session_history;
+                let stack_changed = merged.codex_stack_classic_tools
+                    != existing.codex_stack_classic_tools
+                    || merged.codex_stack_subagent_model != existing.codex_stack_subagent_model
+                    || merged.codex_stack_subagent_reasoning_effort
+                        != existing.codex_stack_subagent_reasoning_effort
+                    || merged.codex_stack_auto_review_model
+                        != existing.codex_stack_auto_review_model;
 
-            crate::settings::update_settings(merged).map_err(|error| error.to_string())?;
-            Ok((existing, stack_changed, unify_changed))
-        })
-        .await?;
+                let without_login_changed = merged.codex_proxy_without_official_login
+                    != existing.codex_proxy_without_official_login;
+                let preserve_login_changed = merged.preserve_codex_official_auth_on_switch
+                    != existing.preserve_codex_official_auth_on_switch;
+                crate::settings::update_settings(merged).map_err(|error| error.to_string())?;
+                Ok((
+                    existing,
+                    stack_changed,
+                    unify_changed,
+                    without_login_changed,
+                    preserve_login_changed,
+                ))
+            })
+            .await?;
 
         if stack_changed {
             if let Err(error) =
@@ -572,12 +594,75 @@ fn save_settings(context: Arc<Context>, args: Value) -> HandlerFuture {
             }
         }
 
-        // 统一 Codex 会话开关变更时立刻重写当前官方供应商的 live 配置
+        // 「暂停使用官方登录」只影响路由 / 聚合模式下写给 Codex 的内容：立即重写，失败回滚。
+        if without_login_changed {
+            if let Err(err) = crate::mode::controller::resync_codex_proxy(&save_state).await {
+                log::warn!("「暂停使用官方登录」变更后重写 Codex 配置失败，回滚设置: {err}");
+                let mut rollback = crate::settings::get_settings();
+                rollback.codex_proxy_without_official_login =
+                    existing.codex_proxy_without_official_login;
+                if let Err(rollback_err) = crate::settings::update_settings(rollback) {
+                    log::error!("回滚「暂停使用官方登录」设置失败: {rollback_err}");
+                }
+                return Err(format!(
+                "「暂停使用官方登录」未生效（Codex 配置重写失败） (\"Pause the official login\" did not take effect: rewriting the Codex config failed): {err}"
+            ));
+            }
+        }
+
+        // 「非接管切换时保留官方登录」只影响直连切到第三方：当前就是直连第三方时立即重写，
+        // 不必先切回官方卡再切回来；失败回滚。
+        if preserve_login_changed {
+            if let Err(err) =
+                crate::services::provider::reapply_current_codex_third_party_live(&save_state)
+            {
+                log::warn!(
+                    "「非接管切换时保留官方登录」变更后重写 Codex 配置失败，回滚设置: {err}"
+                );
+                let mut rollback = crate::settings::get_settings();
+                rollback.preserve_codex_official_auth_on_switch =
+                    existing.preserve_codex_official_auth_on_switch;
+                if let Err(rollback_err) = crate::settings::update_settings(rollback) {
+                    log::error!("回滚「非接管切换时保留官方登录」设置失败: {rollback_err}");
+                }
+                return Err(format!(
+                "「非接管切换时保留官方登录」未生效（Codex 配置重写失败） (\"Keep official login for direct switches\" did not take effect: rewriting the Codex config failed): {err}"
+            ));
+            }
+        }
+
+        // Keep live config and migration state consistent with the desktop save flow.
         if unify_changed {
             if let Err(error) =
                 crate::services::provider::reapply_current_codex_official_live(&save_state)
             {
-                log::warn!("统一 Codex 会话历史开关变更后重写 live 配置失败: {error}");
+                if let Err(rollback_error) = crate::settings::update_settings(existing) {
+                    log::error!("回滚统一会话开关设置失败: {rollback_error}");
+                }
+                return Err(format!(
+                    "统一 Codex 会话历史开关未生效（live 配置重写失败）: {error}"
+                ));
+            }
+            if crate::settings::get_settings().unify_codex_session_history {
+                std::thread::spawn(|| {
+                    let payload = match crate::codex_history_migration::maybe_migrate_codex_official_history_to_unified_bucket() {
+                        Ok(outcome) if outcome.skipped_reason.is_some() => return,
+                        Ok(outcome) => serde_json::json!({
+                            "migratedStateRows": outcome.migrated_state_rows,
+                            "migratedJsonlFiles": outcome.migrated_jsonl_files,
+                            "error": null,
+                        }),
+                        Err(error) => serde_json::json!({
+                            "migratedStateRows": 0, "migratedJsonlFiles": 0,
+                            "error": error.to_string(),
+                        }),
+                    };
+                    crate::event_sink::emit("codex-unify-migration-finished", payload);
+                });
+            } else {
+                crate::settings::clear_codex_official_history_unify_migration()
+                    .map_err(|e| e.to_string())?;
+                crate::settings::clear_codex_unify_migrate_existing().map_err(|e| e.to_string())?;
             }
         }
 
@@ -611,6 +696,8 @@ fn get_config_dir(_context: Arc<Context>, args: Value) -> HandlerFuture {
             AppType::Kimi => crate::kimi_config::data_dir(),
             AppType::Agy => crate::agy_config::agy_dir(),
             AppType::Dsh => crate::dsh_config::data_dir(),
+            AppType::Copilot => crate::copilot_config::copilot_dir(),
+            AppType::WorkBuddy => crate::workbuddy_config::data_dir(),
         };
         Ok(Value::String(dir.to_string_lossy().to_string()))
     })
@@ -2002,5 +2089,44 @@ fn fetch_models_for_config(_context: Arc<Context>, args: Value) -> HandlerFuture
             )
             .await?,
         )
+    })
+}
+
+fn workbuddy_model_owners(_context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(|| crate::workbuddy_config::model_owners().map_err(|e| e.to_string()))
+}
+
+fn get_privacy_filter_config(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        deferred(move || {
+            state
+                .db
+                .get_privacy_filter_config()
+                .map_err(|e| e.to_string())
+        })
+        .await
+    })
+}
+
+fn set_privacy_filter_config(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            config: crate::proxy::types::PrivacyFilterConfig,
+        }
+        let Args { config } = parse(args)?;
+        let state = context.require_state()?;
+        deferred(move || {
+            state
+                .db
+                .set_privacy_filter_config(&config)
+                .map_err(|e| e.to_string())?;
+            if config.enabled {
+                std::thread::spawn(crate::proxy::privacy_filter::warm_up);
+            }
+            Ok(true)
+        })
+        .await
     })
 }

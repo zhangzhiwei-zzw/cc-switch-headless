@@ -223,6 +223,8 @@ test("all application pages avoid unsupported commands and hide unavailable acti
     "Hermes",
     "Pi",
     "MiniMax Code",
+    "Copilot CLI",
+    "WorkBuddy",
     "Antigravity",
   ]) {
     await page

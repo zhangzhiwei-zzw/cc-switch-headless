@@ -54,6 +54,9 @@ export class TestServer {
     Object.assign(env, {
       HOME: this.home,
       DSH_HOME: path.join(this.home, ".dsh"),
+      COPILOT_HOME: path.join(this.home, ".copilot"),
+      COPILOT_PROVIDERS_CONFIG: path.join(this.home, ".copilot/providers.json"),
+      WORKBUDDY_CONFIG_DIR: path.join(this.home, ".workbuddy"),
       USERPROFILE: this.home,
       CC_SWITCH_CONFIG_DIR: path.join(this.home, ".cc-switch"),
       PI_CODING_AGENT_DIR: path.join(this.home, ".pi/agent"),

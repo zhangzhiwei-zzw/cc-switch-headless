@@ -103,7 +103,8 @@
         "add_skill_repo",
         "remove_skill_repo",
         "install_skills_from_zip",
-        "discover_repo_skills"
+        "discover_repo_skills",
+        "refresh_local_skill_metadata"
       ]
     },
     "pagePrompts": {
@@ -246,6 +247,9 @@
     },
     "modelDiscovery": {
       "commands": ["fetch_models_for_config"]
+    },
+    "privacyFilter": {
+      "commands": ["get_privacy_filter_config", "set_privacy_filter_config"]
     }
   },
   "apps": {
@@ -322,6 +326,14 @@
     "dsh": {
       "feature": "pageProviders",
       "commands": []
+    },
+    "copilot": {
+      "feature": "pageProviders",
+      "commands": []
+    },
+    "workbuddy": {
+      "feature": "pageProviders",
+      "commands": ["workbuddy_model_owners"]
     }
   },
   "browserCommands": [
@@ -509,7 +521,14 @@
     "dsh_account_login_cancel": "DeepSeek Harness 托管账号登录和余额查询未接入 Web；通过服务端 DSH 原生界面管理登录。",
     "webdav_sync_clear_settings": "WebDAV 云同步设置未接入 Web，相关设置入口按能力隐藏。",
     "start_mcp_connectivity_checks": "MCP 连通性检测依赖桌面 IPC Channel，Web 暂未接入，检测入口按命令能力隐藏。",
-    "cancel_mcp_connectivity_checks": "MCP 连通性检测依赖桌面 IPC Channel，Web 暂未接入，检测入口按命令能力隐藏。"
+    "cancel_mcp_connectivity_checks": "MCP 连通性检测依赖桌面 IPC Channel，Web 暂未接入，检测入口按命令能力隐藏。",
+    "workbuddy_account_live_state": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "workbuddy_account_import_current": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "workbuddy_account_prepare_new_login": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "workbuddy_account_open_app": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "workbuddy_account_quota": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "copilot_cli_signed_in_account": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
+    "get_config_status": "本机应用安装检测仅用于桌面应用页，Web 不提供 CLI 生命周期管理。"
   },
   "validatedCommands": [
     "get_current_provider",

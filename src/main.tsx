@@ -34,10 +34,12 @@ import { setWebConnectionStatus } from "@/lib/webConnection";
 import { WebConnectionGate } from "@/components/web/WebConnectionGate";
 
 import { initializeInterfacePrefs } from "@/lib/interfacePrefs";
+import { disableContextMenu } from "@/lib/disableContextMenu";
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 installGlobalErrorHandlers();
+if (isTauriRuntime()) disableContextMenu();
 
 // 根据平台添加 body class，便于平台特定样式
 try {

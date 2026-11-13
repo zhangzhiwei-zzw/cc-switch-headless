@@ -1,71 +1,32 @@
-> 这是上游 CC Switch 桌面版的完整说明，保留用于跟随上游。此 fork 的 Web 安装和功能范围请从 [项目首页](README.md) 与 [Web 文档](docs/README.md) 开始。
+> 此文档介绍上游桌面版。This document describes the upstream desktop app. 本 fork 的 Web 安装与功能请见 [Web README](README_EN.md) 与 [Web 文档](docs/README.md)。
 
 <div align="center">
 
-# cc-switch-headless
+# CC Switch
 
-### CC Switch 的无头 Web 服务端 —— 在浏览器里管理 Claude Code、Codex、Gemini CLI 等 14 个 AI CLI
+### Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes Agent、Pi、MiniMax Code、Kimi Code、Oh My Pi 的全方位管理工具
 
-**复用桌面版前端，通过 HTTP 访问，按 Web 能力显示功能。为服务器、容器和装不了 WebKitGTK 的系统而做。**
+**一键切换 API 供应商，统一管理 MCP、Skills 与提示词，不用再手改 JSON / TOML / YAML 配置文件。**
 
-<sub>
-🙏 Fork 自 <a href="https://github.com/farion1231/cc-switch">farion1231/cc-switch</a>（作者 Jason Young）。<br/>
-本 fork 增加了 <code>cc-switch-server</code>：一个无头二进制，用 HTTP 提供同一套前端、读写同一份
-<code>~/.cc-switch</code> 数据，所以供应商切换、本地路由、会话浏览和备份在没有桌面的机器上一样能用。
-保留桌面构建能力——上游功能与其问题请反馈给<a href="https://github.com/farion1231/cc-switch">上游</a>。
-</sub>
-
-> 📄 **本文是上游应用的完整中文文档**（桌面版的全部功能、FAQ、赞助商等）。
-> 想直接用 Web 服务端模式，请看 **[README.md](README.md)** 的快速开始。
-
-[![基于](https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-cc--switch%20v4.0.26-blue)](https://github.com/farion1231/cc-switch)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+[![Version](https://img.shields.io/github/v/release/farion1231/cc-switch?color=blue&label=version)](https://github.com/farion1231/cc-switch/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/farion1231/cc-switch/releases)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange.svg)](https://tauri.app/)
+[![Downloads](https://img.shields.io/github/downloads/farion1231/cc-switch/total)](https://github.com/farion1231/cc-switch/releases/latest)
 
-[中文快速开始](README.md) | [English](README_EN.md) | 本文（上游完整文档） | [日本語](README_JA.md) | [Deutsch](README_DE.md) | [更新日志](CHANGELOG.md)
+<a href="https://trendshift.io/repositories/15372" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15372" alt="farion1231%2Fcc-switch | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://www.star-history.com/#farion1231/cc-switch&Date"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=farion1231/cc-switch&theme=dark" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=farion1231/cc-switch" width="196" height="55" /></picture></a>
 
-**[这个 fork 加了什么](#这个-fork-加了什么) · [Web 模式快速开始](#web-模式快速开始) · [功能特性](#功能特性) · [常见问题](#常见问题) · [Web 模式文档](docs/web-mode-zh.md)**
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/daily?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/weekly?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/monthly?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+
+### 🌐 唯一官方网站：**[ccswitch.io](https://ccswitch.io)**
+
+[English](README_EN.md) | 简体中文 | [繁體中文](README_ZH-TW.md) | [日本語](README_JA.md) | [한국어](README_KO.md) | [Türkçe](README_TR.md) | [Русский](README_RU.md) | [Deutsch](README_DE.md) | [更新日志](CHANGELOG.md)
+
+**[下载安装](#下载安装) · [快速开始](#快速开始) · [功能特性](#功能特性) · [常见问题](#常见问题) · [用户手册](docs/user-manual/zh/README.md)**
 
 </div>
-
-## 这个 fork 加了什么
-
-新增**服务端模式**（`cc-switch-server`）：把同一套界面放进浏览器，面向**跑不了桌面版**的机器——
-Ubuntu 20.04 这类 glibc / WebKitGTK 过旧的发行版、无显示器的服务器、容器。
-
-- **浏览器界面，同一份前端** —— 桌面版与 Web 版来自同一套源码；Web 构建只把 Tauri 的 IPC 层换成 HTTP，两边不会各自漂移
-- **不需要 WebKitGTK，也不需要 Tauri** —— 服务端二进制能在 Ubuntu 20.04 上编译，依赖树里没有 webkit / gtk
-- **单文件部署** —— 前端被编进二进制（`rust-embed`），拷一个文件就能跑
-- **本地路由是真跑的** —— 代理在服务端工作：把 CLI 指向本地端口、做协议转换（Anthropic / OpenAI Chat / Responses / Gemini）、支持故障转移
-- **导入导出、备份、会话浏览** —— 用上传 / 下载替代原生文件对话框
-- **能力协商** —— `GET /api/capabilities` 告诉前端这个构建支持什么，没接入的页面直接隐藏，而不是点进去看报错
-
-尚未移植：托管账号登录（Copilot / Codex / xAI）、Stack 聚合模式、熔断器面板、用量统计、
-MCP / Skills / Prompts 面板、目录选择对话框。完整清单见 [docs/web-mode-zh.md](docs/web-mode-zh.md)。
-
-## Web 模式快速开始
-
-```bash
-# 1. 前端（需要 Node 22+ 与 pnpm）
-pnpm install && pnpm build:web
-
-# 2. 服务端（机器上不需要任何 webkit/gtk 开发包）
-cd src-tauri
-cargo build --release --no-default-features --features server --bin cc-switch-server
-
-# 3. 运行，默认监听 127.0.0.1:15800
-./target/release/cc-switch-server
-```
-
-打开启动日志里打印的 `http://127.0.0.1:15800/auth?token=<令牌>` 即可。远程机器用
-`ssh -L 15800:127.0.0.1:15800 user@host`；容器用仓库根目录的 `Dockerfile` 与 `docker-compose.yml`。
-参数、安全说明与 systemd 单元见 [docs/web-mode-zh.md](docs/web-mode-zh.md)。
-
----
-
-> **以下内容描述的是上游应用本身**，Web 能力及差异以 [Web 支持矩阵](docs/web-capabilities.md) 为准。
-> 其中的官网、赞助商与下载按钮都指向上游项目。
-
 
 ## ❤️赞助商
 
@@ -86,6 +47,12 @@ Kimi K3.1 Pro 是 Moonshot AI 迄今最强的 3T 级开放权重模型，支持 
 
 <table>
 <tr>
+<td width="180"><a href="https://www.aicodemirror.ai/register?invitecode=9915W3"><img src="assets/partners/logos/aicodemirror.jpg" alt="AICodeMirror" width="150"></a></td>
+<td>感谢 AICodeMirror 赞助了本项目！AICodeMirror 提供 Claude Code / Codex / Gemini CLI 官方高稳定中转服务，支持企业级高并发、极速开票、7×24 专属技术支持。
+Claude Code / Codex / Gemini 官方渠道低至 3.8 / 0.2 / 0.9 折，充值更有折上折！AICodeMirror 为 CCSwitch 的用户提供了特别福利，通过<a href="https://www.aicodemirror.ai/register?invitecode=9915W3">此链接</a>注册的用户，可享受首充8折，企业客户最高可享 7.5 折！</td>
+</tr>
+
+<tr>
 <td width="180"><a href="https://www.packyapi.ai/register?aff=cc-switch"><img src="assets/partners/logos/packycode.png" alt="PackyCode" width="150"></a></td>
 <td>感谢 PackyCode 赞助了本项目！PackyCode 是一家稳定、高效的API中转服务商，提供 Claude Code、Codex、Gemini 等多种中转服务。PackyCode 为本软件的用户提供了特别优惠，使用<a href="https://www.packyapi.ai/register?aff=cc-switch">此链接</a>注册并在充值时填写"cc-switch"优惠码，首次充值可以享受9折优惠！</td>
 </tr>
@@ -93,12 +60,6 @@ Kimi K3.1 Pro 是 Moonshot AI 迄今最强的 3T 级开放权重模型，支持 
 <tr>
 <td width="180"><a href="https://apinebula.ai/VjM74M"><img src="assets/partners/logos/apinebula_banner.png" alt="APINebula" width="150"></a></td>
 <td>感谢 APINEBULA 赞助本项目！APINEBULA 是银河录像局旗下的企业级 AI 聚合平台，背靠大平台资源，面向开发者、团队与企业用户提供稳定、高性价比的大模型 API 接入服务。平台聚合 Claude、GPT、Gemini 等主流满血模型，一个接口，接入全球顶尖 AI 大模型，各大模型价格低至 1 折起，支持企业级高并发、正式合同、对公打款与开票服务，适合 AI 编程、Agent 开发、业务系统集成等多种场景！使用<a href="https://apinebula.ai/VjM74M">此链接</a>注册并在充值时填写 <strong>"ccswitch"</strong> 优惠码可享<strong>九折优惠</strong>！</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://www.aicodemirror.ai/register?invitecode=9915W3"><img src="assets/partners/logos/aicodemirror.jpg" alt="AICodeMirror" width="150"></a></td>
-<td>感谢 AICodeMirror 赞助了本项目！AICodeMirror 提供 Claude Code / Codex / Gemini CLI 官方高稳定中转服务，支持企业级高并发、极速开票、7×24 专属技术支持。
-Claude Code / Codex / Gemini 官方渠道低至 3.8 / 0.2 / 0.9 折，充值更有折上折！AICodeMirror 为 CCSwitch 的用户提供了特别福利，通过<a href="https://www.aicodemirror.ai/register?invitecode=9915W3">此链接</a>注册的用户，可享受首充8折，企业客户最高可享 7.5 折！</td>
 </tr>
 
 <tr>
@@ -116,11 +77,6 @@ Claude Code / Codex / Gemini 官方渠道低至 3.8 / 0.2 / 0.9 折，充值更�
 <tr>
 <td width="180"><a href="https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=P9MR3D3PLCNL"><img src="assets/partners/logos/fenno-banner.png" alt="Fenno.ai" width="150"></a></td>
 <td>感谢 Fenno.ai 赞助了本项目！Fenno.ai 是一家稳定、高效的 API 中转服务商，目前主要提供 Codex 中转服务，兼容 OpenAI 及 Anthropic 协议，可灵活接入 Codex、Claude Code、OpenCode 等主流编程工具，可稳定支撑千亿 Token/日的企业级调用需求，支持国内及海外主体公对公结算、开票。Fenno.ai 为 CC Switch 的用户提供了专属福利：通过<a href="https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=P9MR3D3PLCNL">此链接</a>即可订阅 1.99 刀/50 刀额度的 Trial 计划（有效期 7 天），邀请好友最高可享 20% 奖励，多邀多得！</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://runapi.host/register?aff=iOKB"><img src="assets/partners/logos/runapi.jpg" alt="RunAPI" width="150"></a></td>
-<td>感谢 RunAPI 赞助本项目！RunAPI 是高效稳定的 AI 模型 API 中转平台，一个 API Key 即可访问 OpenAI、Claude、Gemini、DeepSeek、Grok 等 150+ 主流模型，低至 1 折，极其稳定，可以无缝兼容 Claude Code、OpenClaw 等工具。RunAPI为CC switch的用户提供了特别福利，使用<a href="https://runapi.host/register?aff=iOKB">此链接</a>注册并首次充值即可享受10%的优惠折扣！</td>
 </tr>
 
 <tr>
@@ -168,6 +124,11 @@ TeamoRouter 还提供企业级功能，包括集中账单、团队管理、BYOK�
 <tr>
 <td width="180"><a href="https://subrouter.ai/register?aff=l3ri"><img src="assets/partners/logos/subrouter-banner.png" alt="SubRouter" width="150"></a></td>
 <td>感谢 SubRouter 赞助本项目！SubRouter 是面向 AI 服务经营者的公开市场与智能路由平台。商家可快速开通独立经营站，发布套餐、管理用户与模型价格；用户可在市场发现服务，并通过统一 API 获得稳定高效的模型调用。通过<a href="https://subrouter.ai/register?aff=l3ri">此链接</a>注册！</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://runapi.host/register?aff=iOKB"><img src="assets/partners/logos/runapi.jpg" alt="RunAPI" width="150"></a></td>
+<td>感谢 RunAPI 赞助本项目！RunAPI 是高效稳定的 AI 模型 API 中转平台，一个 API Key 即可访问 OpenAI、Claude、Gemini、DeepSeek、Grok 等 150+ 主流模型，低至 1 折，极其稳定，可以无缝兼容 Claude Code、OpenClaw 等工具。RunAPI为CC switch的用户提供了特别福利，使用<a href="https://runapi.host/register?aff=iOKB">此链接</a>注册并首次充值即可享受10%的优惠折扣！</td>
 </tr>
 
 <tr>
@@ -231,11 +192,6 @@ TeamoRouter 还提供企业级功能，包括集中账单、团队管理、BYOK�
 </tr>
 
 <tr>
-<td width="180"><a href="https://www.ccsub.net/register?ref=Y6Z8DXEA"><img src="assets/partners/logos/ccsub.svg" alt="CCSub" width="150"></a></td>
-<td>感谢 CCSub 赞助本项目！CCSub 是稳定、实惠的 AI API 中转平台，是 Claude Code 官方订阅的超强平替。一个 API Key 即可调用 Claude Opus 4.8、Sonnet 4.6、Haiku 4.5、GPT-5、Gemini、DeepSeek 全系列模型，价格约为官方直连的 1/3，全球直连无需梯子。兼容 Claude Code、Codex、Cursor、Cline、Continue、Windsurf 等所有主流 AI 编程工具。通过<a href="https://www.ccsub.net/register?ref=Y6Z8DXEA">此链接</a>注册即送 $5 体验额度！</td>
-</tr>
-
-<tr>
 <td width="180"><a href="https://sssaicodeapi.com/register?ref=DCP0SM"><img src="assets/partners/logos/sssaicode.png" alt="SSSAiCode" width="150"></a></td>
 <td>感谢 SSSAiCode 赞助了本项目！SSSAiCode 是一家稳定可靠的API中转站，致力于提供稳定、可靠、平价的Claude、CodeX模型服务，支持当日快速开票，SSSAiCode为本软件的用户提供特别优惠，使用<a href="https://sssaicodeapi.com/register?ref=DCP0SM">此链接</a>注册每次充值均可享受10$的额外奖励！</td>
 </tr>
@@ -281,7 +237,7 @@ Claude Code、Codex、Gemini CLI 等 AI 编程工具各有各的配置格式。�
 
 **CC Switch** 把这些工作集中到一个桌面应用里：选一个预设、填入 Key，一键即可切换。切换时只替换地址、Key、模型这几项连接信息，你自己加的插件、Hook、MCP 和注释都原样保留。
 
-- **一个应用，十四个工具** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code、Kimi Code、Oh My Pi、Antigravity（agy）、DeepSeek Harness
+- **一个应用，十二个工具** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code、Kimi Code、Oh My Pi
 - **告别手动编辑** — 90+ 供应商预设，包括 AWS Bedrock、NVIDIA NIM 和社区中转服务
 - **直连、路由、聚合，按需选择** — 直连是工具直接连供应商；路由经本机转发，能转换接口格式、自动故障转移，让 Claude Code 用 GPT、Codex 用 Claude；聚合把多家供应商的模型放进 Claude Code 或 Codex 的同一个模型列表，选哪个模型，请求就发给哪一家
 - **MCP、Skills 与提示词集中管理** — MCP 和 Skills 添加一次，按工具勾选同步；提示词按工具分别维护
@@ -307,10 +263,6 @@ Claude Code、Codex、Gemini CLI 等 AI 编程工具各有各的配置格式。�
 </table>
 
 ## 下载安装
-
-> **Web 模式暂时没有预编译产物**，请按上面的 [Web 模式快速开始](#web-模式快速开始) 自行构建
-> （`cc-switch-server` 只有一个文件，不需要安装器）。
-> 下面的安装包都是**上游的桌面版**，不含本 fork 的改动。
 
 ### 系统要求
 
@@ -392,22 +344,23 @@ paru -S cc-switch-bin
 
 ### 各工具支持的功能
 
-| 工具                                          | 供应商 |  本地路由  | 聚合 | 托盘切换 | MCP | Skills | 提示词                           | 会话 |  用量统计  |
-| --------------------------------------------- | ------ | :--------: | :--: | :------: | :-: | :----: | -------------------------------- | :--: | :--------: |
-| Claude Code                                   | 切换   |     ✓      |  ✓   |    ✓     |  ✓  |   ✓    | CLAUDE.md                        |  ✓   |     ✓      |
-| Claude Desktop                                | 切换   | 模型映射时 |  –   |    ✓     |  –  |   –    | –                                |  –   | 模型映射时 |
-| Codex                                         | 切换   |     ✓      |  ✓   |    ✓     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
-| Gemini CLI                                    | 切换   |     ✓      |  –   |    ✓     |  ✓  |   ✓    | GEMINI.md                        |  ✓   |     ✓      |
-| Grok Build                                    | 切换   |     ✓      |  –   |    ✓     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
-| OpenCode                                      | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
-| OpenClaw                                      | 共存   |     –      |  –   |    –     |  –  |   –    | 工作区编辑器                     |  ✓   |     –      |
-| Hermes                                        | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | 记忆管理                         |  ✓   |     –      |
-| Pi                                            | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md、SYSTEM.md、提示词模板 |  ✓   |     ✓      |
-| MiniMax Code                                  | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
-| [Kimi Code](docs/kimi-code-integration-zh.md) | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
-| Oh My Pi                                      | 共存   |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     –      |
+| 工具                                                     | 供应商   |  本地路由  | 聚合 | 托盘切换 | MCP | Skills | 提示词                           | 会话 |  用量统计  |
+| -------------------------------------------------------- | -------- | :--------: | :--: | :------: | :-: | :----: | -------------------------------- | :--: | :--------: |
+| Claude Code                                              | 切换     |     ✓      |  ✓   |    ✓     |  ✓  |   ✓    | CLAUDE.md                        |  ✓   |     ✓      |
+| Claude Desktop                                           | 切换     | 模型映射时 |  –   |    ✓     |  –  |   –    | –                                |  –   | 模型映射时 |
+| Codex                                                    | 切换     |     ✓      |  ✓   |    ✓     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
+| Gemini CLI                                               | 切换     |     ✓      |  –   |    ✓     |  ✓  |   ✓    | GEMINI.md                        |  ✓   |     ✓      |
+| Grok Build                                               | 切换     |     ✓      |  –   |    ✓     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
+| OpenCode                                                 | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
+| OpenClaw                                                 | 共存     |     –      |  –   |    –     |  –  |   –    | 工作区编辑器                     |  ✓   |     –      |
+| Hermes                                                   | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | 记忆管理                         |  ✓   |     –      |
+| Pi                                                       | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md、SYSTEM.md、提示词模板 |  ✓   |     ✓      |
+| MiniMax Code                                             | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
+| [Kimi Code](docs/kimi-code-integration-zh.md)            | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     ✓      |
+| Oh My Pi                                                 | 共存     |     –      |  –   |    –     |  ✓  |   ✓    | AGENTS.md                        |  ✓   |     –      |
+| [GitHub Copilot CLI](docs/copilot-cli-integration-zh.md) | 打开终端 |     –      |  –   |    –     |  ✓  |   ✓    | copilot-instructions.md          |  ✓   |     ✓      |
 
-- **切换**：同一时间只启用一个供应商；**共存**：多个供应商同时写入工具自身的配置，在工具里选择使用。
+- **切换**：同一时间只启用一个供应商；**共存**：多个供应商同时写入工具自身的配置，在工具里选择使用。**打开终端**：卡片不写工具配置，从卡片打开的终端按这张卡启动工具。
 - **本地路由**：由 CC Switch 在本机转发请求并转换接口格式，见下方[本地路由与故障转移](#本地路由与故障转移)。Claude Desktop 的供应商可选“直连”或“模型映射”，选“模型映射”时经本地路由转发。
 - **聚合**：把多家供应商的模型放进同一个模型列表，按所选模型分发请求，见下方[聚合模式](#聚合模式)。
 - **会话**：浏览、搜索会话历史，打开阅读页，复制恢复命令继续对话（OpenClaw、Hermes 的会话暂不支持恢复）。Hermes 只显示最近 500 个会话。
@@ -468,14 +421,14 @@ paru -S cc-switch-bin
 - **CLI 工具管理** — 在侧栏的「应用」页查看 Claude Code、Codex 等命令行工具的当前版本和最新版本，一键安装、升级或全部升级，并诊断重复安装；Windows 上还能管理 WSL 里的工具（见常见问题）
 - **Deep Link**（`ccswitch://`）— 通过链接一键导入供应商、MCP 服务器和提示词，或添加技能仓库。用 [在线生成器](https://ccswitch.io/deplink.html) 生成链接；站长想在网站上放导入按钮，见 [站长接入指南](https://github.com/farion1231/cc-switch/blob/main/docs/guides/deeplink-site-integration-guide-zh.md)
 - **小工具** — 跳过 Claude Code 初次安装确认、隐藏 AI 署名、让 VS Code 的 Claude Code 插件随本软件切换供应商等
-- 深色 / 浅色 / 跟随系统主题、开机自启、自动更新、原子写入、自动备份（「设置 → 数据」里可以看到所有备份的位置和占用空间）、国际化（简中/繁中/英/日，另有社区翻译的土耳其语）
+- 深色 / 浅色 / 跟随系统主题、开机自启、自动更新、原子写入、自动备份（「设置 → 数据」里可以看到所有备份的位置和占用空间）、国际化（简中/繁中/英/日/韩/土耳其语/俄语/德语）
 
 ## 常见问题
 
 <details>
 <summary><strong>CC Switch 支持哪些 AI 工具？</strong></summary>
 
-CC Switch 支持十四个工具：**Claude Code**、**Claude Desktop**、**Codex**、**Gemini CLI**、**Grok Build**、**OpenCode**、**OpenClaw**、**Hermes**、**Pi**、**MiniMax Code**、**Kimi Code**、**Oh My Pi**、**Antigravity（agy）**、**DeepSeek Harness**。每个工具都有专属的供应商预设和配置管理，各自支持哪些功能见[各工具支持的功能](#各工具支持的功能)。
+CC Switch 支持十二个工具：**Claude Code**、**Claude Desktop**、**Codex**、**Gemini CLI**、**Grok Build**、**OpenCode**、**OpenClaw**、**Hermes**、**Pi**、**MiniMax Code**、**Kimi Code**、**Oh My Pi**。每个工具都有专属的供应商预设和配置管理，各自支持哪些功能见[各工具支持的功能](#各工具支持的功能)。
 
 </details>
 

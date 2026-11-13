@@ -18,6 +18,7 @@ use crate::services::skill::{SkillService, SkillStorageLocation, SkillUninstallR
 
 pub const HANDLERS: &[(&str, Handler)] = &[
     ("get_installed_skills", get_installed_skills),
+    ("refresh_local_skill_metadata", refresh_local_skill_metadata),
     ("get_skill_backups", get_skill_backups),
     ("delete_skill_backup", delete_skill_backup),
     ("install_skill_unified", install_skill_unified),
@@ -560,6 +561,16 @@ fn install_skills_from_zip(context: Arc<Context>, args: Value) -> HandlerFuture 
         deferred(move || {
             SkillService::install_from_zip(&state.db, std::path::Path::new(&file_path), &app_type)
                 .map_err(|error| error.to_string())
+        })
+        .await
+    })
+}
+
+fn refresh_local_skill_metadata(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        deferred(move || {
+            SkillService::refresh_local_skill_metadata(&state.db).map_err(|e| e.to_string())
         })
         .await
     })

@@ -58,7 +58,9 @@ cleanup_test_env() {
 # start_server <端口> [额外参数...]
 start_server() {
   local port="$1"; shift
-  HOME="$CC_TEST_HOME" DSH_HOME="$CC_TEST_HOME/.dsh" "$SERVER_BIN" --port "$port" --dist "$DIST_DIR" "$@" \
+  HOME="$CC_TEST_HOME" DSH_HOME="$CC_TEST_HOME/.dsh" \
+    COPILOT_HOME="$CC_TEST_HOME/.copilot" COPILOT_PROVIDERS_CONFIG="$CC_TEST_HOME/.copilot/providers.json" \
+    WORKBUDDY_CONFIG_DIR="$CC_TEST_HOME/.workbuddy" "$SERVER_BIN" --port "$port" --dist "$DIST_DIR" "$@" \
     > "$CC_TEST_HOME/server.log" 2>&1 &
   CC_SERVER_PID=$!
   CC_SERVER_PORT="$port"

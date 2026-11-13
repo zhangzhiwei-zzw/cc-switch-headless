@@ -9,7 +9,6 @@ use crate::provider::Provider;
 use crate::store::AppState;
 use tauri::{AppHandle, State};
 
-/// 获取故障转移队列
 #[tauri::command]
 pub async fn get_failover_queue(
     state: State<'_, AppState>,

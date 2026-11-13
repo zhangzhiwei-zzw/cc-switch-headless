@@ -38,9 +38,11 @@ import {
   useCheckSkillUpdates,
   useDeleteSkillBackup,
   useDiscoverableSkills,
+  useDiscoverableSkillsFailures,
   useImportSkillsFromApps,
   useInstallSkillsFromZip,
   useInstalledSkills,
+  useRefreshLocalSkillMetadata,
   useRestoreSkillBackup,
   useScanUnmanagedSkills,
   useSkillBackups,
@@ -72,6 +74,7 @@ import { RepoManagerPanel } from "./RepoManagerPanel";
 import { SkillImportDialog } from "./SkillImportDialog";
 import { SkillRestoreDialog } from "./SkillRestoreDialog";
 import { SkillsStorageSheet } from "./SkillsStorageSheet";
+import { useSkillsResync } from "./useSkillsResync";
 import { useSkillInstallTargets } from "./useSkillInstallTargets";
 import { describeRepoFailures } from "./repoFailures";
 import type { ZipSkippedSkill } from "@/lib/api/skills";
@@ -177,6 +180,9 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
     error: loadError,
     refetch,
   } = useInstalledSkills();
+  // 列表先用数据库快照渲染；本地元数据在后台线程刷新，有新结果时才刷新列表。
+  // 独立 query 让开关/安装引起的列表失效不再重复扫描 SSOT 目录（issue #7848）。
+  useRefreshLocalSkillMetadata();
   const {
     data: skillBackups = [],
     refetch: refetchSkillBackups,
@@ -201,6 +207,7 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
   const skillUpdates = updateCheck?.updates;
   const updateRepoFailures = updateCheck?.failures ?? [];
   const updateSkillMutation = useUpdateSkill();
+  const { resync: resyncToApps, isPending: resyncPending } = useSkillsResync();
 
   const mutationPending =
     deleteBackupMutation.isPending ||
@@ -661,6 +668,16 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
     }
   };
 
+  // 「立即重新同步」也放在 ⋯ 菜单（#9417）：不用每次打开「存储与同步」对话框
+  const handleResyncToApps = async () => {
+    if (resyncPending || !beginWrite()) return;
+    try {
+      await resyncToApps();
+    } finally {
+      endWrite();
+    }
+  };
+
   // ─── 导入 / ZIP / 备份 ───────────────────────────────────────────────
   const handleOpenImport = async () => {
     if (!beginWrite()) return;
@@ -980,6 +997,12 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
                 onSelect={() => setRepoManagerOpen(true)}
               >
                 {t("skillsPage.moreMenu.repos")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={controlsDisabled || resyncPending || nInstalled === 0}
+                onSelect={() => void handleResyncToApps()}
+              >
+                {t("skills.storageSheet.resync")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setStorageOpen(true)}>
                 {t("skills.storageSheet.open")}
@@ -2103,11 +2126,13 @@ function AppMenuButton({
 function RepoManagerContainer({ onClose }: { onClose: () => void }) {
   const { data: repos = [] } = useSkillRepos();
   const { data: discoverable = [] } = useDiscoverableSkills();
+  const { data: failures = [] } = useDiscoverableSkillsFailures();
   const { addRepo, removeRepo, setRepoEnabled } = useSkillRepoActions();
   return (
     <RepoManagerPanel
       repos={repos}
       skills={discoverable}
+      failures={failures}
       onAdd={addRepo}
       onRemove={removeRepo}
       onToggle={setRepoEnabled}

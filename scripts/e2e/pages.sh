@@ -289,4 +289,28 @@ PY
 check "重复同步不会重复导入 OMP 请求" "0" \
   "$(jget '{"cmd":"sync_session_usage"}' 'd["data"]["imported"]')"
 
+echo
+echo "== 新应用与 Skills 元数据刷新"
+check "无 Skills 时刷新元数据返回 0" "0" \
+  "$(jget '{"cmd":"refresh_local_skill_metadata"}' 'd["data"]')"
+check "Copilot BYOK 卡可保存" "True" \
+  "$(jget '{"cmd":"add_provider","args":{"app":"copilot","provider":{"id":"web-relay","name":"Web relay","category":"custom","settingsConfig":{"provider":{"type":"openai","baseUrl":"https://example.invalid/v1","apiKey":"fixture-key"},"models":[{"id":"test-model"}]}}}}' 'd["ok"]')"
+check "Copilot 供应商实际写入 providers.json" "True" \
+  "$(python3 - "$CC_TEST_HOME/.copilot/providers.json" <<'PYINNER'
+import json,sys
+config=json.load(open(sys.argv[1]))
+print(any(p.get('name') == 'web-relay' for p in config['providers']) and any(m.get('id') == 'test-model' and m.get('provider') == 'web-relay' for m in config['models']))
+PYINNER
+)"
+check "WorkBuddy 自定义模型可保存" "True" \
+  "$(jget '{"cmd":"add_provider","args":{"app":"workbuddy","provider":{"id":"web-buddy","name":"Web buddy","category":"custom","settingsConfig":{"url":"https://example.invalid/v1/chat/completions","apiKey":"fixture-key","models":[{"id":"buddy-model"}]}}}}' 'd["ok"]')"
+check "WorkBuddy 模型归属可读取" "True" \
+  "$(jget '{"cmd":"workbuddy_model_owners"}' 'any(m["id"] == "buddy-model" for m in d["data"])')"
+check "WorkBuddy 模型配置实际落盘" "True" \
+  "$(python3 - "$CC_TEST_HOME/.workbuddy/models.json" <<'PYINNER'
+import json,sys
+print('buddy-model' in json.dumps(json.load(open(sys.argv[1]))))
+PYINNER
+)"
+
 summary

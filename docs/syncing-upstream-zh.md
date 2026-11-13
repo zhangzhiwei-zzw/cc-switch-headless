@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.26.lock`](upstream-v4.0.26.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.31.lock`](upstream-v4.0.31.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -87,6 +87,7 @@ Host github.com
 | 2026-11-01 | v4.0.21 后续提交 → v4.0.23 | 56 | 156 | 7 个文件 |
 | 2026-11-05 | v4.0.23 → v4.0.26（保留已有 v4.0.25 同步分支） | 81 | 285 | 26 个文件 |
 | 2026-11-07 | v4.0.26 → 会话正文搜索、界面密度与缩放 | 17 | 103 | 2 个文件 |
+| 2026-11-13 | v4.0.26 后续提交 → v4.0.31 + 5 commits | 136 | 435 | 17 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -98,7 +99,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`f621d421..44e7d3ef = 17`，不要凭印象写。
+`v4.0.31..761b4c02 = 5`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -320,6 +321,43 @@ Web 命令契约及 Web 构建检查通过；server 与桌面 Clippy（`-D warni
 测试二进制或跨平台发布构建；桌面测试编译仍有既有的 `SystemKeychain::named`
 未使用警告。
 
+### 2026-11-13：同步 v4.0.31 与后续修复
+
+从 `44e7d3ef` 同步至 `761b4c02`（v4.0.31 后 5 个提交），共 136 个提交、435 个上游文件。
+直接在本地 `main` 合并，17 个冲突文件；保留 Web 登录门、能力限制、共享设置保存函数、
+无 Tauri 的 server feature、fork README 与 CODEOWNERS。WSL2 nightly 继续不启用，
+桌面发布继续手动且受变量控制；CI 同步上游四分片前端测试，汇总门同时检查 server job。
+
+Web 新增 Copilot CLI 和 WorkBuddy，支持服务器上的自定义模型、MCP、Skills、提示词、
+会话读取与用量导入，契约覆盖 16 个应用。Copilot 官方模型配置沿用服务器 CLI 登录；
+WorkBuddy 官方账号收录、切换和额度依赖桌面应用，Web 隐藏相关入口。新增
+`workbuddy_model_owners` 防止模型 ID 冲突，`refresh_local_skill_metadata` 对齐上游
+列表查询与元数据扫描分离，保留 Skills 手动重新同步。
+
+接入隐私过滤配置读写，启用时后台预热检测规则；转发器保留上游 PII / secret 检测和
+出站过滤，server 根据设置或系统区域选择占位符语言，不引用桌面托盘。HTTP 回归验证
+设置开关与真实出站正文脱敏。此开关只作用于经过本地路由的请求，不处理 CLI 直连流量。
+
+Codex 同步新路由格式、官方登录暂停、直连保留登录、历史迁移和工具调用修复；Web 保存
+设置时对齐配置重写失败回滚、关闭后的迁移意愿清理与迁移结束事件。保留会话正文索引
+的读取限流和大小限制。其他更新包括 TokenPlus、模型定价、八语言本地化、Gemini /
+Copilot 协议转换及配置锁和缓存的 panic 恢复。
+
+README 中英主页继续介绍 Web 服务；其余七语言更新上游桌面文档，并在页首链接 Web
+指南。上游 README 一致性测试改为分别检查 Web 主页和桌面文档，避免把 fork 首页当成
+桌面赞助商表的参照。同步基线改为 `upstream-v4.0.31.lock`。
+
+验证通过：相关前端 65 个测试文件（1315 项用例，含修复后的定向重跑），207 项
+HTTP / 安全 / 安装回归、12 项浏览器回归。初次语言一致性检查发现 6 个语言缺少
+Web 登录门文案，补齐繁中、日、韩、土、俄、德翻译后，语言覆盖与一致性 55 项通过；
+新增的桌面动作隐藏及 Copilot 账号展示回归 46 项通过。
+
+类型、格式、367 个前端命令 / 181 个服务端命令 / 16 个应用的覆盖、13 个类型化 RPC
+契约及 Web 构建通过；桌面测试代码编译、桌面和 server Clippy（`-D warnings`）、
+server 构建通过。桌面测试编译仍有既有的 `SystemKeychain::named` 未使用警告。
+为控制缓存体积，没有执行完整 Rust 测试二进制或跨平台发布构建。本次只提交到本地，
+未触发远程 CI 或发布。
+
 ### v4.0.18 发布前的 CI 修复
 
 上次提交 `c84be35` 的 [CI #23](https://github.com/zhangzhiwei-zzw/cc-switch-headless/actions/runs/39626013401)
@@ -523,10 +561,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.26.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.31.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.26.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.31.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 

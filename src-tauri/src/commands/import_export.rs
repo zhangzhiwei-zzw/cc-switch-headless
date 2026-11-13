@@ -47,7 +47,6 @@ pub async fn sync_current_providers_live(state: State<'_, AppState>) -> Result<V
 
 // ─── File dialogs ────────────────────────────────────────────
 
-/// 保存文件对话框
 #[tauri::command]
 pub async fn save_file_dialog<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -63,7 +62,6 @@ pub async fn save_file_dialog<R: tauri::Runtime>(
     Ok(result.map(|p| p.to_string()))
 }
 
-/// 打开文件对话框
 #[tauri::command]
 pub async fn open_file_dialog<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -77,7 +75,6 @@ pub async fn open_file_dialog<R: tauri::Runtime>(
     Ok(result.map(|p| p.to_string()))
 }
 
-/// 打开 ZIP 文件选择对话框
 #[tauri::command]
 pub async fn open_zip_file_dialog<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,

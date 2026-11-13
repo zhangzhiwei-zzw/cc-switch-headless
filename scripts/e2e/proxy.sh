@@ -72,6 +72,30 @@ check "上游收到供应商的 key" "sk-fake-upstream" \
   "$(python3 -c 'import json;print(json.loads(open("'"$UPSTREAM_LOG"'").readline())["x-api-key"])' 2>/dev/null || echo "-")"
 
 echo
+echo "== 隐私过滤设置实际控制出站正文"
+check "默认关闭隐私过滤" "False" \
+  "$(call '{"cmd":"get_privacy_filter_config"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["enabled"])')"
+check "启用隐私过滤" "True" \
+  "$(call '{"cmd":"set_privacy_filter_config","args":{"config":{"enabled":true,"filterToolResults":false}}}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"])')"
+HTTP_CODE=$(curl -s -o "$CC_TEST_HOME/privacy-response.json" -w '%{http_code}' \
+  -X POST "http://127.0.0.1:$PROXY_PORT/v1/messages" \
+  -H 'Content-Type: application/json' -H 'anthropic-version: 2023-06-01' \
+  -H "x-api-key: $PROXY_AUTH" \
+  -d '{"model":"claude-sonnet-5","max_tokens":16,"messages":[{"role":"user","content":"email alice@example.com please"}]}')
+check "过滤后的代理请求成功" "200" "$HTTP_CODE"
+check "真实上游正文中邮箱已脱敏且保留普通文本" "True" \
+  "$(python3 - "$UPSTREAM_LOG" <<'PYINNER'
+import json,sys
+row=json.loads(open(sys.argv[1]).readlines()[-1])
+body=json.loads(row['body'])
+content=body['messages'][0]['content']
+print('alice@example.com' not in str(content) and 'please' in str(content))
+PYINNER
+)"
+check "关闭过滤可保存" "True" \
+  "$(call '{"cmd":"set_privacy_filter_config","args":{"config":{"enabled":false,"filterToolResults":false}}}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"])')"
+
+echo
 echo "== 退出路由模式后配置回退"
 call '{"cmd":"set_proxy_takeover_for_app","args":{"appType":"claude","enabled":false}}' >/dev/null
 check "回退到直连供应商" "http://127.0.0.1:$UPSTREAM_PORT" \

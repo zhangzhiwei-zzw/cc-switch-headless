@@ -275,7 +275,7 @@ fn subscription_label() -> String {
     let language = crate::settings::get_settings()
         .language
         .unwrap_or_else(|| sys_locale::get_locale().unwrap_or_else(|| "en".into()));
-    if language.starts_with("zh") {
+    if matches!(language.as_str(), "zh" | "zh-TW") {
         "Kimi 订阅".into()
     } else {
         "Kimi Subscription".into()

@@ -166,5 +166,29 @@
     "deleteSessions": false,
     "usage": "会话日志",
     "notes": "管理服务端 DSH_HOME（默认 ~/.dsh）；供应商与 MCP 同步到 web、desktop 以及已初始化的 headless/acp profile。支持 Skills、AGENTS.md、会话阅读和用量导入；默认模型、登录、sdk profile 和会话删除由 DSH 原生界面管理。"
+  },
+  "copilot": {
+    "name": "GitHub Copilot CLI",
+    "providers": "官方模型配置、BYOK 多供应商共存",
+    "routing": false,
+    "mcp": true,
+    "skills": true,
+    "prompts": true,
+    "sessions": true,
+    "deleteSessions": false,
+    "usage": "会话日志",
+    "notes": "管理服务器 ~/.copilot/providers.json、MCP、Skills 和提示词；官方登录由服务器 Copilot CLI 管理。Web 不提供托管账号登录、账号绑定与额度查询。"
+  },
+  "workbuddy": {
+    "name": "WorkBuddy",
+    "providers": "自定义模型多供应商共存",
+    "routing": false,
+    "mcp": true,
+    "skills": true,
+    "prompts": true,
+    "sessions": true,
+    "deleteSessions": false,
+    "usage": "会话日志",
+    "notes": "管理服务器 WorkBuddy 模型配置、MCP、Skills 和提示词，支持会话阅读；官方账号收录、切换、额度与应用启动仅在桌面版提供。"
   }
 }

@@ -1,10 +1,10 @@
-> これは上流 CC Switch のデスクトップ版ドキュメントです。この fork の Web サーバーの導入と対応機能は [English README](README_EN.md) と [Web documentation](docs/README.md) を参照してください。
+> 此文档介绍上游桌面版。This document describes the upstream desktop app. 本 fork 的 Web 安装与功能请见 [Web README](README_EN.md) 与 [Web 文档](docs/README.md)。
 
 <div align="center">
 
 # CC Switch
 
-### Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes Agent、Pi、MiniMax Code、Kimi Code、Oh My Pi、Antigravity CLI のオールインワン管理ツール
+### Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes Agent、Pi、MiniMax Code、Kimi Code、Oh My Pi のオールインワン管理ツール
 
 **ワンクリックで API プロバイダを切り替え、MCP・Skills・プロンプトを一元管理。JSON / TOML / YAML の設定ファイルを手作業で編集する必要はもうありません。**
 
@@ -16,9 +16,13 @@
 <a href="https://trendshift.io/repositories/15372" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15372" alt="farion1231%2Fcc-switch | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 <a href="https://www.star-history.com/#farion1231/cc-switch&Date"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=farion1231/cc-switch&theme=dark" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=farion1231/cc-switch" width="196" height="55" /></picture></a>
 
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/daily?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/weekly?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/15372?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15372" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15372/monthly?language=Rust" alt="farion1231%2Fcc-switch | Trendshift" width="250" height="55"/></a>
+
 ### 🌐 唯一の公式サイト：**[ccswitch.io](https://ccswitch.io)**
 
-[English](README_EN.md) | [中文](README_ZH.md) | 日本語 | [Deutsch](README_DE.md) | [Changelog](CHANGELOG.md)
+[English](README_EN.md) | [简体中文](README_ZH.md) | [繁體中文](README_ZH-TW.md) | 日本語 | [한국어](README_KO.md) | [Türkçe](README_TR.md) | [Русский](README_RU.md) | [Deutsch](README_DE.md) | [Changelog](CHANGELOG.md)
 
 **[ダウンロード](#ダウンロード--インストール) · [クイックスタート](#クイックスタート) · [特長](#特長) · [よくある質問](#よくある質問) · [ユーザーマニュアル](docs/user-manual/ja/README.md)**
 
@@ -43,6 +47,12 @@ Kimi K3.1 Pro は、Moonshot AI がこれまでに開発した中で最も高性
 
 <table>
 <tr>
+<td width="180"><a href="https://www.aicodemirror.ai/register?invitecode=9915W3"><img src="assets/partners/logos/aicodemirror.jpg" alt="AICodeMirror" width="150"></a></td>
+<td>AICodeMirror のご支援に感謝します！AICodeMirror は Claude Code / Codex / Gemini CLI の公式高安定リレーサービスを提供しており、エンタープライズ級の同時接続、迅速な請求書発行、24時間年中無休の専用テクニカルサポートを備えています。
+Claude Code / Codex / Gemini 公式チャンネルが最安で元価格の 38% / 2% / 9%、チャージ時にはさらに割引！AICodeMirror は CC Switch ユーザー向けに特別特典を用意：<a href="https://www.aicodemirror.ai/register?invitecode=9915W3">このリンク</a>から登録すると初回チャージ 20% オフ、法人のお客様は最大 25% オフ！</td>
+</tr>
+
+<tr>
 <td width="180"><a href="https://www.packyapi.ai/register?aff=cc-switch"><img src="assets/partners/logos/packycode.png" alt="PackyCode" width="150"></a></td>
 <td>PackyCode のご支援に感謝します！PackyCode は Claude Code、Codex、Gemini などのリレーサービスを提供する信頼性の高い API 中継プラットフォームです。本ソフト利用者向けに特別割引があります：<a href="https://www.packyapi.ai/register?aff=cc-switch">このリンク</a>で登録し、チャージ時に「cc-switch」クーポンを入力すると 10% オフになります。</td>
 </tr>
@@ -50,12 +60,6 @@ Kimi K3.1 Pro は、Moonshot AI がこれまでに開発した中で最も高性
 <tr>
 <td width="180"><a href="https://apinebula.ai/VjM74M"><img src="assets/partners/logos/apinebula_banner.png" alt="APINebula" width="150"></a></td>
 <td>本プロジェクトは「APINEBULA」のスポンサーシップにより運営されています！APINEBULA は、「銀河録像局」傘下のエンタープライズ向け AI 統合プラットフォームです。大手の豊富なリソースを背景に、開発者、チーム、そして企業ユーザーの皆様へ、安定性とコストパフォーマンスに優れた大規模言語モデル（LLM）の API 連携サービスを提供しています。Claude、GPT、Gemini をはじめとする世界中の主要なフルスペック（満血）モデルを 1 つの API に集約。世界トップクラスの AI モデルを、<strong>最大 90% OFF（元の価格の 1 割〜）</strong>という圧倒的な低価格でご利用いただけます。また、企業向けの高度な並行処理（高コンカレンシー）、正式な契約締結、法人口座振り込み、請求書・領収書発行など、ビジネス利用に必要なサポートも万全です。AI プログラミング、AI エージェント開発、業務システムへの統合など、様々なシーンに最適です。<a href="https://apinebula.ai/VjM74M">こちらのリンク</a>から登録し、チャージ時にプロモコード <strong>「ccswitch」を入力すると、さらに 10% OFF</strong> の割引特典が適用されます！</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://www.aicodemirror.ai/register?invitecode=9915W3"><img src="assets/partners/logos/aicodemirror.jpg" alt="AICodeMirror" width="150"></a></td>
-<td>AICodeMirror のご支援に感謝します！AICodeMirror は Claude Code / Codex / Gemini CLI の公式高安定リレーサービスを提供しており、エンタープライズ級の同時接続、迅速な請求書発行、24時間年中無休の専用テクニカルサポートを備えています。
-Claude Code / Codex / Gemini 公式チャンネルが最安で元価格の 38% / 2% / 9%、チャージ時にはさらに割引！AICodeMirror は CC Switch ユーザー向けに特別特典を用意：<a href="https://www.aicodemirror.ai/register?invitecode=9915W3">このリンク</a>から登録すると初回チャージ 20% オフ、法人のお客様は最大 25% オフ！</td>
 </tr>
 
 <tr>
@@ -73,11 +77,6 @@ Claude Code / Codex / Gemini 公式チャンネルが最安で元価格の 38% /
 <tr>
 <td width="180"><a href="https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=P9MR3D3PLCNL"><img src="assets/partners/logos/fenno-banner.png" alt="Fenno.ai" width="150"></a></td>
 <td>Fenno.ai のご支援に感謝します！Fenno.ai は安定かつ高効率な API 中継サービスプロバイダーで、現在は主に Codex の中継を提供しています。OpenAI および Anthropic プロトコルに対応し、Codex・Claude Code・OpenCode などの主要なコーディングツールから柔軟に利用できます。1 日あたり数千億トークンというエンタープライズ級の呼び出し需要を安定して支え、国内外の法人による B2B 決済・請求書発行に対応しています。Fenno.ai は CC Switch 利用者限定の特典を用意しています：<a href="https://api.fenno.ai/register?redirect=/purchase?tab=subscription%26group=16&aff=P9MR3D3PLCNL">こちらのリンク</a>から 1.99 ドルで 50 ドル相当の Trial プラン（有効期間 7 日間）を購入でき、友達紹介で最大 20% の特典がもらえます。紹介すればするほどお得です！</td>
-</tr>
-
-<tr>
-<td width="180"><a href="https://runapi.host/register?aff=iOKB"><img src="assets/partners/logos/runapi.jpg" alt="RunAPI" width="150"></a></td>
-<td>本プロジェクトのスポンサーである RunAPI に感謝いたします！RunAPI は高効率で安定した AI モデル API ゲートウェイです。一つの API Key で、OpenAI、Claude、Gemini、DeepSeek、Grok など 150 種類以上の主要モデルにアクセス可能。料金は公式価格の最大 10%、安定性にも優れ、Claude Code や OpenClaw などのツールとシームレスに連携できます。CC Switch ユーザー限定特典：<a href="https://runapi.host/register?aff=iOKB">こちらのリンク</a>から登録し、初回チャージで 10% オフの割引をお楽しみいただけます！</td>
 </tr>
 
 <tr>
@@ -125,6 +124,11 @@ TeamoRouter は、集中請求、チーム管理、BYOK、スマートルーテ�
 <tr>
 <td width="180"><a href="https://subrouter.ai/register?aff=l3ri"><img src="assets/partners/logos/subrouter-banner.png" alt="SubRouter" width="150"></a></td>
 <td>本プロジェクトをご支援いただいている SubRouter に感謝します！SubRouter は、AI サービス事業者向けのマーケットプレイス兼スマートルーティングプラットフォームです。事業者は独立した運営サイトを立ち上げ、プランを公開し、ユーザー・モデル・価格を管理でき、ユーザーはマーケットでサービスを見つけ、統一された API を通じて安定かつ高効率なモデル呼び出しを利用できます。<a href="https://subrouter.ai/register?aff=l3ri">こちらのリンク</a>から登録してください！</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://runapi.host/register?aff=iOKB"><img src="assets/partners/logos/runapi.jpg" alt="RunAPI" width="150"></a></td>
+<td>本プロジェクトのスポンサーである RunAPI に感謝いたします！RunAPI は高効率で安定した AI モデル API ゲートウェイです。一つの API Key で、OpenAI、Claude、Gemini、DeepSeek、Grok など 150 種類以上の主要モデルにアクセス可能。料金は公式価格の最大 10%、安定性にも優れ、Claude Code や OpenClaw などのツールとシームレスに連携できます。CC Switch ユーザー限定特典：<a href="https://runapi.host/register?aff=iOKB">こちらのリンク</a>から登録し、初回チャージで 10% オフの割引をお楽しみいただけます！</td>
 </tr>
 
 <tr>
@@ -188,11 +192,6 @@ TeamoRouter は、集中請求、チーム管理、BYOK、スマートルーテ�
 </tr>
 
 <tr>
-<td width="180"><a href="https://www.ccsub.net/register?ref=Y6Z8DXEA"><img src="assets/partners/logos/ccsub.svg" alt="CCSub" width="150"></a></td>
-<td>CCSub のご支援に感謝します！CCSub は安定した低価格の AI API リレープラットフォームで、Claude Code 公式サブスクリプションの強力な代替です。1 つの API キーで Claude Opus 4.8、Sonnet 4.6、Haiku 4.5、GPT-5、Gemini、DeepSeek の全モデルを公式直接利用の約 1/3 のコストでご利用いただけます。VPN 不要で世界中から直接接続可能。Claude Code、Codex、Cursor、Cline、Continue、Windsurf など主要な AI コーディングツールすべてに対応しています。<a href="https://www.ccsub.net/register?ref=Y6Z8DXEA">こちらのリンク</a>から登録すると $5 の無料クレジットがもらえます。</td>
-</tr>
-
-<tr>
 <td width="180"><a href="https://sssaicodeapi.com/register?ref=DCP0SM"><img src="assets/partners/logos/sssaicode.png" alt="SSSAiCode" width="150"></a></td>
 <td>SSSAiCode のご支援に感謝します！SSSAiCode は安定性と信頼性に優れた API 中継サービスで、安定的で信頼性が高く、手頃な価格の Claude・Codex モデルサービスを提供しています。当日の迅速な請求書発行をサポート。CC Switch ユーザー向けの特別特典：<a href="https://sssaicodeapi.com/register?ref=DCP0SM">こちらのリンク</a>から登録すると、毎回のチャージで $10 の追加ボーナスを受けられます！</td>
 </tr>
@@ -237,7 +236,7 @@ Claude Code、Codex、Gemini CLI などの AI コーディングツールは、�
 
 **CC Switch** は、こうした作業を 1 つのデスクトップアプリに集約します。プリセットを選んでキーを入力すれば、ワンクリックで切り替えられます。切り替え時に置き換えるのはアドレス、キー、モデルといった接続情報だけで、自分で追加したプラグイン、フック、MCP、コメントはそのまま残ります。
 
-- **1 つのアプリで 14 のツール** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code、Kimi Code、Oh My Pi、Antigravity（agy）、DeepSeek Harness
+- **1 つのアプリで 12 のツール** — Claude Code、Claude Desktop、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code、Kimi Code、Oh My Pi
 - **手動編集は不要** — AWS Bedrock、NVIDIA NIM、コミュニティリレーなど 90 以上のプロバイダプリセットを内蔵
 - **直接接続・ルーティング・集約を用途に応じて選択** — 直接接続はツールがプロバイダへ直接つなぎます。ルーティングはローカルで転送し、API 形式の変換と自動フェイルオーバーにより、Claude Code で GPT を、Codex で Claude を使えるようにします。集約は複数のプロバイダのモデルを Claude Code や Codex の 1 つのモデル一覧にまとめ、選んだモデルに応じてそのプロバイダへリクエストを送ります
 - **MCP・Skills・プロンプトを一元管理** — MCP と Skills は一度追加すれば、ツールごとにチェックを入れて同期。プロンプトはツールごとに個別に管理
@@ -420,14 +419,14 @@ paru -S cc-switch-bin
 - **CLI ツール管理** — サイドバーの「アプリ」ページで Claude Code、Codex などのコマンドラインツールの現在のバージョンと最新バージョンを確認し、ワンクリックでインストール、アップグレード、一括アップグレード。重複インストールの診断にも対応。Windows では WSL 内のツールも管理可能（よくある質問を参照）
 - **Deep Link**（`ccswitch://`）— リンクからプロバイダ、MCP サーバー、プロンプトをワンクリックでインポート、またはスキルリポジトリを追加。リンクは [オンライン生成ツール](https://ccswitch.io/deplink.html) で作成可能。サイトにインポートボタンを置きたい運営者は [連携ガイド](https://github.com/farion1231/cc-switch/blob/main/docs/guides/deeplink-site-integration-guide-ja.md) を参照
 - **便利ツール** — Claude Code の初回確認のスキップ、AI 署名の非表示、VS Code の Claude Code 拡張を CC Switch のプロバイダ切り替えに追従させる機能など
-- ダーク / ライト / システムテーマ、自動起動、自動アップデーター、アトミック書き込み、自動バックアップ（「設定 → データ」ですべてのバックアップの場所と使用容量を確認可能）、多言語対応（簡体中文/繁體中文/英/日、コミュニティ翻訳のトルコ語）
+- ダーク / ライト / システムテーマ、自動起動、自動アップデーター、アトミック書き込み、自動バックアップ（「設定 → データ」ですべてのバックアップの場所と使用容量を確認可能）、多言語対応（簡体中文/繁體中文/英/日/韓/トルコ語/ロシア語/ドイツ語）
 
 ## よくある質問
 
 <details>
 <summary><strong>CC Switch はどの AI ツールに対応していますか？</strong></summary>
 
-CC Switch は **Claude Code**、**Claude Desktop**、**Codex**、**Gemini CLI**、**Grok Build**、**OpenCode**、**OpenClaw**、**Hermes**、**Pi**、**MiniMax Code**、**Kimi Code**、**Oh My Pi**、**Antigravity（agy）**、**DeepSeek Harness** の 14 のツールに対応しています。各ツールに専用のプロバイダプリセットと設定管理が用意されています。ツールごとに対応している機能は[ツール別の対応機能](#ツール別の対応機能)をご覧ください。
+CC Switch は **Claude Code**、**Claude Desktop**、**Codex**、**Gemini CLI**、**Grok Build**、**OpenCode**、**OpenClaw**、**Hermes**、**Pi**、**MiniMax Code**、**Kimi Code**、**Oh My Pi** の 12 のツールに対応しています。各ツールに専用のプロバイダプリセットと設定管理が用意されています。ツールごとに対応している機能は[ツール別の対応機能](#ツール別の対応機能)をご覧ください。
 
 </details>
 

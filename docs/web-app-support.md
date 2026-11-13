@@ -22,6 +22,8 @@
 | Antigravity（agy） | 卡片编辑、模型发现 | 不提供 | 支持 | 支持 | 支持 |
 | Oh My Pi | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 | DeepSeek Harness | 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
+| GitHub Copilot CLI | 官方模型配置、BYOK 多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
+| WorkBuddy | 自定义模型多供应商共存 | 不提供 | 支持 | 支持 | 支持 |
 
 本地路由可用于 Claude Code、Claude Desktop、Codex、Gemini CLI 与 Grok Build。Claude Desktop 采用模型映射，不提供完整路由/故障转移设置。Web 暂不提供 Stack 聚合。
 
@@ -45,6 +47,8 @@ MCP 与 Skills 的勾选会写入服务器上对应 CLI 的原生配置或目录
 | Antigravity（agy） | 支持 | 不提供 | 会话日志 |
 | Oh My Pi | 支持 | 支持 | 会话日志 |
 | DeepSeek Harness | 支持 | 不提供 | 会话日志 |
+| GitHub Copilot CLI | 支持 | 不提供 | 会话日志 |
+| WorkBuddy | 支持 | 不提供 | 会话日志 |
 
 用量列指自动导入或代理记录的来源，不表示已经接入托管账户额度。供应商余额/Coding Plan 查询取决于供应商接口、凭据和用量脚本。日志缺少模型或定价时，费用可能为 0，不表示服务免费。
 
@@ -66,6 +70,8 @@ Kimi、MiniMax Code 和 Antigravity 的会话须在各自 CLI 中删除，以维
 - **Antigravity（agy）**：模型发现需要服务器安装 agy；Web 不启动会话，卡片不改变直接在 shell 启动的 agy。
 - **Oh My Pi**：读写服务端 ~/.omp/agent/models.yml、config.yml；支持供应商原生状态、MCP、Skills、全局提示词和会话阅读。CLI 安装与登录由服务器管理。
 - **DeepSeek Harness**：管理服务端 DSH_HOME（默认 ~/.dsh）；供应商与 MCP 同步到 web、desktop 以及已初始化的 headless/acp profile。支持 Skills、AGENTS.md、会话阅读和用量导入；默认模型、登录、sdk profile 和会话删除由 DSH 原生界面管理。
+- **GitHub Copilot CLI**：管理服务器 ~/.copilot/providers.json、MCP、Skills 和提示词；官方登录由服务器 Copilot CLI 管理。Web 不提供托管账号登录、账号绑定与额度查询。
+- **WorkBuddy**：管理服务器 WorkBuddy 模型配置、MCP、Skills 和提示词，支持会话阅读；官方账号收录、切换、额度与应用启动仅在桌面版提供。
 
 ## 共通限制
 
