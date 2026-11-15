@@ -37,9 +37,9 @@ mod subscription;
 mod xai_oauth;
 
 mod lightweight;
-mod s3_sync;
+pub(crate) mod s3_sync;
 mod usage;
-mod webdav_sync;
+pub(crate) mod webdav_sync;
 mod workbuddy_account;
 mod workspace;
 

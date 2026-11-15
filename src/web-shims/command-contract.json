@@ -430,7 +430,7 @@
     "has_codex_unify_history_backup": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "import_claude_desktop_providers_from_claude": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "import_from_deeplink_unified": "ccswitch:// 深链接仅由桌面客户端接收。",
-    "install_update_and_restart": "桌面恢复窗口或原生窗口主题操作，由桌面运行时处理。",
+    "install_update_and_restart": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
     "is_portable_mode": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "launch_hermes_dashboard": "hermes 的专用管理界面尚未接入 Web。",
     "list_backup_locations": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -528,7 +528,10 @@
     "workbuddy_account_open_app": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
     "workbuddy_account_quota": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
     "copilot_cli_signed_in_account": "托管账号、额度和桌面应用控制未接入 Web；CLI 登录由服务器管理。",
-    "get_config_status": "本机应用安装检测仅用于桌面应用页，Web 不提供 CLI 生命周期管理。"
+    "get_config_status": "本机应用安装检测仅用于桌面应用页，Web 不提供 CLI 生命周期管理。",
+    "diagnose_ip": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
+    "get_auto_update_status": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
+    "download_app_update": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。"
   },
   "validatedCommands": [
     "get_current_provider",

@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.31**（已合并至上游 `761b4c02`，标签后 5 个提交），见
-> [`upstream-v4.0.31.lock`](upstream-v4.0.31.lock)。
+> 当前对标基线 **v4.0.32**（已合并至上游 `3630d9de`，标签后 7 个提交），见
+> [`upstream-v4.0.32.lock`](upstream-v4.0.32.lock)。
 
 本次同步新增 Copilot CLI 与 WorkBuddy，共支持 16 个应用。Copilot CLI 可管理服务器
 `~/.copilot/providers.json` 的 BYOK 卡和官方模型配置；官方登录由服务器 CLI 管理。

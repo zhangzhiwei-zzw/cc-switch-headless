@@ -1259,7 +1259,7 @@ fn get_proxy_takeover_status(context: Arc<Context>, _args: Value) -> HandlerFutu
 /// 只有支持本地路由的应用才有代理配置、故障转移和熔断设置。
 fn require_proxy_app(app_type: &str) -> Result<AppType, String> {
     let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
-    if !app.supports_local_proxy() {
+    if !app.spec().local_proxy {
         return Err(format!("{} 不支持本地路由", app.as_str()));
     }
     Ok(app)
@@ -1269,7 +1269,7 @@ fn require_proxy_app(app_type: &str) -> Result<AppType, String> {
 /// 和桌面版 `commands::proxy::require_mode_app` 保持一致。
 fn require_mode_app(app_type: &str) -> Result<AppType, String> {
     let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
-    if !app.has_route_mode() {
+    if !app.spec().route_mode {
         return Err(format!("{} 不支持本地路由", app.as_str()));
     }
     Ok(app)

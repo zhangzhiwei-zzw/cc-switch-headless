@@ -13,6 +13,7 @@ pub mod env_manager;
 pub mod exchange_rates;
 pub mod failover;
 pub mod import_export;
+pub mod ip_diagnostics;
 pub mod kimi_oauth;
 pub mod mcp;
 #[cfg(feature = "desktop")]

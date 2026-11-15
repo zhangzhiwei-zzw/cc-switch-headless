@@ -14,7 +14,7 @@ use crate::store::AppState;
 /// 只有支持本地路由的应用才有故障转移。
 pub fn require_failover_app(app_type: &str) -> Result<(), String> {
     let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
-    if !app.supports_local_proxy() {
+    if !app.spec().local_proxy {
         return Err(format!("{} 不支持故障转移", app.as_str()));
     }
     Ok(())

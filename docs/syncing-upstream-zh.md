@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.31.lock`](upstream-v4.0.31.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.32.lock`](upstream-v4.0.32.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -88,6 +88,7 @@ Host github.com
 | 2026-11-05 | v4.0.23 → v4.0.26（保留已有 v4.0.25 同步分支） | 81 | 285 | 26 个文件 |
 | 2026-11-07 | v4.0.26 → 会话正文搜索、界面密度与缩放 | 17 | 103 | 2 个文件 |
 | 2026-11-13 | v4.0.26 后续提交 → v4.0.31 + 5 commits | 136 | 435 | 17 个文件 |
+| 2026-11-15 | v4.0.31 后续提交 → v4.0.32 + 7 commits | 28 | 169 | 16 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -99,7 +100,7 @@ git diff --name-only "$BASE"...upstream/main | wc -l # 上游改动文件数
 ```
 
 基线比 tag 多几个提交，用 `git rev-list --count <tag-peel>..<tip>` 算——这次是
-`v4.0.31..761b4c02 = 5`，不要凭印象写。
+`v4.0.32..3630d9de = 7`，不要凭印象写。
 
 第一次（v4.0.8）的冲突：3 处 `.github/workflows/release.yml`；2 处
 `src-tauri/src/proxy/forwarder.rs`；2 处 `src-tauri/Cargo.toml`；2 处 `README.md`；
@@ -345,7 +346,7 @@ Copilot 协议转换及配置锁和缓存的 panic 恢复。
 
 README 中英主页继续介绍 Web 服务；其余七语言更新上游桌面文档，并在页首链接 Web
 指南。上游 README 一致性测试改为分别检查 Web 主页和桌面文档，避免把 fork 首页当成
-桌面赞助商表的参照。同步基线改为 `upstream-v4.0.31.lock`。
+桌面赞助商表的参照。同步基线改为 `upstream-v4.0.32.lock`。
 
 验证通过：相关前端 65 个测试文件（1315 项用例，含修复后的定向重跑），207 项
 HTTP / 安全 / 安装回归、12 项浏览器回归。初次语言一致性检查发现 6 个语言缺少
@@ -561,10 +562,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.31.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.32.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.31.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.32.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
@@ -606,3 +607,21 @@ git revert -m 1 <merge-commit>   # 撤销这次 merge 引入的改动
 ```
 
 合并尚未提交时用 `git merge --abort` 撤销，要求开始合并前工作区干净。
+
+
+### 2026-11-15：同步 v4.0.32 与后续重构
+
+先将已验证的 Codex Web 默认账号加载修复和 Windows 图标资源修复提交为 `df7540a6`，
+再直接在本地 main 合并上游 `3630d9de`：28 个提交、169 个文件、16 个冲突文件。
+保留无头构建、共享故障转移服务、Pi 类型化命令、Web 能力限制与中英 Web README。
+供应商身份同步为 ProviderKind，应用能力同步为 AppSpec，语言表与预设模型列表使用
+上游统一定义。WebDAV/S3 共用逻辑继续置于 services，运行时改用 host 门面，供 Web
+导入后的同步共用。原生自动更新仅在桌面启用；网络诊断沿用 Network 页面能力限制。
+保留黑窗口启动方式，不新增 Windows 独立窗口。
+
+验证：相关前端 25 个文件、463 项测试与语言/README 一致性 78 项通过，13 项浏览器
+回归通过。类型、格式、370 个前端命令 / 181 个服务端命令 / 16 个应用的覆盖、
+13 个 RPC 契约及 Web 构建通过，server Clippy 与构建通过。
+207 项 HTTP / 安全 / 安装回归、桌面 Clippy 和桌面测试代码编译通过。
+测试编译仍有既有的 `SystemKeychain::named` 未使用警告；未执行完整 Rust 测试二进制
+或跨平台发布构建。本次仅提交本地，不推送或发布。

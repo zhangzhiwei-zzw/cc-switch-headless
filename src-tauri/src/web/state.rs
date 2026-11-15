@@ -311,7 +311,7 @@ fn import_live_configs_and_seed(state: &AppState) {
     if let Err(error) = crate::services::provider::initialize_dsh_profiles(state) {
         log::warn!("Initializing DeepSeek Harness profiles failed: {error}");
     }
-    for app_type in AppType::all().filter(|t| !t.is_additive_mode()) {
+    for app_type in AppType::all().filter(|t| !t.spec().additive) {
         if !crate::services::provider::should_import_default_config_on_startup(state, &app_type)
             .unwrap_or(false)
         {

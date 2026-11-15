@@ -40,6 +40,7 @@ import { AboutSection } from "@/components/settings/AboutSection";
 import { RoutingSection } from "@/components/settings/sections/RoutingSection";
 import { PrivacyFilterConfigPanel } from "@/components/settings/PrivacyFilterConfigPanel";
 import { GlobalProxySettings } from "@/components/settings/GlobalProxySettings";
+import { IpDiagnostics } from "@/components/settings/IpDiagnostics";
 import { LogConfigPanel } from "@/components/settings/LogConfigPanel";
 import { GeneralSection } from "@/components/settings/sections/GeneralSection";
 import { AppConfigSection } from "@/components/settings/sections/AppConfigSection";
@@ -395,17 +396,20 @@ export function SettingsPage({
         return <RoutingSection onOpenApp={onOpenApp} />;
       case "network":
         return (
-          <SettingsBlock
-            title={t("settings.advanced.globalProxy.title")}
-            help={{
-              title: t("settings.advanced.globalProxy.title"),
-              body: t("settings.advanced.globalProxy.description"),
-            }}
-          >
-            <div className="rounded-panel border border-border bg-surface p-5">
-              <GlobalProxySettings />
-            </div>
-          </SettingsBlock>
+          <>
+            <SettingsBlock
+              title={t("settings.advanced.globalProxy.title")}
+              help={{
+                title: t("settings.advanced.globalProxy.title"),
+                body: t("settings.advanced.globalProxy.description"),
+              }}
+            >
+              <div className="rounded-panel border border-border bg-surface p-5">
+                <GlobalProxySettings />
+              </div>
+            </SettingsBlock>
+            <IpDiagnostics />
+          </>
         );
       case "data":
         return (
@@ -543,7 +547,13 @@ export function SettingsPage({
           </>
         );
       case "about":
-        return <AboutSection isPortable={isPortable} />;
+        return (
+          <AboutSection
+            isPortable={isPortable}
+            autoUpdateEnabled={settings?.autoUpdateEnabled ?? false}
+            onAutoSave={handleAutoSave}
+          />
+        );
     }
   };
 
