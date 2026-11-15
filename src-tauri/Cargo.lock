@@ -883,6 +883,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+ "tauri-winres",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

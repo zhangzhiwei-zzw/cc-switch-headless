@@ -67,6 +67,10 @@ curl -fsSL https://raw.githubusercontent.com/zhangzhiwei-zzw/cc-switch-headless/
 SmartScreen 会拦一次（未签名）：**更多信息 → 仍要运行**；关掉终端进程就结束，想常驻可以用
 任务计划程序。
 
+Windows 构建会把项目图标、版本信息及 Common Controls manifest 嵌入 `.exe`，并为传统
+控制台设置大小图标；CI 与发布构建会检查这些资源是否存在。Windows Terminal 的标签与
+任务栏图标由终端宿主管理，可能仍显示 Terminal 图标。此修改需要使用重新构建的程序。
+
 Linux 产物**在 `ubuntu:20.04` 容器里编译**（GitHub 已经没有 20.04 runner，所以复用仓库
 自带的 Dockerfile；两个架构各自在自己的原生 runner 上构建，不走 QEMU，所以 glibc 底线
 不受 runner 版本影响），构建末尾有两道断言：最高 glibc 符号引用不得高于 **2.31**，且
@@ -273,6 +277,8 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
 - 供应商：新增 / 编辑 / 删除 / 切换 / 排序 / 从 live 导入 / 编辑器预览；
   **「我的图标」**（本地上传、重命名、删除、跨应用复用）也在服务端落库：单张 PNG
   ≤ 256×256、data URI ≤ 64 KiB，整个图标库最多 100 个，名称 ≤ 64 字符；
+- **Codex 默认登录**：跟随服务端运行用户的 Codex CLI 登录。Web 不查询托管账号中心，
+  默认登录编辑器不显示账号加载动画；已有托管绑定保持原样，不会自动改成默认登录。
 - **Kimi Code**：支持供应商及模型管理、MCP、Skills、提示词、会话阅读和用量同步；配置位于服务端的 `~/.kimi-code`（可通过 `KIMI_CODE_HOME` 覆盖）。采用多供应商共存模式，支持添加、移除及切换默认供应商，不提供本地路由；托管 OAuth 登录、官方模型发现和额度未接入 Web，会话删除由 Kimi Code 管理。详见 [Kimi 接入](kimi-code-integration-zh.md)。
 - **Antigravity（agy）供应商**：可配置 API Key、地址和模型；模型发现由服务器上安装的
   `agy` CLI 执行。Web 不启动 agy 会话，也不会改变直接在 shell 启动的 agy；页面明确显示此限制。OpenCode 供应商卡也可读取 / 设置 `opencode.json` 顶层默认模型；

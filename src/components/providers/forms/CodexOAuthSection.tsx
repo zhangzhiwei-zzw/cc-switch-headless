@@ -1,3 +1,4 @@
+import { supports } from "@/lib/capabilities";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
   helpSide,
 }) => {
   const { t, i18n } = useTranslation();
+  const accountStatusSupported = supports("pageAuth");
   const [loginMethod, setLoginMethod] =
     React.useState<CodexLoginMethod>("browser");
 
@@ -196,7 +198,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
     ? accountChoicePlaceholder
     : selectedAccount?.login ||
       (selectedAccountId
-        ? isStatusError
+        ? isStatusError || !accountStatusSupported
           ? t("codex.accountStatusUnavailable", "无法读取账号信息")
           : isStatusSuccess
             ? t("codex.boundAccountUnavailable", "绑定的账号不可用")
@@ -220,7 +222,10 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
         <Select
           value={accountSelectValue}
           onValueChange={handleAccountSelect}
-          disabled={nativeLoginOnly}
+          disabled={
+            nativeLoginOnly ||
+            (!accountStatusSupported && Boolean(selectedAccountId))
+          }
         >
           <SelectTrigger
             className="h-10 min-w-0 rounded-lg bg-surface px-3 shadow-sm"
@@ -250,7 +255,8 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
                 <span className="text-fg-2">{accountChoicePlaceholder}</span>
               </SelectItem>
             )}
-            {!nativeLoginOnly &&
+            {accountStatusSupported &&
+              !nativeLoginOnly &&
               accounts.map((account, index) => (
                 <React.Fragment key={account.id}>
                   <SelectItem
@@ -281,7 +287,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
                   )}
                 </React.Fragment>
               ))}
-            {!nativeLoginOnly && onManageAccounts && (
+            {accountStatusSupported && !nativeLoginOnly && onManageAccounts && (
               <SelectItem value="__manage_accounts__" className="py-2 pl-6">
                 <div className="flex items-center gap-2">
                   <Plus className="h-4 w-4 shrink-0 text-fg-2" />
@@ -323,7 +329,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
       </div>
     );
 
-  const statusErrorBanner = isStatusError && (
+  const statusErrorBanner = accountStatusSupported && isStatusError && (
     <div
       role="alert"
       className="flex items-center gap-2 rounded-md border border-transparent bg-danger-soft px-3 py-2 text-sm text-danger-text"
@@ -359,7 +365,7 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
       <div className={`space-y-4 ${className || ""}`}>
         {statusErrorBanner}
 
-        {!isStatusSuccess && !isStatusError && (
+        {accountStatusSupported && !isStatusSuccess && !isStatusError && (
           <div className="flex items-center gap-2 text-sm text-fg-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t("codexOauth.statusLoading", "正在加载...")}

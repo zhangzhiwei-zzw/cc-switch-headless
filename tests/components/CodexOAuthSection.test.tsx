@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
   useCodexOauth: vi.fn(),
   renderAccountQuota: vi.fn(),
   accountUsers: vi.fn(),
+  supports: vi.fn(),
 }));
+
+vi.mock("@/lib/capabilities", () => ({ supports: mocks.supports }));
 
 vi.mock("@/lib/query/accountPlans", () => ({
   useAccountQuotaPlans: () => ({}),
@@ -66,6 +69,7 @@ describe("CodexOAuthSection", () => {
       configurable: true,
       value: vi.fn(),
     });
+    mocks.supports.mockReturnValue(true);
     mocks.accountUsers.mockReset();
     mocks.accountUsers.mockReturnValue([]);
     mocks.useCodexOauth.mockReturnValue({
@@ -125,6 +129,60 @@ describe("CodexOAuthSection", () => {
     } else {
       Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
     }
+  });
+
+  it("shows native login without a spinner when Web account queries are disabled", () => {
+    mocks.supports.mockReturnValue(false);
+    mocks.useCodexOauth.mockReturnValue({
+      ...mocks.useCodexOauth(),
+      accounts: [],
+      hasAnyAccount: false,
+      isStatusSuccess: false,
+      isStatusError: false,
+    });
+    const onAccountSelect = vi.fn();
+    render(
+      <CodexOAuthSection
+        mode="select"
+        selectedAccountId={null}
+        onAccountSelect={onAccountSelect}
+        noneOptionLabel="Follow server Codex CLI login"
+        allowUnboundSelection
+        allowUnboundSelectionWithoutStatus
+      />,
+    );
+    expect(screen.getByRole("combobox")).toHaveTextContent(
+      "Follow server Codex CLI login",
+    );
+    expect(screen.queryByText("正在加载账号状态...")).not.toBeInTheDocument();
+    expect(document.querySelector(".animate-spin")).toBeNull();
+    expect(onAccountSelect).not.toHaveBeenCalled();
+  });
+
+  it("preserves a bound account without pretending to load it in Web", () => {
+    mocks.supports.mockReturnValue(false);
+    mocks.useCodexOauth.mockReturnValue({
+      ...mocks.useCodexOauth(),
+      accounts: [],
+      hasAnyAccount: false,
+      isStatusSuccess: false,
+      isStatusError: false,
+    });
+    const onAccountSelect = vi.fn();
+    render(
+      <CodexOAuthSection
+        mode="select"
+        selectedAccountId="account-1"
+        onAccountSelect={onAccountSelect}
+        noneOptionLabel="Follow server Codex CLI login"
+        allowUnboundSelection
+        allowUnboundSelectionWithoutStatus
+      />,
+    );
+    expect(screen.getByRole("combobox")).toHaveTextContent("无法读取账号信息");
+    expect(screen.getByRole("combobox")).toBeDisabled();
+    expect(document.querySelector(".animate-spin")).toBeNull();
+    expect(onAccountSelect).not.toHaveBeenCalled();
   });
 
   it("does not render account quota by default", () => {

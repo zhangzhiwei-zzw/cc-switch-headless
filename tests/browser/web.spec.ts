@@ -453,3 +453,31 @@ test("Web session text search builds its index and refreshes matches through SSE
     unlinkSync(source);
   }
 });
+
+test("Codex native login editor does not wait for unsupported Web account status", async ({
+  page,
+}) => {
+  const accountRequests: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().endsWith("/api/invoke") &&
+      request.postDataJSON()?.cmd === "auth_get_status"
+    )
+      accountRequests.push(request.postDataJSON().cmd);
+  });
+  await login(page);
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "Codex", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Edit OpenAI Official", exact: true })
+    .click();
+  await expect(
+    page.getByRole("combobox", { name: "Sign-in method", exact: true }),
+  ).toHaveText("Follow Codex login");
+  await expect(
+    page.getByText("Loading account status...", { exact: true }),
+  ).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+});

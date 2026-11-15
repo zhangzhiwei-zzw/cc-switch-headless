@@ -63,6 +63,7 @@ jobs:
               - "README*.md"
               - ".github/workflows/ci.yml"
             backend:
+              - "scripts/ci/check-windows-server.ps1"
               - "src-tauri/**"
               - "rust-toolchain.toml"
               - ".github/workflows/**"
@@ -219,6 +220,16 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Build Windows server and verify its resources
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --locked --no-default-features --features server --bin cc-switch-server --manifest-path src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/ci/check-windows-server.ps1 -Binary src-tauri/target/debug/cc-switch-server.exe
+          & "src-tauri/target/debug/cc-switch-server.exe" --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # 每个测试一个进程，单测超时见 src-tauri/.config/nextest.toml。doctest 目前只有两个
       # ignored，nextest 不跑 doctest 也不漏。

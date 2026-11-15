@@ -229,6 +229,10 @@ jobs:
       - name: Build the server
         run: cargo build --release --no-default-features --features server --bin cc-switch-server --manifest-path src-tauri/Cargo.toml
 
+      - name: Verify Windows server icon and manifest
+        shell: pwsh
+        run: ./scripts/ci/check-windows-server.ps1 -Binary src-tauri/target/release/cc-switch-server.exe
+
       # 只做 --help：证明 PE 能加载、依赖齐全。不做起服务那套——在 Windows 上
       # HOME 不隔离配置目录（走 USERPROFILE），会把 runner 的真实用户目录写脏。
       - name: Smoke test the binary

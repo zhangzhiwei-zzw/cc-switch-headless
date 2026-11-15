@@ -15,7 +15,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../.git/HEAD");
     println!("cargo:rerun-if-changed=../.git/refs/heads/main");
     // tauri-build 只在桌面版（default feature）编译；server 模式没有 tauri 依赖，
-    // 也不需要生成上下文/资源清单。
+    // 不生成桌面上下文；Windows 服务端资源由下方独立嵌入。
     #[cfg(feature = "desktop")]
     tauri_build::build();
 
@@ -24,6 +24,20 @@ fn main() {
     // 真正构建过前端后这里不会覆盖产物。
     #[cfg(feature = "server")]
     ensure_web_dist_placeholder();
+
+    // Standalone server builds skip tauri-build, so embed their Windows resources here.
+    #[cfg(all(target_os = "windows", feature = "server", not(feature = "desktop")))]
+    {
+        println!("cargo:rerun-if-changed=icons/icon.ico");
+        println!("cargo:rerun-if-changed=common-controls.manifest");
+        tauri_winres::WindowsResource::new()
+            .set_icon("icons/icon.ico")
+            .set_manifest_file("common-controls.manifest")
+            .set("ProductName", "CC Switch Server")
+            .set("FileDescription", "CC Switch headless Web server")
+            .compile()
+            .expect("failed to embed Windows server icon and manifest");
+    }
 
     // Windows: Embed Common Controls v6 manifest for test binaries
     //
@@ -35,7 +49,7 @@ fn main() {
     // 1. Embeds the manifest into test binaries via /MANIFEST:EMBED
     // 2. Uses /MANIFEST:NO for the main binary to avoid duplicate resources
     //    (Tauri already handles manifest embedding for the app binary)
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "desktop"))]
     {
         let manifest_path = std::path::PathBuf::from(
             std::env::var("CARGO_MANIFEST_DIR").expect("missing CARGO_MANIFEST_DIR"),
