@@ -45,6 +45,9 @@ pub const HANDLERS: &[(&str, Handler)] = &[
     ("uninstall_skill_for_app", uninstall_skill_for_app),
     // 仓库管理
     ("get_skill_repos", get_skill_repos),
+    ("get_skill_repo_tokens", get_skill_repo_tokens),
+    ("set_skill_repo_token", set_skill_repo_token),
+    ("delete_skill_repo_token", delete_skill_repo_token),
     ("add_skill_repo", add_skill_repo),
     ("remove_skill_repo", remove_skill_repo),
     ("install_skills_from_zip", install_skills_from_zip),
@@ -503,14 +506,14 @@ fn add_skill_repo(context: Arc<Context>, args: Value) -> HandlerFuture {
         struct Args {
             repo: crate::services::skill::SkillRepo,
         }
-        let Args { repo } = parse(args)?;
+        let Args { mut repo } = parse(args)?;
+        repo.host = repo.host.trim().to_ascii_lowercase();
         let state = context.require_state()?;
 
         deferred(move || {
             // 整个结构体由前端反序列化而来，owner/name/branch 会被拼进归档下载
             // URL。主防线在 download_repo，这里让非法值当场报错而不是沉淀进表。
-            SkillService::validate_repo_ref(&repo.owner, &repo.name, &repo.branch)
-                .map_err(|error| error.to_string())?;
+            SkillService::validate_repo(&repo).map_err(|error| error.to_string())?;
             state
                 .db
                 .save_skill_repo(&repo)
@@ -571,6 +574,50 @@ fn refresh_local_skill_metadata(context: Arc<Context>, _args: Value) -> HandlerF
         let state = context.require_state()?;
         deferred(move || {
             SkillService::refresh_local_skill_metadata(&state.db).map_err(|e| e.to_string())
+        })
+        .await
+    })
+}
+
+fn get_skill_repo_tokens(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    deferred(move || {
+        context
+            .skill_service
+            .repo_token_list()
+            .map_err(|e| e.to_string())
+    })
+}
+
+fn set_skill_repo_token(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            host: String,
+            token: String,
+        }
+        let Args { host, token } = parse(args)?;
+        deferred(move || {
+            context
+                .skill_service
+                .set_repo_token(&host, &token)
+                .map_err(|e| e.to_string())
+        })
+        .await
+    })
+}
+
+fn delete_skill_repo_token(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            host: String,
+        }
+        let Args { host } = parse(args)?;
+        deferred(move || {
+            context
+                .skill_service
+                .delete_repo_token(&host)
+                .map_err(|e| e.to_string())
         })
         .await
     })

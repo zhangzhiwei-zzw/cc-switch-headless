@@ -3,6 +3,7 @@ import { isTauriRuntime } from "@/lib/platform";
 import { webFetch } from "@/lib/webConnection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  CheckCircle2,
   Download,
   ExternalLink,
   Github,
@@ -93,7 +94,10 @@ export function AboutSection({
     resetDismiss,
     isChecking,
     autoUpdateSupported,
+    autoUpdateDownloading,
+    readyUpdate,
     refreshAutoUpdate,
+    startAutoDownload,
   } = useUpdate();
 
   const handleAutoUpdateChange = useCallback(
@@ -105,15 +109,9 @@ export function AboutSection({
       await refreshAutoUpdate();
       // 托盘里的「重启并更新」跟着开关出现 / 消失
       providersApi.updateTrayMenu().catch(console.error);
-      if (enabled) {
-        settingsApi
-          .downloadAppUpdate()
-          .catch((error) =>
-            console.error("[AboutSection] Auto update download failed", error),
-          );
-      }
+      if (enabled) void startAutoDownload();
     },
-    [onAutoSave, refreshAutoUpdate],
+    [onAutoSave, refreshAutoUpdate, startAutoDownload],
   );
 
   useEffect(() => {
@@ -337,6 +335,22 @@ export function AboutSection({
           )}
           {isPortable && (
             <p className="text-fg-2">{t("settings.portableUpdateHint")}</p>
+          )}
+          {/* 开关开着时说明后台下载到哪一步了，不然看上去和没开一样 */}
+          {autoUpdateEnabled && autoUpdateSupported && !isPortable && (
+            <>
+              {readyUpdate?.version === updateInfo.availableVersion ? (
+                <p className="flex items-center gap-1.5 text-fg-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success-text" />
+                  {t("autoUpdate.downloadedInline")}
+                </p>
+              ) : autoUpdateDownloading ? (
+                <p className="flex items-center gap-1.5 text-fg-2">
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  {t("autoUpdate.downloadingInline")}
+                </p>
+              ) : null}
+            </>
           )}
         </div>
       )}

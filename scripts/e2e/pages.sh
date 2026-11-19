@@ -132,6 +132,25 @@ check "已启用的提示词不能删除" "False" \
 
 echo
 echo "== Skills"
+check "Web 隐藏本机 CLI 插件页" "False" "$(printf '%s' "$CAPS" | python3 -c 'import json,sys; print(json.load(sys.stdin)["features"]["pagePlugins"])')"
+check "Skill 令牌清单初始为空" "True" \
+  "$(jget '{"cmd":"get_skill_repo_tokens"}' 'd["ok"] and d["data"]["hosts"] == []')"
+check "Skill 令牌按主机规范化保存" "gitlab.example.com" \
+  "$(jget '{"cmd":"set_skill_repo_token","args":{"host":"GitLab.Example.com","token":"cc-switch-test-secret"}}' 'd["data"]')"
+check "Skill 令牌清单不返回密钥" "True" \
+  "$(jget '{"cmd":"get_skill_repo_tokens"}' 'd["data"]["hosts"] == ["gitlab.example.com"] and "cc-switch-test-secret" not in str(d)')"
+check "Skill 拒绝包含路径的令牌主机" "False" \
+  "$(jget '{"cmd":"set_skill_repo_token","args":{"host":"gitlab.example.com/evil","token":"cc-switch-test-secret"}}' 'd["ok"]')"
+check "添加 GitLab 子组仓库" "True" \
+  "$(jget '{"cmd":"add_skill_repo","args":{"repo":{"host":"GitLab.Example.com","owner":"team/subgroup","name":"skills","branch":"main","enabled":false}}}' 'd["data"]')"
+check "仓库主机被规范化保存" "True" \
+  "$(jget '{"cmd":"get_skill_repos"}' 'any(r["owner"]=="team/subgroup" and r["host"]=="gitlab.example.com" for r in d["data"])')"
+check "删除 GitLab 测试仓库" "True" \
+  "$(jget '{"cmd":"remove_skill_repo","args":{"owner":"team/subgroup","name":"skills"}}' 'd["data"]')"
+check "删除 Skill 主机令牌" "gitlab.example.com" \
+  "$(jget '{"cmd":"delete_skill_repo_token","args":{"host":"gitlab.example.com"}}' 'd["data"]')"
+check "删除后 Skill 令牌清单为空" "True" \
+  "$(jget '{"cmd":"get_skill_repo_tokens"}' 'd["data"]["hosts"] == []')"
 check "初始没有已安装 Skill" "0" "$(jget '{"cmd":"get_installed_skills"}' 'len(d["data"])')"
 check "添加仓库" "True" \
   "$(jget '{"cmd":"add_skill_repo","args":{"repo":{"owner":"anthropics","name":"skills","branch":"main","enabled":true}}}' 'd["data"]')"

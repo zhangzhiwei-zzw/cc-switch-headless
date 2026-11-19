@@ -16,6 +16,7 @@ import {
   KeyRound,
   Layers,
   LayoutGrid,
+  Puzzle,
   Route,
   Server,
   Settings,
@@ -294,6 +295,12 @@ function MainDirectory({
       label: t("nav.sessions"),
       icon: History,
       feature: "pageSessions",
+    },
+    {
+      page: "plugins",
+      label: t("nav.plugins"),
+      icon: Puzzle,
+      feature: "pagePlugins",
     },
     {
       page: "auth",

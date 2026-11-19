@@ -12,12 +12,12 @@ use crate::provider::Provider;
 use crate::store::AppState;
 
 /// 只有支持本地路由的应用才有故障转移。
-pub fn require_failover_app(app_type: &str) -> Result<(), String> {
+pub fn require_failover_app(app_type: &str) -> Result<AppType, String> {
     let app = AppType::from_str(app_type).map_err(|error| format!("无效的应用类型: {error}"))?;
     if !app.spec().local_proxy {
         return Err(format!("{} 不支持故障转移", app.as_str()));
     }
-    Ok(())
+    Ok(app)
 }
 
 /// 校验供应商存在且支持故障转移（Codex 官方账号卡不支持）。
@@ -26,11 +26,12 @@ pub fn require_failover_provider(
     app_type: &str,
     provider_id: &str,
 ) -> Result<Provider, String> {
+    let app_enum = require_failover_app(app_type)?;
     let provider = db
-        .get_provider_by_id(provider_id, app_type)
+        .get_provider_by_id(provider_id, &app_enum)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("供应商不存在: {provider_id}"))?;
-    if !crate::proxy::provider_router::provider_supports_failover(app_type, &provider) {
+    if !crate::proxy::provider_router::provider_supports_failover(&app_enum, &provider) {
         return Err("Codex Official 账号卡不支持自动故障转移".to_string());
     }
     Ok(provider)
@@ -41,10 +42,10 @@ pub fn require_failover_provider(
 // ============================================================================
 
 pub async fn get_queue(state: &AppState, app_type: &str) -> Result<Vec<FailoverQueueItem>, String> {
-    require_failover_app(app_type)?;
+    let app_enum = require_failover_app(app_type)?;
     let queue = state
         .db
-        .get_failover_queue(app_type)
+        .get_failover_queue(&app_enum)
         .map_err(|e| e.to_string())?;
     if app_type != "codex" {
         return Ok(queue);
@@ -53,50 +54,55 @@ pub async fn get_queue(state: &AppState, app_type: &str) -> Result<Vec<FailoverQ
     // Codex 官方账号卡留在队列里没有意义，读取时过滤掉
     let providers = state
         .db
-        .get_all_providers(app_type)
+        .get_all_providers(&app_enum)
         .map_err(|e| e.to_string())?;
-    Ok(filter_supported(app_type, queue, &providers))
+    Ok(filter_supported(&app_enum, queue, &providers))
 }
 
 pub async fn get_available_providers(
     state: &AppState,
     app_type: &str,
 ) -> Result<Vec<Provider>, String> {
-    require_failover_app(app_type)?;
+    let app_enum = require_failover_app(app_type)?;
+    let queue = state
+        .db
+        .get_failover_queue(&app_enum)
+        .map_err(|e| e.to_string())?;
     let providers = state
         .db
-        .get_available_providers_for_failover(app_type)
-        .map_err(|e| e.to_string())?;
+        .get_all_providers(&app_enum)
+        .map_err(|e| e.to_string())?
+        .into_values()
+        .filter(|provider| !queue.iter().any(|item| item.provider_id == provider.id));
     Ok(providers
-        .into_iter()
         .filter(|provider| {
-            crate::proxy::provider_router::provider_supports_failover(app_type, provider)
+            crate::proxy::provider_router::provider_supports_failover(&app_enum, provider)
         })
         .collect())
 }
 
 pub async fn add(state: &AppState, app_type: &str, provider_id: &str) -> Result<(), String> {
-    require_failover_app(app_type)?;
+    let app_enum = require_failover_app(app_type)?;
     require_failover_provider(&state.db, app_type, provider_id)?;
     state
         .db
-        .add_to_failover_queue(app_type, provider_id)
+        .add_to_failover_queue(&app_enum, provider_id)
         .map_err(|e| e.to_string())
 }
 
 pub async fn remove(state: &AppState, app_type: &str, provider_id: &str) -> Result<(), String> {
-    require_failover_app(app_type)?;
+    let app_enum = require_failover_app(app_type)?;
     state
         .db
-        .remove_from_failover_queue(app_type, provider_id)
+        .remove_from_failover_queue(&app_enum, provider_id)
         .map_err(|e| e.to_string())
 }
 
 pub async fn auto_failover_enabled(state: &AppState, app_type: &str) -> Result<bool, String> {
-    require_failover_app(app_type)?;
+    let app_enum = require_failover_app(app_type)?;
     state
         .db
-        .get_proxy_config_for_app(app_type)
+        .get_proxy_config_for_app(&app_enum)
         .await
         .map(|config| config.auto_failover_enabled)
         .map_err(|e| e.to_string())
@@ -114,16 +120,14 @@ pub async fn set_auto_failover_enabled(
     app_type: &str,
     enabled: bool,
 ) -> Result<Option<String>, String> {
-    require_failover_app(app_type)?;
-    let app_enum =
-        AppType::from_str(app_type).map_err(|_| format!("无效的应用类型: {app_type}"))?;
+    let app_enum = require_failover_app(app_type)?;
     log::info!(
         "[Failover] Setting auto_failover_enabled: app_type='{app_type}', enabled={enabled}"
     );
 
     let mut config = state
         .db
-        .get_proxy_config_for_app(app_type)
+        .get_proxy_config_for_app(&app_enum)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -135,13 +139,13 @@ pub async fn set_auto_failover_enabled(
     let p1_provider_id = if enabled {
         let all_providers = state
             .db
-            .get_all_providers(app_type)
+            .get_all_providers(&app_enum)
             .map_err(|e| e.to_string())?;
         let mut queue = filter_supported(
-            app_type,
+            &app_enum,
             state
                 .db
-                .get_failover_queue(app_type)
+                .get_failover_queue(&app_enum)
                 .map_err(|e| e.to_string())?,
             &all_providers,
         );
@@ -162,15 +166,15 @@ pub async fn set_auto_failover_enabled(
 
             state
                 .db
-                .add_to_failover_queue(app_type, &current_id)
+                .add_to_failover_queue(&app_enum, &current_id)
                 .map_err(|e| e.to_string())?;
             auto_added_provider_id = Some(current_id);
 
             queue = filter_supported(
-                app_type,
+                &app_enum,
                 state
                     .db
-                    .get_failover_queue(app_type)
+                    .get_failover_queue(&app_enum)
                     .map_err(|e| e.to_string())?,
                 &all_providers,
             );
@@ -191,7 +195,7 @@ pub async fn set_auto_failover_enabled(
                 .await
         {
             if let Some(provider_id) = auto_added_provider_id {
-                let _ = state.db.remove_from_failover_queue(app_type, &provider_id);
+                let _ = state.db.remove_from_failover_queue(&app_enum, &provider_id);
             }
             return Err(error);
         }
@@ -211,7 +215,7 @@ pub async fn set_auto_failover_enabled(
 }
 
 fn filter_supported(
-    app_type: &str,
+    app_enum: &AppType,
     queue: Vec<FailoverQueueItem>,
     providers: &indexmap::IndexMap<String, Provider>,
 ) -> Vec<FailoverQueueItem> {
@@ -219,7 +223,7 @@ fn filter_supported(
         .into_iter()
         .filter(|item| {
             providers.get(&item.provider_id).is_some_and(|provider| {
-                crate::proxy::provider_router::provider_supports_failover(app_type, provider)
+                crate::proxy::provider_router::provider_supports_failover(app_enum, provider)
             })
         })
         .collect()
@@ -256,7 +260,8 @@ mod tests {
             }),
             ..Default::default()
         });
-        db.save_provider("codex", &official).expect("save official");
+        db.save_provider(&crate::AppType::Codex, &official)
+            .expect("save official");
 
         assert!(require_failover_provider(&db, "codex", &official.id).is_err());
     }

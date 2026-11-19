@@ -542,5 +542,3 @@ export const CodexOAuthSection: React.FC<CodexOAuthSectionProps> = ({
     </ManagedAccountsGroup>
   );
 };
-
-export default CodexOAuthSection;

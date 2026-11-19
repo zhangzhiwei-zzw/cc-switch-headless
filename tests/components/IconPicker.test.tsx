@@ -7,10 +7,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { IconPicker } from "@/components/IconPicker";
 import { listCustomIcons, setCustomIcons } from "../msw/state";
 import { pngDataUri } from "../fixtures/customIcon";
+import { createTestQueryClient } from "../utils/testQueryClient";
 
 const normalizeIconFile = vi.hoisted(() => vi.fn());
 vi.mock("@/utils/customIcon", async (importOriginal) => ({
@@ -22,9 +23,7 @@ const CUSTOM = pngDataUri(96, 96);
 const OTHER = pngDataUri(64, 64);
 
 function withClient(ui: ReactElement) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = createTestQueryClient();
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
@@ -160,7 +159,9 @@ describe("IconPicker my icons", () => {
     const name = await screen.findByLabelText("iconPicker.nameLabel");
     fireEvent.change(name, { target: { value: "New" } });
     fireEvent.click(screen.getByText("common.save"));
-    expect(await screen.findByText("New")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "New" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("iconPicker.delete"));
     fireEvent.click(

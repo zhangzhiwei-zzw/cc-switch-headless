@@ -187,11 +187,10 @@ fn set_mcp_enabled(context: Arc<Context>, args: Value) -> HandlerFuture {
         let app_type = to_app_type(&app)?;
         let state = context.require_state()?;
 
-        deferred(move || {
-            McpService::set_enabled(&state, app_type, &id, enabled)
-                .map_err(|error| error.to_string())
-        })
-        .await
+        McpService::toggle_app_locked(&state, &id, app_type, enabled)
+            .await
+            .map(|_| Value::Bool(true))
+            .map_err(|e| e.to_string())
     })
 }
 

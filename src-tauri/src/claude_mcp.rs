@@ -1,5 +1,7 @@
+#[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+#[cfg(feature = "server")]
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -67,6 +69,7 @@ fn wrap_command_for_windows(_obj: &mut Map<String, Value>) {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(feature = "server")]
 pub struct McpStatus {
     pub user_config_path: String,
     pub user_config_exists: bool,
@@ -95,6 +98,7 @@ fn write_json_value(path: &Path, value: &Value) -> Result<(), AppError> {
     atomic_write(path, json.as_bytes())
 }
 
+#[cfg(feature = "server")]
 pub fn get_mcp_status() -> Result<McpStatus, AppError> {
     let path = user_config_path();
     let (exists, count) = if path.exists() {
@@ -170,6 +174,7 @@ pub fn clear_has_completed_onboarding() -> Result<bool, AppError> {
     Ok(true)
 }
 
+#[cfg(feature = "server")]
 pub fn upsert_mcp_server(id: &str, spec: Value) -> Result<bool, AppError> {
     if id.trim().is_empty() {
         return Err(AppError::InvalidInput("MCP 服务器 ID 不能为空".into()));
@@ -242,6 +247,7 @@ pub fn upsert_mcp_server(id: &str, spec: Value) -> Result<bool, AppError> {
     Ok(true)
 }
 
+#[cfg(feature = "server")]
 pub fn delete_mcp_server(id: &str) -> Result<bool, AppError> {
     if id.trim().is_empty() {
         return Err(AppError::InvalidInput("MCP 服务器 ID 不能为空".into()));
@@ -262,6 +268,7 @@ pub fn delete_mcp_server(id: &str) -> Result<bool, AppError> {
     Ok(true)
 }
 
+#[cfg(feature = "server")]
 pub fn validate_command_in_path(cmd: &str) -> Result<bool, AppError> {
     if cmd.trim().is_empty() {
         return Ok(false);

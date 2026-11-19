@@ -114,6 +114,7 @@ import { EnvWarningBanner } from "@/components/env/EnvWarningBanner";
 import { SwitchModePanel } from "@/components/providers/mode/SwitchModePanel";
 import { proxyApi } from "@/lib/api/proxy";
 import type { AppMode, StartupAttachFailure } from "@/types/proxy";
+import { PLUGIN_APPS, isPluginApp } from "@/lib/api/plugins";
 const DeepLinkImportDialog = lazy(() =>
   import("@/components/DeepLinkImportDialog").then((m) => ({
     default: m.DeepLinkImportDialog,
@@ -188,6 +189,11 @@ const PromptPanel = lazy(() => import("@/components/prompts/PromptPanel"));
 const UnifiedSkillsPanel = lazy(
   () => import("@/components/skills/UnifiedSkillsPanel"),
 );
+const PluginsPage = lazy(() =>
+  import("@/components/plugins/PluginsPage").then((m) => ({
+    default: m.PluginsPage,
+  })),
+);
 const WorkspaceFilesPanel = lazy(
   () => import("@/components/workspace/WorkspaceFilesPanel"),
 );
@@ -248,6 +254,7 @@ function App() {
       hermesMemory: "hermesMemory",
       auth: "pageAuth",
       apps: "pageApps",
+      plugins: "pagePlugins",
     };
     return requirements[saved] && !supports(requirements[saved]!)
       ? "providers"
@@ -1918,6 +1925,15 @@ function App() {
             }
             onNavigationBlockedChange={setSkillsNavigationBusy}
           />
+        );
+      case "plugins":
+        return (
+          supports("pagePlugins") && (
+            <PluginsPage
+              apps={PLUGIN_APPS.filter((app) => visibleApps[app])}
+              initialApp={isPluginApp(activeApp) ? activeApp : "claude"}
+            />
+          )
         );
       case "prompts":
         return (

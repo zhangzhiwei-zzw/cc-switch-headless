@@ -415,6 +415,11 @@ async fn serve(mut options: Options) -> Result<(), String> {
             state.proxy_service.stop().await?;
         }
     }
+    crate::host::spawn_blocking(
+        crate::services::provider::claude_direct::finish_tombstones_before_exit,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1014,7 +1019,7 @@ async fn env_info(AxumState(context): AxumState<Arc<Context>>) -> Response {
         "mode": "web",
         "buildCommit": env!("CC_SWITCH_BUILD_COMMIT"),
         "instance": context.cookie_name,
-        "upstream": include_str!("../../../docs/upstream-v4.0.32.lock"),
+        "upstream": include_str!("../../../docs/upstream-v4.0.35.lock"),
         "version": env!("CARGO_PKG_VERSION"),
         "homeDir": dirs::home_dir().map(|path| path.to_string_lossy().to_string()),
         "configDir": crate::config::get_app_config_dir().to_string_lossy().to_string(),

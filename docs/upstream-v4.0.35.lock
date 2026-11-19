@@ -1,0 +1,8 @@
+upstream_repository = "farion1231/cc-switch"
+upstream_tag = "v4.0.35"
+upstream_commit = "61c43c036ec7eb3a6950b292729d6a7094abe716"
+resolved_at = "2026-11-19"
+
+# main 比 tag 多 13 个提交。本次合入 118 个提交、549 个上游文件。
+last_merged_commit = "c29332ef90f39872d6b64c543b501f8d9af33cc7"
+last_merged_tag = "v4.0.35"

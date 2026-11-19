@@ -433,7 +433,7 @@ fn get_pricing_model_source(context: Arc<Context>, args: Value) -> HandlerFuture
 
         state
             .db
-            .get_pricing_model_source(&app_type)
+            .get_pricing_model_source(&to_app_type(&app_type)?)
             .await
             .map_err(|error| error.to_string())
             .and_then(serializable)
@@ -453,7 +453,7 @@ fn set_pricing_model_source(context: Arc<Context>, args: Value) -> HandlerFuture
 
         state
             .db
-            .set_pricing_model_source(&app_type, &value)
+            .set_pricing_model_source(&to_app_type(&app_type)?, &value)
             .await
             .map(|_| Value::Null)
             .map_err(|error| error.to_string())
@@ -538,7 +538,7 @@ fn query_provider_usage(context: Arc<Context>, args: Value) -> HandlerFuture {
 
         let providers = state
             .db
-            .get_all_providers(app_type.as_str())
+            .get_all_providers(&app_type)
             .map_err(|error| format!("Failed to get providers: {error}"))?;
         let provider = providers.get(&provider_id).cloned();
 

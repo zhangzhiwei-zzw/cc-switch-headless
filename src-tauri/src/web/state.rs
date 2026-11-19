@@ -149,6 +149,7 @@ pub fn bootstrap() -> Option<Arc<AppState>> {
 
     // 7. 补完上次崩溃时写到一半的客户端文件；必须在任何写客户端文件的步骤之前
     crate::mode::operation::recover_on_startup(&state.db);
+    crate::services::provider::claude_direct::resume_tombstone_sweep();
 
     // 8. 种子：先导入 live 配置，再追加官方预设（与桌面版同序）
     match state.db.init_default_skill_repos() {

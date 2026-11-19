@@ -11,7 +11,7 @@
 | `pageSessions` | 可用 | 9 |
 | `pageImportExport` | 可用 | 5 |
 | `pageMcp` | 可用 | 15 |
-| `pageSkills` | 可用 | 29 |
+| `pageSkills` | 可用 | 32 |
 | `pagePrompts` | 可用 | 13 |
 | `pageUsage` | 可用 | 27 |
 | `sessionStream` | 可用 | 1 |
@@ -39,12 +39,13 @@
 | `universalProviders` | 未接入，隐藏入口 | 0 |
 | `modelDiscovery` | 可用 | 1 |
 | `privacyFilter` | 可用 | 2 |
+| `pagePlugins` | 未接入，隐藏入口 | 0 |
 
 | 应用 | 基础管理依赖 |
 | --- | --- |
 | claude | 通用供应商命令 |
 | claude-desktop | `ensure_claude_desktop_official_provider`, `get_claude_desktop_status`, `get_claude_desktop_default_routes` |
-| codex | `ensure_codex_official_provider` |
+| codex | 通用供应商命令 |
 | gemini | 通用供应商命令 |
 | grokbuild | `ensure_grokbuild_official_provider` |
 | opencode | `get_opencode_live_provider_ids`, `import_opencode_providers_from_live`, `get_opencode_default_model`, `set_opencode_default_model` |

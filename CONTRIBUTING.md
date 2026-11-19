@@ -79,13 +79,14 @@ pnpm test:web
 
 `pnpm check:web` 包含覆盖检查器自身的 Node 测试。只查看静态结果时，可分别运行 `node scripts/web/check-command-coverage.mjs`、`node scripts/web/check-rpc-contract.mjs`、`node scripts/web/generate-capabilities.mjs --check`。
 
-共享 Rust 代码还需在安装好桌面系统依赖后运行默认 feature 的 Clippy。CI 桌面测试使用 `cargo nextest run --manifest-path src-tauri/Cargo.toml --profile ci`；本地也可用 `cargo test`。具体依赖、测试隔离与桌面构建见 [桌面开发参考](docs/contributing-desktop.md)。不要同时运行多个大型 Rust 链接任务。
+共享 Rust 代码还需在安装好桌面系统依赖后运行默认 feature 的 Clippy。CI 桌面测试使用 `cargo nextest run --manifest-path src-tauri/Cargo.toml --profile ci`；本地也可用 `cargo test`。具体依赖、测试隔离与桌面构建见 [桌面开发参考](docs/contributing-desktop.md)。集成测试统一注册到 `src-tauri/tests/integration/main.rs`，共用一个测试二进制，避免重复链接。不要同时运行多个大型 Rust 链接任务。
 
 ## 4. 修改文档与文案
 
 - 用户能力说明更新 `app-support.json`，能力分类更新 `command-contract.json`，然后运行 `node scripts/web/generate-capabilities.mjs`；不要手改生成的两个支持表。
 - 部署行为变化要同步 [部署说明](docs/web-mode-zh.md) 和 [排错指南](docs/web-troubleshooting.md)。
-- 界面文案使用 i18next，更新 zh、zh-TW、en、ja；tr 是社区翻译，可以回退到英文。不要翻译命令名、路径或 `{{变量}}`。
+- 界面文案使用 i18next，同步更新 zh、zh-TW、en、de、ja、ko、tr、ru 八种语言，并运行语言键一致性测试。不要翻译命令名、路径或 `{{变量}}`。
+- 前后端共用的应用能力、常量与 URL 规则通过 `frontend_parity_tests.rs` 和 `tests/config/backendConstants.test.ts` 的 fixture 校验；有意修改规则时更新并审查 fixture。
 - 提交错误日志前移除令牌、API Key、会话正文与私人路径。
 
 ## 5. Pull Request

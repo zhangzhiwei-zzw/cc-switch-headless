@@ -46,6 +46,8 @@ import {
   useRestoreSkillBackup,
   useScanUnmanagedSkills,
   useSkillBackups,
+  useSkillRepoTokenActions,
+  useSkillRepoTokens,
   useSkillRepos,
   useToggleSkillApp,
   useUninstallSkill,
@@ -76,6 +78,7 @@ import { SkillsStorageSheet } from "./SkillsStorageSheet";
 import { useSkillsResync } from "./useSkillsResync";
 import { useSkillInstallTargets } from "./useSkillInstallTargets";
 import { describeRepoFailures } from "./repoFailures";
+import { repoWebUrl } from "./repoUrl";
 import type { ZipSkippedSkill } from "@/lib/api/skills";
 import { APP_IDS_WITH } from "@/config/appSpecs";
 
@@ -880,7 +883,11 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
     const url =
       skill.readmeUrl ||
       (skill.repoOwner && skill.repoName
-        ? `https://github.com/${skill.repoOwner}/${skill.repoName}`
+        ? repoWebUrl({
+            host: skill.repoHost,
+            owner: skill.repoOwner,
+            name: skill.repoName,
+          })
         : undefined);
     if (!url) return;
     try {
@@ -2128,6 +2135,8 @@ function RepoManagerContainer({ onClose }: { onClose: () => void }) {
   const { data: discoverable = [] } = useDiscoverableSkills();
   const { data: failures = [] } = useDiscoverableSkillsFailures();
   const { addRepo, removeRepo, setRepoEnabled } = useSkillRepoActions();
+  const { data: repoTokens } = useSkillRepoTokens();
+  const { setToken, deleteToken } = useSkillRepoTokenActions();
   return (
     <RepoManagerPanel
       repos={repos}
@@ -2136,6 +2145,12 @@ function RepoManagerContainer({ onClose }: { onClose: () => void }) {
       onAdd={addRepo}
       onRemove={removeRepo}
       onToggle={setRepoEnabled}
+      tokens={{
+        hosts: repoTokens?.hosts ?? [],
+        secureStorage: repoTokens?.secureStorage ?? true,
+        onSave: setToken,
+        onRemove: deleteToken,
+      }}
       onClose={onClose}
     />
   );

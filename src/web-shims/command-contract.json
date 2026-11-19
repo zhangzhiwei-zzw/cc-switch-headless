@@ -104,7 +104,10 @@
         "remove_skill_repo",
         "install_skills_from_zip",
         "discover_repo_skills",
-        "refresh_local_skill_metadata"
+        "refresh_local_skill_metadata",
+        "get_skill_repo_tokens",
+        "set_skill_repo_token",
+        "delete_skill_repo_token"
       ]
     },
     "pagePrompts": {
@@ -250,6 +253,10 @@
     },
     "privacyFilter": {
       "commands": ["get_privacy_filter_config", "set_privacy_filter_config"]
+    },
+    "pagePlugins": {
+      "enabled": false,
+      "commands": []
     }
   },
   "apps": {
@@ -267,7 +274,7 @@
     },
     "codex": {
       "feature": "pageProviders",
-      "commands": ["ensure_codex_official_provider"]
+      "commands": []
     },
     "gemini": {
       "feature": "pageProviders",
@@ -357,7 +364,6 @@
     "apply_profile": "profiles 的专用管理界面尚未接入 Web。",
     "auth_cancel_login": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "auth_get_status": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "auth_list_accounts": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "auth_logout": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "auth_poll_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "auth_remove_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
@@ -368,21 +374,10 @@
     "clear_claude_onboarding_skip": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "clear_current_profile": "profiles 的专用管理界面尚未接入 Web。",
     "codex_forces_multi_agent_v2": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
-    "copilot_get_auth_status": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "copilot_get_models": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "copilot_get_models_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_get_token": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_get_token_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "copilot_get_usage": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "copilot_get_usage_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_is_authenticated": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_list_accounts": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_logout": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_poll_for_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_poll_for_auth": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_remove_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_set_default_account": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "copilot_start_device_flow": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "create_profile": "profiles 的专用管理界面尚未接入 Web。",
     "delete_backup_location": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "delete_daily_memory_file": "workspace 的专用管理界面尚未接入 Web。",
@@ -393,12 +388,7 @@
     "disable_current_omo_slim": "omo 的专用管理界面尚未接入 Web。",
     "exit_proxy_apps_in_mode": "路由辅助设置或桌面客户端控制尚未接入 Web。",
     "fetch_deeplink_icon": "ccswitch:// 深链接仅由桌面客户端接收。",
-    "get_app_config_path": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
-    "get_auto_launch_status": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_balance": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
-    "get_circuit_breaker_config": "聚合与熔断器专用控制尚未接入 Web。",
-    "get_circuit_breaker_stats": "聚合与熔断器专用控制尚未接入 Web。",
-    "get_claude_code_config_path": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "get_codex_oauth_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_codex_oauth_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "get_codex_session_compression": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -422,9 +412,7 @@
     "get_session_image": "会话图片资源解析尚未接入 Web。",
     "get_subscription_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "get_tool_versions": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
-    "get_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "get_universal_providers": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
-    "get_upstream_proxy_status": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_xai_oauth_models": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "get_xai_oauth_quota": "托管账号登录及独立订阅接口未接入 Web；供应商用量使用 queryProviderUsage。",
     "has_codex_unify_history_backup": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -443,7 +431,6 @@
     "open_portable_update_download": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "open_provider_terminal": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "open_workspace_directory": "workspace 的专用管理界面尚未接入 Web。",
-    "parse_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
     "peek_pending_deeplink": "ccswitch:// 深链接仅由桌面客户端接收。",
     "pick_directory": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "prepare_tool_uninstall": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -454,11 +441,9 @@
     "read_omo_slim_local_file": "omo 的专用管理界面尚未接入 Web。",
     "read_workspace_file": "workspace 的专用管理界面尚未接入 Web。",
     "remove_custom_endpoint": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
-    "reset_circuit_breaker": "聚合与熔断器专用控制尚未接入 Web。",
     "restart_app": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "restart_codex_app_server_daemon": "路由辅助设置或桌面客户端控制尚未接入 Web。",
     "restore_codex_unified_history": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
-    "restore_env_backup": "直接修改宿主机环境变量的操作未接入 Web。",
     "reveal_app_log_file": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "reveal_backup_location": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
     "run_tool_lifecycle_action": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -490,8 +475,6 @@
     "sync_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "test_api_endpoints": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "test_proxy_url": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
-    "update_circuit_breaker_config": "聚合与熔断器专用控制尚未接入 Web。",
-    "update_endpoint_last_used": "模型发现、连通性诊断或出站代理专用配置尚未接入 Web。",
     "update_profile": "profiles 的专用管理界面尚未接入 Web。",
     "upsert_universal_provider": "终端、通用供应商或应用专用辅助操作尚未接入 Web。",
     "webdav_sync_download": "桌面设置、CLI 生命周期或云同步专用接口尚未接入 Web。",
@@ -531,7 +514,18 @@
     "get_config_status": "本机应用安装检测仅用于桌面应用页，Web 不提供 CLI 生命周期管理。",
     "diagnose_ip": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
     "get_auto_update_status": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
-    "download_app_update": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。"
+    "download_app_update": "原生网络诊断或桌面应用更新接口；Web 不提供对应入口。",
+    "list_installed_plugins": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "list_plugin_catalog": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "list_plugin_marketplaces": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "install_plugin": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "uninstall_plugin": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "set_plugin_enabled": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "update_plugin": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "add_plugin_marketplace": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "remove_plugin_marketplace": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "refresh_plugin_marketplaces": "插件管理依赖桌面本机 CLI 工具发现与运行；Web 暂不提供插件管理入口。",
+    "s3_sync_clear_settings": "S3 云同步设置未接入 Web，相关设置入口按能力隐藏。"
   },
   "validatedCommands": [
     "get_current_provider",

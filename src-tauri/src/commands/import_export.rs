@@ -150,18 +150,17 @@ pub async fn list_backup_locations(
 /// 删除一类备份（只认类别 id），返回释放的字节数
 #[tauri::command]
 pub async fn delete_backup_location(id: String) -> Result<u64, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    Ok(tauri::async_runtime::spawn_blocking(move || {
         crate::services::backup_storage::delete_location(&id)
     })
     .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())??)
 }
 
 /// 在文件管理器中显示一类备份所在的目录
 #[tauri::command]
 pub async fn reveal_backup_location(id: String) -> Result<bool, String> {
-    let dir = crate::services::backup_storage::location_dir(&id).map_err(|e| e.to_string())?;
+    let dir = crate::services::backup_storage::location_dir(&id)?;
     tauri_plugin_opener::reveal_item_in_dir(&dir).map_err(|e| format!("打开文件夹失败: {e}"))?;
     Ok(true)
 }

@@ -481,3 +481,26 @@ test("Codex native login editor does not wait for unsupported Web account status
   ).toHaveCount(0);
   expect(accountRequests).toEqual([]);
 });
+
+test("Web hides CLI plugins and recovers a stored desktop plugin view", async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/invoke"))
+      calls.push(request.postDataJSON()?.cmd);
+  });
+  await page.addInitScript(() =>
+    localStorage.setItem("cc-switch-last-view", "plugins"),
+  );
+  await login(page);
+  await expect(
+    page
+      .getByRole("navigation")
+      .getByRole("button", { name: "Plugins", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Add Provider", exact: true }),
+  ).toBeVisible();
+  expect(calls.some((cmd) => cmd?.includes("plugin"))).toBe(false);
+});

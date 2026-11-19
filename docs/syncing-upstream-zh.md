@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.32.lock`](upstream-v4.0.32.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.35.lock`](upstream-v4.0.35.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -89,6 +89,7 @@ Host github.com
 | 2026-11-07 | v4.0.26 → 会话正文搜索、界面密度与缩放 | 17 | 103 | 2 个文件 |
 | 2026-11-13 | v4.0.26 后续提交 → v4.0.31 + 5 commits | 136 | 435 | 17 个文件 |
 | 2026-11-15 | v4.0.31 后续提交 → v4.0.32 + 7 commits | 28 | 169 | 16 个文件 |
+| 2026-11-19 | v4.0.32 后续提交 → v4.0.35 + 13 commits | 118 | 549 | 24 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -562,10 +563,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.32.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.35.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.32.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.35.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
@@ -625,3 +626,33 @@ git revert -m 1 <merge-commit>   # 撤销这次 merge 引入的改动
 207 项 HTTP / 安全 / 安装回归、桌面 Clippy 和桌面测试代码编译通过。
 测试编译仍有既有的 `SystemKeychain::named` 未使用警告；未执行完整 Rust 测试二进制
 或跨平台发布构建。本次仅提交本地，不推送或发布。
+
+### 2026-11-19：同步 v4.0.35 与后续功能
+
+直接在本地 main 合并上游 `c29332ef`，共 118 个提交、549 个上游文件、24 个冲突文件。
+HTTPS 拉取失败后，通过 SSH 443 获取同一个上游仓库；不新增同步分支、不修改 upstream URL。
+
+数据库 DAO 改为接收 AppType 后，适配共享故障转移和 Web 路由。代理 forwarder 拆分为
+子模块后，继续使用 OAuth registry、host 运行时与 SSE 事件出口。WebDAV / S3 的后台同步
+复用上游泛型 worker，通过 host 与 event_sink 同时兼容桌面和 server。
+保留现有 Web MCP、Skills、用量兼容接口；上游不再使用的桌面封装按需删除。
+Claude 切换后的空值清理在 Web 启动恢复和退出时同样执行。
+
+Web 接入私有 Skill 仓库按主机保存的访问令牌，复用上游 GitLab、Gitea / Forgejo
+仓库支持；添加时使用完整仓库校验并规范化主机名。令牌不进入云同步，查询只返回主机清单。
+新增 HTTP 回归验证令牌生命周期、脱敏、非法主机与子组仓库。新增浏览器回归验证插件入口
+隐藏和桌面遗留视图恢复。插件管理依赖桌面 CLI 运行能力，新增 pagePlugins=false 门控，
+避免 Web 触发未接入命令。保留已有 Codex 默认账号加载修复、Windows 图标资源与黑窗口。
+
+本地 dev/test 继续保留 debug=0 和增量编译，避免改变既有节省空间策略；集成测试随上游
+统一为一个二进制，前后端规则 fixture 与八语言文案校验同步更新。
+
+验证：相关前端 62 个文件、1061 项用例通过（WorkBuddy 的一项在首次整批运行超时，
+单独重跑该文件 14 项全部通过），另外 59 项 Web 能力与 README / 语言覆盖检查通过。
+类型、格式、341 个前端命令 / 184 个服务端命令 / 16 个应用覆盖、13 个 RPC 契约与
+Web 构建通过；server Clippy 与构建通过。新二进制的 217 项 HTTP / 安全 / 安装回归
+和 14 项浏览器回归全部通过。本机测试进程需清除代理环境变量，并指定已有的
+`PLAYWRIGHT_BROWSERS_PATH=/tmp/cc-switch-playwright`，避免本地请求经代理或重复下载浏览器。
+
+桌面 Clippy 与桌面测试代码编译通过。完整 Rust 测试二进制和跨平台发布构建未在本机执行；
+仅合并并提交本地 main，不推送远程、不触发 CI 或 Release。

@@ -1293,8 +1293,6 @@ fn stop_proxy_server(context: Arc<Context>, _args: Value) -> HandlerFuture {
             || takeover.gemini
             || takeover.grokbuild
             || takeover.claude_desktop
-            || takeover.opencode
-            || takeover.openclaw
         {
             return Err(
                 "仍有应用处于代理接管状态，请先在设置中关闭对应应用接管后再停止本地路由。"
@@ -1358,7 +1356,7 @@ fn get_proxy_config_for_app(context: Arc<Context>, args: Value) -> HandlerFuture
         let state = context.require_state()?;
         let config = state
             .db
-            .get_proxy_config_for_app(&app_type)
+            .get_proxy_config_for_app(&to_app_type(&app_type)?)
             .await
             .map_err(|e| e.to_string())?;
         serializable(config)
@@ -1390,7 +1388,7 @@ fn update_proxy_config_for_app(context: Arc<Context>, args: Value) -> HandlerFut
 
         state
             .proxy_service
-            .update_circuit_breaker_config_for_app(&app_type, circuit_config)
+            .update_circuit_breaker_config_for_app(&app, circuit_config)
             .await?;
         Ok(Value::Bool(true))
     })
