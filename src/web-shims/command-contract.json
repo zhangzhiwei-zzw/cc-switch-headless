@@ -3,6 +3,7 @@
     "pageProviders": {
       "commands": [
         "get_providers",
+        "get_unreadable_providers",
         "get_current_provider",
         "add_provider",
         "update_provider",
@@ -67,6 +68,7 @@
         "delete_mcp_server_in_config",
         "set_mcp_enabled",
         "get_mcp_servers",
+        "get_unreadable_mcp_servers",
         "upsert_mcp_server",
         "delete_mcp_server",
         "toggle_mcp_app",

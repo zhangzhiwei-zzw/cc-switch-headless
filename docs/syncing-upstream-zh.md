@@ -4,7 +4,7 @@
 上游会持续加新供应商预设、新 CLI 支持、修代理和会话解析的 bug。这份文档是怎么把它们
 合进来、以及合并时要注意什么。
 
-基线记录在 [`upstream-v4.0.35.lock`](upstream-v4.0.35.lock)：那个文件里的
+基线记录在 [`upstream-v4.0.38.lock`](upstream-v4.0.38.lock)：那个文件里的
 `last_merged_commit` 就是「这个 fork 跟到上游哪里」。
 
 ## 一次性配置
@@ -90,6 +90,7 @@ Host github.com
 | 2026-11-13 | v4.0.26 后续提交 → v4.0.31 + 5 commits | 136 | 435 | 17 个文件 |
 | 2026-11-15 | v4.0.31 后续提交 → v4.0.32 + 7 commits | 28 | 169 | 16 个文件 |
 | 2026-11-19 | v4.0.32 后续提交 → v4.0.35 + 13 commits | 118 | 549 | 24 个文件 |
+| 2026-11-22 | v4.0.35 后续提交 → v4.0.38 + 17 commits | 82 | 349 | 14 个文件 |
 
 统计口径：表中「上游提交 / 上游改动文件」都是**相对 merge base** 的上游侧改动，用三点
 diff 与 `rev-list` 计算，别用 `git diff A B`（会把 fork 独有的文件也算成删除）：
@@ -563,10 +564,10 @@ git grep -n "v4\.0\.9" -- README* docs/syncing-upstream-zh.md docs/web-mode-zh.m
 
 ## 合并完更新基线
 
-把 `docs/upstream-v4.0.35.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
+把 `docs/upstream-v4.0.38.lock` 改名成新的基线并更新内容，例如合到上游 `v4.1.0` 之后：
 
 ```bash
-git mv docs/upstream-v4.0.35.lock docs/upstream-v4.1.0.lock
+git mv docs/upstream-v4.0.38.lock docs/upstream-v4.1.0.lock
 # 改 upstream_tag / upstream_commit / last_merged_commit / resolved_at
 ```
 
@@ -656,3 +657,17 @@ Web 构建通过；server Clippy 与构建通过。新二进制的 217 项 HTTP 
 
 桌面 Clippy 与桌面测试代码编译通过。完整 Rust 测试二进制和跨平台发布构建未在本机执行；
 仅合并并提交本地 main，不推送远程、不触发 CI 或 Release。
+
+
+### 2026-11-22：同步 v4.0.38 与后续修复
+
+本地 main 合并上游 `18a72b84b`。Web 接入供应商和 MCP 无法读取条目的诊断，
+会话正文索引失败时将错误传给界面。保留插件页能力门控、共享故障转移服务、
+Skill 与用量兼容接口、无头构建和 Windows 服务端图标。
+故障转移移除供应商时通过共享代理服务清理熔断状态。
+
+验证：Web 命令覆盖（343 个前端命令、186 个服务端命令）和 13 个 RPC 契约通过。
+前端类型、格式、Knip 与 Web 构建通过。相关前端 70 个文件共 1313 项用例，
+下拉菜单的一项首次运行受真实计时影响，改为可控计时后该文件 5 项全部通过。
+无头服务端 Clippy 与构建通过，217 项 HTTP / 安全 / 安装回归及 14 项浏览器回归通过。
+桌面全目标 Clippy 和 Rust 格式检查通过。完整 Rust 测试运行与跨平台发布构建留给 CI。

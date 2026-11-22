@@ -1,6 +1,6 @@
 [package]
 name = "cc-switch"
-version = "4.0.35"
+version = "4.0.38"
 description = "Headless web server mode for CC Switch: manage AI CLI providers, routing and sessions from a browser."
 authors = ["Jason Young"]
 license = "MIT"
@@ -152,6 +152,7 @@ webkit2gtk = { version = "2.0.1", features = ["v2_16"], optional = true }
 # 上游新加的：只有 linux_fix.rs（#[cfg(all(target_os = "linux", feature = "desktop"))]）
 # 用它。跟着 webkit2gtk 一起设成 optional，server 构建才不会又要求装 GTK 开发包。
 gtk = { version = "0.18", optional = true }
+secret-service = { version = "~5.1.0", features = ["rt-async-io-crypto-rust"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = "0.2"
@@ -178,12 +179,11 @@ windows-sys = { version = "0.61", features = [
 rquickjs = { version = "0.8", features = ["bindgen"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.5"
-objc2-app-kit = { version = "0.2", features = ["NSColor"] }
-# 托盘面板的原生玻璃：NSGlassEffectView（macOS 26）/ NSVisualEffectView；0.2 那套没有前者
-objc2-06 = { package = "objc2", version = "0.6" }
-objc2-foundation-03 = { package = "objc2-foundation", version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString"] }
-objc2-app-kit-03 = { package = "objc2-app-kit", version = "0.3", default-features = false, features = ["std", "NSAppearance", "NSGlassEffectView", "NSGraphics", "NSResponder", "NSScreen", "NSView", "NSVisualEffectView", "NSWindow"] }
+# 托盘面板的原生玻璃：NSGlassEffectView（macOS 26）/ NSVisualEffectView
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSNotification", "NSOperation", "NSString", "block2"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAppearance", "NSGlassEffectView", "NSGraphics", "NSResponder", "NSScreen", "NSView", "NSVisualEffectView", "NSWindow"] }
 
 # 本地开发/测试不生成完整调试符号，减少缓存与测试二进制的磁盘占用。
 # 保留增量编译；需要源码行号时可临时设置 CARGO_PROFILE_DEV_DEBUG=line-tables-only。
@@ -208,6 +208,5 @@ strip = "symbols"
 
 [dev-dependencies]
 serial_test = "3"
-tempfile = "3"
 tauri = { version = "2.8.2", features = ["test"] }
 tokio = { version = "1", features = ["test-util"] }

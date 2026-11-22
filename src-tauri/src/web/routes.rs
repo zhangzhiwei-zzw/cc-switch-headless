@@ -199,6 +199,10 @@ fn dispatch_table() -> &'static HashMap<&'static str, Handler> {
 
         // ---- 供应商 ----
         table.insert("get_providers", get_providers as Handler);
+        table.insert(
+            "get_unreadable_providers",
+            get_unreadable_providers as Handler,
+        );
         table.insert("get_current_provider", get_current_provider as Handler);
         table.insert("add_provider", add_provider as Handler);
         table.insert("update_provider", update_provider as Handler);
@@ -731,6 +735,20 @@ fn get_providers(context: Arc<Context>, args: Value) -> HandlerFuture {
             serializable(providers)
         })
         .await
+    })
+}
+
+fn get_unreadable_providers(context: Arc<Context>, args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        #[derive(serde::Deserialize)]
+        struct Args {
+            app: String,
+        }
+        let Args { app } = parse(args)?;
+        let app = to_app_type(&app)?;
+        let state = context.require_state()?;
+        deferred(move || ProviderService::list_unreadable(&state, app).map_err(|e| e.to_string()))
+            .await
     })
 }
 
@@ -1766,7 +1784,7 @@ fn search_session_content(_context: Arc<Context>, args: Value) -> HandlerFuture 
             args.limit
                 .unwrap_or(crate::session_manager::search::DEFAULT_LIMIT)
                 .min(crate::session_manager::search::DEFAULT_LIMIT),
-        ))
+        )?)
     })
 }
 

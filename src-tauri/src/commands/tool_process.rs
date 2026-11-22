@@ -223,7 +223,7 @@ pub(crate) fn run_detected_tool_command_with_timeout(
             .map(|value| value.to_string_lossy().into_owned())
             .unwrap_or_default();
         match login_shell_path(deadline) {
-            Some(login_path) => merge_path_segments(&login_path, &inherited),
+            Some(login_path) => crate::host::merge_path_segments(&login_path, &inherited),
             None => inherited,
         }
     };
@@ -298,7 +298,7 @@ pub(crate) fn detected_tool_command(
             .map(|value| value.to_string_lossy().into_owned())
             .unwrap_or_default();
         let current_path = match login_shell_path(deadline) {
-            Some(login_path) => merge_path_segments(&login_path, &inherited),
+            Some(login_path) => crate::host::merge_path_segments(&login_path, &inherited),
             None => inherited,
         };
         let mut cmd = std::process::Command::new(&tool_path);

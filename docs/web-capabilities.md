@@ -6,11 +6,11 @@
 
 | 功能 | Web 状态 | 必需命令数 |
 | --- | --- | --- |
-| `pageProviders` | 可用 | 14 |
+| `pageProviders` | 可用 | 15 |
 | `pageRouting` | 可用 | 11 |
 | `pageSessions` | 可用 | 9 |
 | `pageImportExport` | 可用 | 5 |
-| `pageMcp` | 可用 | 15 |
+| `pageMcp` | 可用 | 16 |
 | `pageSkills` | 可用 | 32 |
 | `pagePrompts` | 可用 | 13 |
 | `pageUsage` | 可用 | 27 |

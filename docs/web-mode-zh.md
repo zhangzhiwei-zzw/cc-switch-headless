@@ -5,8 +5,8 @@
 > 用**同一个前端源码**起一个本地 HTTP 服务，浏览器打开后界面与桌面版一致。
 >
 > 上游项目：[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（MIT）。
-> 当前对标基线 **v4.0.35**（已合并至上游 `c29332ef`，标签后 13 个提交），见
-> [`upstream-v4.0.35.lock`](upstream-v4.0.35.lock)。
+> 当前对标基线 **v4.0.38**（已合并至上游 `18a72b84b`，标签后 17 个提交），见
+> [`upstream-v4.0.38.lock`](upstream-v4.0.38.lock)。
 
 本次同步新增 Copilot CLI 与 WorkBuddy，共支持 16 个应用。Copilot CLI 可管理服务器
 `~/.copilot/providers.json` 的 BYOK 卡和官方模型配置；官方登录由服务器 CLI 管理。
@@ -312,7 +312,7 @@ curl -X POST http://127.0.0.1:15800/api/rotate-token \
   供应商用量查询（余额 / Coding Plan / 官方订阅额度 / 通用 JS 脚本）；
 - **会话正文搜索**：在会话页按需启用，默认关闭；服务端建立独立的
   `~/.cc-switch/session-index.db`（不进入主库备份与云同步），按应用过滤并返回消息摘录。
-  关闭后删除索引文件；所有已认证浏览器共用服务端开关与索引。索引读取复用 Web 的
+  索引查询失败时会显示错误。关闭后删除索引文件；所有已认证浏览器共用服务端开关与索引。索引读取复用 Web 的
   会话并发、64 MiB 源、32 MiB 结果和 2 MiB 单消息限制，超限或繁忙时跳过该源、下次同步重试。
 - **界面偏好**：密度和缩放保存在各浏览器的 localStorage；Web 使用页面缩放，桌面使用
   WebView 缩放。Ctrl / ⌘ 加减号和 0 可调整或恢复，刷新后保留。

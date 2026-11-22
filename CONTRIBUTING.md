@@ -68,6 +68,7 @@ Web/server 的完整命令从仓库根目录执行：
 pnpm check:web
 pnpm typecheck
 pnpm format:check
+pnpm knip
 pnpm build:web
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features server --bin cc-switch-server -- -D warnings
@@ -79,7 +80,7 @@ pnpm test:web
 
 `pnpm check:web` 包含覆盖检查器自身的 Node 测试。只查看静态结果时，可分别运行 `node scripts/web/check-command-coverage.mjs`、`node scripts/web/check-rpc-contract.mjs`、`node scripts/web/generate-capabilities.mjs --check`。
 
-共享 Rust 代码还需在安装好桌面系统依赖后运行默认 feature 的 Clippy。CI 桌面测试使用 `cargo nextest run --manifest-path src-tauri/Cargo.toml --profile ci`；本地也可用 `cargo test`。具体依赖、测试隔离与桌面构建见 [桌面开发参考](docs/contributing-desktop.md)。集成测试统一注册到 `src-tauri/tests/integration/main.rs`，共用一个测试二进制，避免重复链接。不要同时运行多个大型 Rust 链接任务。
+共享 Rust 代码还需在安装好桌面系统依赖后运行默认 feature 的 `cargo clippy --all-targets -- -D warnings`。CI 桌面测试使用 `cargo nextest run --manifest-path src-tauri/Cargo.toml --profile ci`；本地也可用 `cargo test`。具体依赖、测试隔离与桌面构建见 [桌面开发参考](docs/contributing-desktop.md)。集成测试统一注册到 `src-tauri/tests/integration/main.rs`，共用一个测试二进制，避免重复链接。不要同时运行多个大型 Rust 链接任务。
 
 ## 4. 修改文档与文案
 

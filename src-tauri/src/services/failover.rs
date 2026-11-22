@@ -54,8 +54,9 @@ pub async fn get_queue(state: &AppState, app_type: &str) -> Result<Vec<FailoverQ
     // Codex 官方账号卡留在队列里没有意义，读取时过滤掉
     let providers = state
         .db
-        .get_all_providers(&app_enum)
-        .map_err(|e| e.to_string())?;
+        .get_provider_rows(&app_enum)
+        .map_err(|e| e.to_string())?
+        .into_readable("故障转移队列");
     Ok(filter_supported(&app_enum, queue, &providers))
 }
 
@@ -70,8 +71,9 @@ pub async fn get_available_providers(
         .map_err(|e| e.to_string())?;
     let providers = state
         .db
-        .get_all_providers(&app_enum)
+        .get_provider_rows(&app_enum)
         .map_err(|e| e.to_string())?
+        .into_readable("可用故障转移供应商")
         .into_values()
         .filter(|provider| !queue.iter().any(|item| item.provider_id == provider.id));
     Ok(providers
@@ -93,8 +95,9 @@ pub async fn add(state: &AppState, app_type: &str, provider_id: &str) -> Result<
 pub async fn remove(state: &AppState, app_type: &str, provider_id: &str) -> Result<(), String> {
     let app_enum = require_failover_app(app_type)?;
     state
-        .db
+        .proxy_service
         .remove_from_failover_queue(&app_enum, provider_id)
+        .await
         .map_err(|e| e.to_string())
 }
 
@@ -139,8 +142,9 @@ pub async fn set_auto_failover_enabled(
     let p1_provider_id = if enabled {
         let all_providers = state
             .db
-            .get_all_providers(&app_enum)
-            .map_err(|e| e.to_string())?;
+            .get_provider_rows(&app_enum)
+            .map_err(|e| e.to_string())?
+            .into_readable("开启故障转移");
         let mut queue = filter_supported(
             &app_enum,
             state
@@ -195,7 +199,10 @@ pub async fn set_auto_failover_enabled(
                 .await
         {
             if let Some(provider_id) = auto_added_provider_id {
-                let _ = state.db.remove_from_failover_queue(&app_enum, &provider_id);
+                let _ = state
+                    .proxy_service
+                    .remove_from_failover_queue(&app_enum, &provider_id)
+                    .await;
             }
             return Err(error);
         }

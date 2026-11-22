@@ -171,3 +171,31 @@ pub fn terminate_child_tree(child: &mut std::process::Child) -> bool {
     let _ = child.wait();
     killed
 }
+
+/// 合并两段 PATH：`primary` 全部保留在前，`extra` 中未出现过的段按序追加。
+/// 空段直接丢弃（`a::b` 里的空段在 POSIX 下语义是"当前目录"，注入时不该带上）。
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn merge_path_segments(primary: &str, extra: &str) -> String {
+    let mut seen = std::collections::HashSet::new();
+    let mut merged: Vec<&str> = Vec::new();
+    for segment in primary.split(':').chain(extra.split(':')) {
+        if segment.is_empty() || !seen.insert(segment) {
+            continue;
+        }
+        merged.push(segment);
+    }
+    merged.join(":")
+}
+
+/// 桌面进程可以补齐登录 shell 的 PATH，服务端继承启动环境。
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn cached_login_shell_path() -> Option<String> {
+    #[cfg(feature = "desktop")]
+    {
+        crate::commands::cached_login_shell_path()
+    }
+    #[cfg(not(feature = "desktop"))]
+    {
+        None
+    }
+}

@@ -26,6 +26,7 @@ pub const HANDLERS: &[(&str, Handler)] = &[
     ("delete_mcp_server_in_config", delete_mcp_server_in_config),
     ("set_mcp_enabled", set_mcp_enabled),
     ("get_mcp_servers", get_mcp_servers),
+    ("get_unreadable_mcp_servers", get_unreadable_mcp_servers),
     ("upsert_mcp_server", upsert_mcp_server),
     ("delete_mcp_server", delete_mcp_server),
     ("toggle_mcp_app", toggle_mcp_app),
@@ -191,6 +192,13 @@ fn set_mcp_enabled(context: Arc<Context>, args: Value) -> HandlerFuture {
             .await
             .map(|_| Value::Bool(true))
             .map_err(|e| e.to_string())
+    })
+}
+
+fn get_unreadable_mcp_servers(context: Arc<Context>, _args: Value) -> HandlerFuture {
+    Box::pin(async move {
+        let state = context.require_state()?;
+        deferred(move || McpService::list_unreadable(&state).map_err(|e| e.to_string())).await
     })
 }
 

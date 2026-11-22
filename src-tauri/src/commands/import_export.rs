@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use serde_json::{json, Value};
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
